@@ -1,0 +1,13 @@
+# Reference material for development (the SRD PDFs, internal legal
+# notes). Not for distribution — every consumer would otherwise pay
+# the ~17 MB download just to read the rules they already own.
+docs/references/
+
+# Development-only configuration that the `files` whitelist already
+# excludes, listed here belt-and-braces for anyone who runs
+# `npm publish` without the whitelist.
+tsconfig.json
+tests/
+coverage/
+.nyc_output/
+*.tgz

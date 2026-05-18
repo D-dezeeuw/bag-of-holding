@@ -1,0 +1,7 @@
+.DS_Store
+node_modules/
+*.log
+
+# Reference material for development (SRD PDFs, internal IP notes).
+# Not for public distribution; keep local copies outside the repo.
+docs/references/

@@ -1,0 +1,64 @@
+{
+  "name": "bag-of-holding",
+  "version": "0.0.1",
+  "description": "A tiny, AI-agnostic D&D 5e (SRD 5.2) rules kernel. Zero runtime dependencies, single ESM file, CDN-loadable, plugin-extensible. Dice, checks, combat, weapon mastery, conditions, XP, movesets, and a beat-based story runtime.",
+  "type": "module",
+  "main": "index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "import": "./index.js"
+    }
+  },
+  "sideEffects": false,
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "src/",
+    "docs/why.md",
+    "docs/spec.md",
+    "docs/roadmap.md",
+    "docs/boundary.md",
+    "docs/beat-schema.md",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "dnd",
+    "dungeons-and-dragons",
+    "5e",
+    "srd",
+    "srd-5.2",
+    "ttrpg",
+    "rpg",
+    "rules-engine",
+    "dice",
+    "ai-dm",
+    "ai-dungeon-master",
+    "esm",
+    "zero-dependency",
+    "cdn"
+  ],
+  "author": "Danny de Zeeuw <danny@nekomedia.nl>",
+  "license": "MPL-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/D-dezeeuw/bag-of-holding.git"
+  },
+  "homepage": "https://github.com/D-dezeeuw/bag-of-holding#readme",
+  "bugs": "https://github.com/D-dezeeuw/bag-of-holding/issues",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "test:coverage": "node --test --experimental-test-coverage --test-coverage-exclude='tests/**' tests/*.test.js",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm test && npm run typecheck"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}

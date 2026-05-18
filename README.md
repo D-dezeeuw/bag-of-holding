@@ -1,0 +1,166 @@
+# bag-of-holding
+
+[![npm version](https://img.shields.io/npm/v/bag-of-holding.svg?style=flat-square)](https://www.npmjs.com/package/bag-of-holding)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/bag-of-holding?style=flat-square&label=min%2Bgzip)](https://bundlephobia.com/package/bag-of-holding)
+[![zero deps](https://img.shields.io/badge/dependencies-0-brightgreen.svg?style=flat-square)](./package.json)
+[![types: built-in](https://img.shields.io/badge/types-built--in-blue.svg?style=flat-square)](./index.d.ts)
+[![coverage 100%](https://img.shields.io/badge/coverage-100%25-brightgreen.svg?style=flat-square)](#development)
+[![SRD 5.2 (2025)](https://img.shields.io/badge/SRD-5.2%20(2025)-orange.svg?style=flat-square)](https://www.dndbeyond.com/srd)
+[![license: MPL 2.0](https://img.shields.io/badge/license-MPL%202.0-blue.svg?style=flat-square)](./LICENSE)
+
+A tiny, AI-agnostic D&D 5e (**SRD 5.2**) rules kernel. **Zero runtime
+dependencies, single ESM file, CDN-loadable.** Designed to plug into
+any AI-driven RPG host — or any host — without locking you to a
+model, a framework, or a virtual tabletop.
+
+> The math is the engine. The host owns the prose, the persistence,
+> and the AI loop. See [docs/why.md](docs/why.md) for the case behind
+> the design.
+
+## Highlights
+
+- **Zero runtime dependencies.** One ESM file, auditable line by line.
+- **AI-agnostic by construction.** No network calls, no DOM, never
+  talks to a model. See [docs/boundary.md](docs/boundary.md).
+- **Pure functions, plain data.** Every result is serialisable;
+  designed to be replay-deterministic with a seeded RNG.
+- **Plugin-extensible at the kernel.** Custom species, classes, items,
+  conditions, and weapon-mastery handlers via `createEngine({ … })`.
+- **TypeScript types included.** Hand-maintained `index.d.ts` with a
+  `tsc --noEmit` drift gate. No `@types/` install needed.
+- **SRD 5.2 (2025).** Weapon Mastery, numeric Exhaustion,
+  Backgrounds-as-ability-source — the current rules, not a 5.1 carry-over.
+- **100% line / branch / function coverage** as an ongoing contract.
+
+## Install
+
+```bash
+npm install bag-of-holding
+```
+
+Or drop it straight into a static page from a CDN — no build step:
+
+```html
+<script type="module">
+  import { Combat, SRD } from 'https://unpkg.com/bag-of-holding';
+
+  const result = Combat.attackRoll({ attackBonus: 5, ac: 14 });
+  console.log(result);
+</script>
+```
+
+## Use
+
+```js
+import {
+  Dice, Checks, Combat, Conditions, XP, Movesets, Beats, SRD
+} from 'bag-of-holding';
+
+// Roll dice with the standard XdY±Z grammar.
+Dice.roll('2d6+3');
+// → { spec: '2d6+3', rolls: [4, 5], modifier: 3, total: 12 }
+
+// Resolve an attack and (on a hit) the damage.
+const attack = Combat.attackRoll({ attackBonus: 5, ac: 14 });
+if (attack.hit) {
+  Combat.damageRoll({
+    damageDice: '1d8',
+    damageMod: 3,
+    critical: attack.critical
+  });
+}
+
+// SRD 5.2 Weapon Mastery — riders resolve declaratively.
+const longsword = SRD.items.longsword;       // mastery: 'sap'
+const rider = Combat.applyMastery(longsword, target, attack);
+// → { kind: 'sap', disadvantage: true }     (target's next attack)
+
+// Conditions are immutable — apply / remove returns a new actor.
+const blinded = Conditions.apply(actor, 'blinded');
+const tired   = Conditions.exhaustion.gain(actor);   // 0..6, SRD 5.2
+
+// XP and level math.
+XP.levelForXP(2700);          // → 4
+XP.nextLevelThreshold(2700);  // → 6500
+```
+
+## Custom rules (plugins)
+
+For homebrew content — extra species, alternate conditions, custom
+weapon-mastery properties — instantiate a custom engine:
+
+```js
+import { createEngine } from 'bag-of-holding';
+
+const engine = createEngine({
+  extraSpecies: {
+    'half-elf': {
+      id: 'half-elf', name: 'Half-Elf',
+      size: 'medium', speed: 30, traits: ['Adaptable']
+    }
+  },
+  extraConditions: ['cursed'],
+  extraMastery: {
+    pin: (weapon, target, result) =>
+      result.hit
+        ? { kind: 'pin', condition: 'grappled', duration: '1 turn' }
+        : { kind: 'none' }
+  }
+});
+
+engine.Combat.applyMastery({ mastery: 'pin' }, target, attackResult);
+engine.Conditions.apply(actor, 'cursed');
+engine.species['half-elf'];
+```
+
+The default singleton (the `Combat`, `Conditions`, … you import directly)
+is just `createEngine()` with no opts. Two engines on the same page have
+fully independent registries; nothing leaks.
+
+See [docs/spec.md § Plugins](docs/spec.md) for the full contract,
+validation behaviour, and merge semantics.
+
+## Documentation
+
+- [docs/why.md](docs/why.md) — the case for the library: market gap,
+  niche, moat, the conditions under which this would be a waste of
+  time. Read first.
+- [docs/spec.md](docs/spec.md) — what the engine implements (and what
+  it doesn't); plugin contract; types.
+- [docs/roadmap.md](docs/roadmap.md) — versioned milestones from today
+  (`0.x`) to feature-complete (`1.0`) and the vision behind them.
+- [docs/boundary.md](docs/boundary.md) — the contract: what the engine
+  **won't** do.
+- [docs/beat-schema.md](docs/beat-schema.md) — the story-beat shape
+  and runtime.
+
+## Requirements
+
+- Any **ESM-capable runtime** for consumption (Node ≥ 18, every modern
+  browser, Deno, Bun).
+- **Node ≥ 22** for development (the test suite uses `node --test`
+  with `--experimental-test-coverage`).
+
+## Development
+
+```bash
+npm test                  # 115 tests, ~70ms
+npm run test:coverage     # 100 / 100 / 100 line / branch / function
+npm run typecheck         # tsc --noEmit against the hand-maintained .d.ts
+```
+
+The coverage and typecheck scripts are the quality gates; the library
+maintains 100 / 100 / 100 as an ongoing contract, not a one-time
+achievement.
+
+## License
+
+[MPL 2.0](LICENSE) — file-level copyleft. Use the engine in any
+application, closed or open. If you modify any of the engine's
+**files**, those modifications stay under MPL 2.0 and remain
+available in source form; everything *around* the engine in your
+application is unaffected. See
+[docs/why.md § Why MPL 2.0](docs/why.md) for the reasoning.
+
+Built on the [SRD 5.2](https://www.dndbeyond.com/srd) by Wizards of
+the Coast, licensed [CC-BY-4.0](https://creativecommons.org/licenses/by/4.0/).
