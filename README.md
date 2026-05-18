@@ -1,7 +1,7 @@
 # bag-of-holding
 
-[![npm version](https://img.shields.io/npm/v/@nekomedia/bag-of-holding.svg?style=flat-square)](https://www.npmjs.com/package/@nekomedia/bag-of-holding)
-[![bundle size](https://img.shields.io/bundlephobia/minzip/@nekomedia/bag-of-holding?style=flat-square&label=min%2Bgzip)](https://bundlephobia.com/package/@nekomedia/bag-of-holding)
+[![npm version](https://img.shields.io/npm/v/@zeeuw/bag-of-holding.svg?style=flat-square)](https://www.npmjs.com/package/@zeeuw/bag-of-holding)
+[![bundle size](https://img.shields.io/bundlephobia/minzip/@zeeuw/bag-of-holding?style=flat-square&label=min%2Bgzip)](https://bundlephobia.com/package/@zeeuw/bag-of-holding)
 [![zero deps](https://img.shields.io/badge/dependencies-0-brightgreen.svg?style=flat-square)](./package.json)
 [![types: built-in](https://img.shields.io/badge/types-built--in-blue.svg?style=flat-square)](./index.d.ts)
 [![coverage 100%](https://img.shields.io/badge/coverage-100%25-brightgreen.svg?style=flat-square)](#development)
@@ -35,14 +35,14 @@ model, a framework, or a virtual tabletop.
 ## Install
 
 ```bash
-npm install @nekomedia/bag-of-holding
+npm install @zeeuw/bag-of-holding
 ```
 
 Or drop it straight into a static page from a CDN — no build step:
 
 ```html
 <script type="module">
-  import { Combat, SRD } from 'https://unpkg.com/@nekomedia/bag-of-holding';
+  import { Combat, SRD } from 'https://unpkg.com/@zeeuw/bag-of-holding';
 
   const result = Combat.attackRoll({ attackBonus: 5, ac: 14 });
   console.log(result);
@@ -54,7 +54,7 @@ Or drop it straight into a static page from a CDN — no build step:
 ```js
 import {
   Dice, Checks, Combat, Conditions, XP, Movesets, Beats, SRD
-} from '@nekomedia/bag-of-holding';
+} from '@zeeuw/bag-of-holding';
 
 // Roll dice with the standard XdY±Z grammar.
 Dice.roll('2d6+3');
@@ -90,7 +90,7 @@ For homebrew content — extra species, alternate conditions, custom
 weapon-mastery properties — instantiate a custom engine:
 
 ```js
-import { createEngine } from '@nekomedia/bag-of-holding';
+import { createEngine } from '@zeeuw/bag-of-holding';
 
 const engine = createEngine({
   extraSpecies: {

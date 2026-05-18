@@ -1,5 +1,5 @@
 {
-  "name": "@nekomedia/bag-of-holding",
+  "name": "@zeeuw/bag-of-holding",
   "version": "0.0.1",
   "description": "A tiny, AI-agnostic D&D 5e (SRD 5.2) rules kernel. Zero runtime dependencies, single ESM file, CDN-loadable, plugin-extensible. Dice, checks, combat, weapon mastery, conditions, XP, movesets, and a beat-based story runtime.",
   "type": "module",

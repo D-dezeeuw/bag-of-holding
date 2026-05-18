@@ -56,7 +56,7 @@ The blocking gap before any consumer can rely on replay.
   `rollDie` call can be captured for replay or audit.
 - **First npm publish.** Tag `v0.1.0`, push to npm with the existing
   `types` + `exports` shape. Verify the CDN paths
-  (`unpkg.com/@nekomedia/bag-of-holding@0.1.0/index.js`) resolve.
+  (`unpkg.com/@zeeuw/bag-of-holding@0.1.0/index.js`) resolve.
 
 *Why first:* Dungeons-and-Dans depends on Spektrum's history primitive
 for undo and chapter rewinds; the rules engine must be replay-compatible

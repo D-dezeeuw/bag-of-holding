@@ -5,14 +5,14 @@
 //   1. Default singleton — convenient for the common single-engine
 //      case. Namespaces are spread as named exports.
 //
-//      import { Combat, Conditions, SRD } from '@nekomedia/bag-of-holding';
+//      import { Combat, Conditions, SRD } from '@zeeuw/bag-of-holding';
 //      Combat.applyMastery(weapon, target, attackResult);
 //
 //   2. Custom engine — when you want to mix in plugin content
 //      (homebrew species, custom masteries, additional conditions)
 //      or run multiple isolated rule sets on the same page.
 //
-//      import { createEngine } from '@nekomedia/bag-of-holding';
+//      import { createEngine } from '@zeeuw/bag-of-holding';
 //      const engine = createEngine({ extraSpecies: { 'half-elf': ... } });
 //      engine.Combat.applyMastery(weapon, target, attackResult);
 //
