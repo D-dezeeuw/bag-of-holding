@@ -56,9 +56,9 @@ The blocking gap before any consumer can rely on replay.
   `rollDie` call can be captured for replay or audit.
 - **First npm publish.** Tag `v0.1.0`, push to npm with the existing
   `types` + `exports` shape. Verify the CDN paths
-  (`unpkg.com/bag-of-holding@0.1.0/index.js`) resolve.
+  (`unpkg.com/@nekomedia/bag-of-holding@0.1.0/index.js`) resolve.
 
-_Why first:_ Dungeons-and-Dans depends on Spektrum's history primitive
+*Why first:* Dungeons-and-Dans depends on Spektrum's history primitive
 for undo and chapter rewinds; the rules engine must be replay-compatible
 before the app can wire it in.
 
@@ -77,7 +77,7 @@ Plugins can already contribute *content*. Phase B lets them contribute
 - **Documented compatibility surface.** Each knob ships with a one-
   line description in `spec.md` and an entry in `index.d.ts`.
 
-_Why now:_ Real homebrew demands more than data — house rules,
+*Why now:* Real homebrew demands more than data — house rules,
 weapon-specific crit ranges, exploding dice, "saves crit on 20" all
 hit the math. Without Phase B, themed packs are limited to
 re-skinning content.
@@ -94,7 +94,7 @@ Closes the plugin trifecta: content (A), rules (B), behaviour (C).
   hooks live on the engine instance and don't leak across instances.
 - **Tests for hook ordering and isolation** between engines.
 
-_Why deferred until 0.3:_ We don't yet know which hooks consumers
+*Why deferred until 0.3:* We don't yet know which hooks consumers
 will actually reach for. Better to ship 0.1 and 0.2, get usage
 feedback, and pick the right five than to ship fifteen speculative
 ones.

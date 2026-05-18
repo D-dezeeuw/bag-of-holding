@@ -81,7 +81,7 @@ Two consumption modes, same shape underneath.
 ### Default singleton (single-engine apps)
 
 ```js
-import { Dice, Checks, Combat, Conditions, XP, Movesets, Beats, SRD } from 'bag-of-holding';
+import { Dice, Checks, Combat, Conditions, XP, Movesets, Beats, SRD } from '@nekomedia/bag-of-holding';
 Combat.attackRoll({ attackBonus: 5, ac: 15 });
 SRD.species.dragonborn;
 ```
@@ -102,7 +102,7 @@ SRD.species.dragonborn;
 ### `createEngine(opts)` (custom rule sets, plugins)
 
 ```js
-import { createEngine } from 'bag-of-holding';
+import { createEngine } from '@nekomedia/bag-of-holding';
 
 const engine = createEngine({
   extraSpecies: { 'half-elf': { id: 'half-elf', name: 'Half-Elf', size: 'medium', speed: 30, traits: ['Adaptable'] } },
