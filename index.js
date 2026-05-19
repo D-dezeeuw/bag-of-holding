@@ -26,6 +26,7 @@
 // `createEngine()` with no options.
 
 import * as Classes from './src/classes/index.js';
+import * as CharacterModule from './src/character.js';
 import { createEngine } from './src/engine.js';
 import { verifyLog } from './src/replay.js';
 
@@ -38,6 +39,17 @@ export const {
   Dice, Checks, Combat, Conditions, XP, Movesets, Beats,
   species, classes, backgrounds, feats, spells, items
 } = _default;
+
+// Character — exposed as a namespace so module-level callers can
+// derive sheets without going through the default singleton:
+//   import { Character, createEngine } from '@zeeuw/bag-of-holding';
+//   Character.deriveSheet(record, createEngine());
+// The default singleton's `deriveSheet` also re-exports below for the
+// common case ("just give me the sheet").
+export const Character = Object.freeze({
+  deriveSheet: CharacterModule.deriveSheet,
+  SKILL_ABILITY: CharacterModule.SKILL_ABILITY
+});
 
 // Back-compat `SRD` namespace: groups the data registries the way
 // pre-Phase-A consumers imported them. New code can read the

@@ -1,0 +1,15 @@
+{
+  "id": "pc-2",
+  "name": "Linnet",
+  "speciesId": "halfling",
+  "backgroundId": "criminal",
+  "classId": "rogue",
+  "level": 1,
+  "abilityScores": { "str": 8, "dex": 16, "con": 14, "int": 12, "wis": 10, "cha": 11 },
+  "equipment": {
+    "weaponIds": ["dagger"]
+  },
+  "proficiencies": {
+    "expertise": ["stealth"]
+  }
+}

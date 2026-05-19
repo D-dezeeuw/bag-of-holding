@@ -23,9 +23,20 @@ model, a framework, or a virtual tabletop.
 - **AI-agnostic by construction.** No network calls, no DOM, never
   talks to a model. See [docs/boundary.md](docs/boundary.md).
 - **Pure functions, plain data.** Every result is serialisable;
-  designed to be replay-deterministic with a seeded RNG.
-- **Plugin-extensible at the kernel.** Custom species, classes, items,
-  conditions, and weapon-mastery handlers via `createEngine({ … })`.
+  replay-deterministic when seeded with `Dice.seededRng(seed)`.
+- **Forensically inspectable randomness.** Append-only `rollLog`,
+  optional `context` tags per roll, and a `verifyLog` replay
+  verifier that flags any divergence between recorded and
+  re-executed outcomes.
+- **Plugin-extensible at the kernel.** Phase A (content: species,
+  classes, items, conditions, weapon-mastery handlers) and Phase B
+  (rule knobs: critOn/fumbleOn, damageFloor, explodingDamageDice,
+  XP curve overrides) both via `createEngine({ … })`. Phase C
+  (behavioural hooks) is next on the roadmap.
+- **Character sheets.** `Character.deriveSheet(record, engine)`
+  turns a host-owned record into a frozen sheet (AC, HP, saves,
+  skills, attacks, spellcasting). Host owns the record; engine
+  derives.
 - **TypeScript types included.** Hand-maintained `index.d.ts` with a
   `tsc --noEmit` drift gate. No `@types/` install needed.
 - **SRD 5.2 (2025).** Weapon Mastery, numeric Exhaustion,
@@ -131,10 +142,16 @@ validation behaviour, and merge semantics.
   time. Read first.
 - [docs/spec.md](docs/spec.md) — what the engine implements (and what
   it doesn't); plugin contract; types.
+- [docs/character-sheet.md](docs/character-sheet.md) — the host/engine
+  contract for character records, the `DerivedSheet` schema, and the
+  worked example end-to-end.
 - [docs/roadmap.md](docs/roadmap.md) — versioned milestones from today
   (`0.x`) to feature-complete (`1.0`) and the vision behind them.
 - [docs/boundary.md](docs/boundary.md) — the contract: what the engine
   **won't** do.
+- [docs/character-sheet.md](docs/character-sheet.md) — the
+  `CharacterRecord` (host-owned) ↔ `DerivedSheet` (engine-derived)
+  contract with a worked example.
 - [docs/beat-schema.md](docs/beat-schema.md) — the story-beat shape
   and runtime.
 

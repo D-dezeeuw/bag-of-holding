@@ -5,10 +5,13 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-18: `0.0.0`, pre-release. Tier 1 (levels 1–5)
-> SRD 5.2 surface with Phase A plugin system, hand-maintained
-> TypeScript declarations, and 100 / 100 / 100 coverage. Not yet
-> published to npm.
+> Status as of 2026-05-20: `0.2.0`, pre-release. Tier 1 (levels 1–5)
+> SRD 5.2 surface with Phase A (content) **and** Phase B (rule
+> modifications) plugin systems shipped; forensically inspectable
+> randomness (seedable RNG, roll log, context tags, replay verifier)
+> from 0.1.0; character-sheet derivation; hand-maintained TypeScript
+> declarations; 230 tests at 100 / 100 / 100 coverage. GitHub-tagged
+> through `v0.2.0`. npm publish pending.
 
 ## Vision
 
@@ -33,17 +36,18 @@ Three properties we won't trade away:
 | Area | State |
 | --- | --- |
 | SRD 5.2 surface, levels 1–5 | 4 classes, 9 species, 4 backgrounds, 3 origin feats, weapon mastery, numeric exhaustion, 14 boolean conditions |
-| Core math | `Dice`, `Checks`, `Combat.{attackRoll, damageRoll, rollInitiative, applyMastery}`, `XP`, `Movesets` (placeholder) |
+| Core math | `Dice` (incl. `seededRng`, `rollExplosive`), `Checks`, `Combat.{attackRoll, damageRoll, rollInitiative, applyMastery}`, `XP`, `Movesets` (placeholder) |
 | Beat runtime | Linear walking (v1); branching schema accepted but ignored |
-| Plugins | Phase A: content registries via `createEngine(opts)` |
+| Plugins | **Phase A** (content registries) + **Phase B** (rule knobs: critOn/fumbleOn, damageFloor, explodingDamageDice, xpThresholds, proficiencyByLevel) shipped via `createEngine(opts)` |
+| Character sheets | `Character.deriveSheet(record, engine)` — host owns the persistent record, engine derives the sheet |
+| Determinism | Seedable RNG, append-only `engine.rollLog`, context tags, `verifyLog` replay verifier — all 0.1.0+ |
 | Types | Hand-maintained `index.d.ts`, strict-mode typecheck gate |
-| Tests | `node --test`, 115 tests, 100 / 100 / 100 line / branch / function |
-| Determinism | Uses `Math.random` (non-seedable) — flagged for `0.1.0` |
-| Published | No |
+| Tests | `node --test`, 230 tests, 100 / 100 / 100 line / branch / function |
+| Published | GitHub-tagged through `v0.2.0`; npm publish pending |
 
 ## Near-term: stabilise and round out the kernel
 
-### `0.1.0` — Determinism with audit, test, and trace-back
+### `0.1.0` — Determinism with audit, test, and trace-back ✅ shipped
 
 The blocking gap before any consumer can rely on replay. Going
 beyond "seedable" — this release makes the engine's stochastic
@@ -97,7 +101,43 @@ back surface also unlocks reliable AI-loop testing — *"the AI claims
 it rolled X, did it?"* becomes a verifiable question, not a vibes-
 based dispute.
 
-### `0.2.0` — Rule modifications (plugin Phase B)
+### `0.1.5` — Character sheet derivation ✅ shipped
+
+Locks the host/engine boundary for the most consumer-visible surface:
+the sheet a player reads. The host keeps owning the persistent
+character record; the engine takes that record and returns every
+number a paper sheet would show.
+
+- **`CharacterRecord` schema.** Single source of truth for the host:
+  identity (species / background / class / level), base ability
+  scores, equipment by id, accumulated proficiencies, feats,
+  conditions, exhaustion, xp. See
+  [character-sheet.md](character-sheet.md).
+- **`DerivedSheet` shape.** Frozen, fully-computed view: ability
+  mods, prof bonus, AC with breakdown, HP, saves, all 18 SRD
+  skills (with expertise), attacks per equipped weapon,
+  spellcasting attack/DC, passives, post-condition speed, carrying
+  capacity, active effects.
+- **`engine.deriveSheet(record)` + `Character.deriveSheet(record,
+  registries)`.** Same function, two call sites — engine-bound for
+  the common case, module-level for unit tests and multi-engine
+  hosts.
+- **Pinned fixtures.** Golden expected sheets for L1 Rogue,
+  L3 Fighter, L5 Wizard cover the worked example in the doc and
+  pin every line of math.
+- **Validation with pointer-quality errors.** `CharacterRecord.classId
+  'paladin' not registered with engine` — same style as the plugin
+  validator.
+
+*Why now:* the app's UI panel needs *some* function to call when a
+record changes, and "render the sheet" is the most common
+recompute trigger in a session (equip, condition, level-up). Without
+this, every consumer would re-implement the math and drift from
+the rules. Lands before 0.2's rule knobs (`damageFloor`,
+`proficiencyByLevel`) so the rule knobs flow through derivation
+cleanly.
+
+### `0.2.0` — Rule modifications (plugin Phase B) ✅ shipped
 
 Plugins can already contribute *content*. Phase B lets them contribute
 *rules*.

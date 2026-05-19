@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "source": "bag-of-holding/character@1",
+    "speciesId": "halfling",
+    "classId": "rogue",
+    "level": 1
+  },
+  "abilityScores": {
+    "final": { "str": 8,  "dex": 17, "con": 15, "int": 13, "wis": 10, "cha": 11 },
+    "mod":   { "str": -1, "dex": 3,  "con": 2,  "int": 1,  "wis": 0,  "cha": 0  }
+  },
+  "proficiencyBonus": 2,
+  "hp": { "max": 10 },
+  "ac": {
+    "value": 13,
+    "breakdown": { "armor": 10, "shield": 0, "dex": 3, "misc": 0 }
+  },
+  "initiative": 5,
+  "speed": { "walk": 30 },
+  "saves": {
+    "str": { "mod": -1, "proficient": false },
+    "dex": { "mod": 5,  "proficient": true  },
+    "con": { "mod": 2,  "proficient": false },
+    "int": { "mod": 3,  "proficient": true  },
+    "wis": { "mod": 0,  "proficient": false },
+    "cha": { "mod": 0,  "proficient": false }
+  },
+  "skills": {
+    "acrobatics":       { "ability": "dex", "mod": 3,  "proficient": false, "expertise": false },
+    "animal-handling":  { "ability": "wis", "mod": 0,  "proficient": false, "expertise": false },
+    "arcana":           { "ability": "int", "mod": 1,  "proficient": false, "expertise": false },
+    "athletics":        { "ability": "str", "mod": -1, "proficient": false, "expertise": false },
+    "deception":        { "ability": "cha", "mod": 0,  "proficient": false, "expertise": false },
+    "history":          { "ability": "int", "mod": 1,  "proficient": false, "expertise": false },
+    "insight":          { "ability": "wis", "mod": 0,  "proficient": false, "expertise": false },
+    "intimidation":     { "ability": "cha", "mod": 0,  "proficient": false, "expertise": false },
+    "investigation":    { "ability": "int", "mod": 1,  "proficient": false, "expertise": false },
+    "medicine":         { "ability": "wis", "mod": 0,  "proficient": false, "expertise": false },
+    "nature":           { "ability": "int", "mod": 1,  "proficient": false, "expertise": false },
+    "perception":       { "ability": "wis", "mod": 0,  "proficient": false, "expertise": false },
+    "performance":      { "ability": "cha", "mod": 0,  "proficient": false, "expertise": false },
+    "persuasion":       { "ability": "cha", "mod": 0,  "proficient": false, "expertise": false },
+    "religion":         { "ability": "int", "mod": 1,  "proficient": false, "expertise": false },
+    "sleight-of-hand":  { "ability": "dex", "mod": 5,  "proficient": true,  "expertise": false },
+    "stealth":          { "ability": "dex", "mod": 7,  "proficient": true,  "expertise": true  },
+    "survival":         { "ability": "wis", "mod": 0,  "proficient": false, "expertise": false }
+  },
+  "attacks": [
+    {
+      "weaponId": "dagger",
+      "name": "Dagger",
+      "attackBonus": 5,
+      "damageDice": "1d4",
+      "damageMod": 3,
+      "damageType": "piercing",
+      "masteryProperty": "nick",
+      "properties": ["finesse", "thrown"]
+    }
+  ],
+  "spellcasting": null,
+  "passives": { "perception": 10, "insight": 10, "investigation": 11 },
+  "carryingCapacity": { "capacity": 120, "push": 240, "lift": 240 },
+  "activeEffects": { "conditions": [], "exhaustion": 0 }
+}

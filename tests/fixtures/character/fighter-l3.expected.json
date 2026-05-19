@@ -1,0 +1,64 @@
+{
+  "meta": {
+    "source": "bag-of-holding/character@1",
+    "speciesId": "human",
+    "classId": "fighter",
+    "level": 3
+  },
+  "abilityScores": {
+    "final": { "str": 16, "dex": 14, "con": 15, "int": 10, "wis": 12, "cha": 8 },
+    "mod":   { "str": 3,  "dex": 2,  "con": 2,  "int": 0,  "wis": 1,  "cha": -1 }
+  },
+  "proficiencyBonus": 2,
+  "hp": { "max": 28 },
+  "ac": {
+    "value": 17,
+    "breakdown": { "armor": 13, "shield": 2, "dex": 2, "misc": 0 }
+  },
+  "initiative": 2,
+  "speed": { "walk": 30 },
+  "saves": {
+    "str": { "mod": 5,  "proficient": true  },
+    "dex": { "mod": 2,  "proficient": false },
+    "con": { "mod": 4,  "proficient": true  },
+    "int": { "mod": 0,  "proficient": false },
+    "wis": { "mod": 1,  "proficient": false },
+    "cha": { "mod": -1, "proficient": false }
+  },
+  "skills": {
+    "acrobatics":       { "ability": "dex", "mod": 2,  "proficient": false, "expertise": false },
+    "animal-handling":  { "ability": "wis", "mod": 1,  "proficient": false, "expertise": false },
+    "arcana":           { "ability": "int", "mod": 0,  "proficient": false, "expertise": false },
+    "athletics":        { "ability": "str", "mod": 5,  "proficient": true,  "expertise": false },
+    "deception":        { "ability": "cha", "mod": -1, "proficient": false, "expertise": false },
+    "history":          { "ability": "int", "mod": 0,  "proficient": false, "expertise": false },
+    "insight":          { "ability": "wis", "mod": 1,  "proficient": false, "expertise": false },
+    "intimidation":     { "ability": "cha", "mod": 1,  "proficient": true,  "expertise": false },
+    "investigation":    { "ability": "int", "mod": 0,  "proficient": false, "expertise": false },
+    "medicine":         { "ability": "wis", "mod": 1,  "proficient": false, "expertise": false },
+    "nature":           { "ability": "int", "mod": 0,  "proficient": false, "expertise": false },
+    "perception":       { "ability": "wis", "mod": 1,  "proficient": false, "expertise": false },
+    "performance":      { "ability": "cha", "mod": -1, "proficient": false, "expertise": false },
+    "persuasion":       { "ability": "cha", "mod": -1, "proficient": false, "expertise": false },
+    "religion":         { "ability": "int", "mod": 0,  "proficient": false, "expertise": false },
+    "sleight-of-hand":  { "ability": "dex", "mod": 2,  "proficient": false, "expertise": false },
+    "stealth":          { "ability": "dex", "mod": 2,  "proficient": false, "expertise": false },
+    "survival":         { "ability": "wis", "mod": 1,  "proficient": false, "expertise": false }
+  },
+  "attacks": [
+    {
+      "weaponId": "longsword",
+      "name": "Longsword",
+      "attackBonus": 5,
+      "damageDice": "1d8",
+      "damageMod": 3,
+      "damageType": "slashing",
+      "masteryProperty": "sap",
+      "properties": ["versatile"]
+    }
+  ],
+  "spellcasting": null,
+  "passives": { "perception": 11, "insight": 11, "investigation": 10 },
+  "carryingCapacity": { "capacity": 240, "push": 480, "lift": 480 },
+  "activeEffects": { "conditions": [], "exhaustion": 0 }
+}

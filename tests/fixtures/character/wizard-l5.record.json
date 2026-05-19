@@ -1,0 +1,14 @@
+{
+  "id": "pc-3",
+  "name": "Maeve",
+  "speciesId": "elf",
+  "backgroundId": "sage",
+  "classId": "wizard",
+  "level": 5,
+  "abilityScores": { "str": 8, "dex": 14, "con": 13, "int": 16, "wis": 12, "cha": 10 },
+  "abilityScoreBumps": { "int": 2, "wis": 1, "con": 0 },
+  "equipment": {
+    "weaponIds": ["quarterstaff"]
+  },
+  "conditions": ["blinded"]
+}

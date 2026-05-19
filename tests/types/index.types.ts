@@ -14,6 +14,7 @@ import defaultEngine, {
   XP,
   Movesets,
   Beats,
+  Character,
   SRD,
   Classes,
   species,
@@ -40,7 +41,13 @@ import defaultEngine, {
   type RollEntry,
   type VerifyLogResult,
   type EngineRules,
-  type ResolvedRules
+  type ResolvedRules,
+  type CharacterRecord,
+  type DerivedSheet,
+  type DerivedAttack,
+  type DerivedSave,
+  type DerivedSkill,
+  type SkillId
 } from '../../index.js';
 
 // ============================================================
@@ -205,6 +212,51 @@ const _replayWithRules: VerifyLogResult = verifyLog({
 const _grittyLevel: number = grittyEngine.XP.levelForXP(2000);
 void _grittyLevel;
 
+// === Character sheet derivation ===
+
+const fighterRecord: CharacterRecord = {
+  id: 'pc-1',
+  name: 'Aldwin',
+  speciesId: 'human',
+  backgroundId: 'soldier',
+  classId: 'fighter',
+  level: 3,
+  abilityScores: { str: 15, dex: 13, con: 14, int: 10, wis: 12, cha: 8 },
+  equipment: {
+    armorId: 'chain-shirt',
+    shieldId: 'shield',
+    weaponIds: ['longsword']
+  }
+};
+
+// Engine-bound form — common case.
+const sheetA: DerivedSheet = defaultEngine.deriveSheet(fighterRecord);
+const _ac: number = sheetA.ac.value;
+const _acBreakdown: { armor: number; shield: number; dex: number; misc: number } = sheetA.ac.breakdown;
+
+// Module-level form — engine satisfies CharacterRegistries structurally.
+const sheetB: DerivedSheet = Character.deriveSheet(fighterRecord, defaultEngine);
+const _attacks: DerivedAttack[] = sheetB.attacks;
+const _firstAttackBonus: number = _attacks[0].attackBonus;
+
+// Save / skill shapes round-trip from the per-ability records.
+const _strSave: DerivedSave = sheetA.saves.str;
+const _athletics: DerivedSkill = sheetA.skills.athletics;
+const _athleticsAbility: 'str'|'dex'|'con'|'int'|'wis'|'cha' = _athletics.ability;
+
+// Spellcasting is `null | { … }` — narrowed by the runtime branch.
+if (sheetA.spellcasting !== null) {
+  const _dc: number = sheetA.spellcasting.saveDC;
+  void _dc;
+}
+
+// Skill table for UI rendering.
+const _skillTable: Readonly<Record<SkillId, 'str'|'dex'|'con'|'int'|'wis'|'cha'>> = Character.SKILL_ABILITY;
+void _skillTable;
+
+// @ts-expect-error — level must be a number
+const _badRecord: CharacterRecord = { ...fighterRecord, level: 'three' };
+
 // Reference every local so tsc doesn't complain about unused.
 void _initiative; void _attack; void _success; void _saveMod; void _rolls;
 void cleared; void present; void _level; void _dead; void _masteryNames;
@@ -214,5 +266,8 @@ void _spreadBackgrounds; void _spreadFeats; void _spreadSpells; void _spreadItem
 void _badSpecies; void customEngine;
 void seeded; void _floatInUnitInterval; void seededEngine;
 void _log; void _viaEngine; void _viaModule;
+void sheetA; void sheetB; void _ac; void _acBreakdown; void _attacks;
+void _firstAttackBonus; void _strSave; void _athletics; void _athleticsAbility;
+void _badRecord;
 void houseRulesPack; void grittyEngine; void _resolved; void _critFaces;
 void _explosiveRoll; void _replayWithRules;

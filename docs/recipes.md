@@ -196,8 +196,9 @@ if (attack.critical) {
 }
 ```
 
-For house rules (always-max-damage-on-crit, exploding dice on crit
-only), see recipe 22 once `0.2.0` ships the `rules` knob system.
+For house rules (Pathfinder-style 19–20 crit ranges, exploding
+crit dice, "max damage on crit" packs), see recipes 16–20 — the
+Phase B `rules` knob system shipped in `0.2.0`.
 
 ## 7. Attack from stealth (compound action with context tags)
 

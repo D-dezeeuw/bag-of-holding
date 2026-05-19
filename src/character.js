@@ -377,7 +377,9 @@ function deriveAttacks(record, items, profBonus, abilityMods) {
       damageMod: abilityMod,
       damageType: weapon.damageType,
       masteryProperty: weapon.mastery,
-      properties
+      // Clone so deep-freezing the sheet later can't reach back and
+      // freeze the item registry's mutable properties array.
+      properties: [...properties]
     });
   }
   return attacks;
@@ -485,14 +487,22 @@ export function deriveSheet(record, registries) {
   const capacity = Math.round(abilityFinal.str * 15 * sizeMultiplier);
   const carryingCapacity = { capacity, push: capacity * 2, lift: capacity * 2 };
 
+  // Omit subclassId from meta when absent so a serialised sheet
+  // doesn't carry `subclassId: undefined` (which round-trips as a
+  // missing key under JSON.parse / JSON.stringify and would diff
+  // unstably against pinned fixtures).
+  const meta = {
+    source: 'bag-of-holding/character@1',
+    speciesId: record.speciesId,
+    classId: record.classId,
+    level: record.level
+  };
+  if (record.subclassId !== undefined) {
+    meta.subclassId = record.subclassId;
+  }
+
   const sheet = {
-    meta: {
-      source: 'bag-of-holding/character@1',
-      speciesId: record.speciesId,
-      classId: record.classId,
-      subclassId: record.subclassId,
-      level: record.level
-    },
+    meta,
     abilityScores: { final: abilityFinal, mod: abilityMods },
     proficiencyBonus: profBonus,
     hp,
@@ -518,18 +528,19 @@ export function deriveSheet(record, registries) {
  * Freeze every nested object so a sheet can't be patched in place.
  * Implemented inline rather than depending on a "deep-freeze" lib
  * because zero deps is the engine's headline; the recursion is
- * cheap, the sheet is shallow, and the loop reads as "freeze each
- * thing once, including arrays of objects".
+ * cheap, the sheet is shallow, and a fresh sheet never contains
+ * already-frozen sub-objects, so we don't need a cycle / re-freeze
+ * guard.
+ *
+ * Called only on freshly-built sheet roots, so the entry value is
+ * always an object — no top-level null/primitive guard needed.
  */
 function deepFreeze(value) {
-  if (value !== null && typeof value === 'object') {
-    for (const key of Object.keys(value)) {
-      const child = value[key];
-      if (child !== null && typeof child === 'object' && !Object.isFrozen(child)) {
-        deepFreeze(child);
-      }
+  for (const key of Object.keys(value)) {
+    const child = value[key];
+    if (child !== null && typeof child === 'object') {
+      deepFreeze(child);
     }
-    Object.freeze(value);
   }
-  return value;
+  return Object.freeze(value);
 }

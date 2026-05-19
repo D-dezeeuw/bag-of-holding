@@ -49,6 +49,27 @@ freely available at [dndbeyond.com/srd](https://www.dndbeyond.com/srd).
   backgrounds in `src/srd/*`. The `species` schema follows SRD 5.2:
   size + speed + traits, no ability score bonuses (those are on
   backgrounds).
+- **Character sheet derivation** (`Character.deriveSheet`, also bound
+  as `engine.deriveSheet`) — turns a host-owned `CharacterRecord`
+  into a frozen `DerivedSheet`: ability mods, prof bonus, AC with
+  breakdown, HP, saves, skills (with expertise), attacks, spellcasting
+  attack/DC, passives, speed (post-exhaustion + speed-zero conditions),
+  carrying capacity. See [character-sheet.md](character-sheet.md) for
+  the full schema and the worked example.
+- **Determinism, audit, and replay** (since `0.1.0`) —
+  `Dice.seededRng(seed)` returns a `Math.random`-shaped deterministic
+  generator; every engine-bound rolling function appends a structured
+  entry to `engine.rollLog` with an optional caller-supplied `context`
+  for trace-back; `verifyLog({ seed, log, rules? })` re-executes a
+  session and reports the first divergence. See [§ Determinism](#determinism).
+- **Rule modifications** (since `0.2.0`, plugin Phase B) — every
+  engine takes an optional `rules` object that retunes the math:
+  `critOn` / `fumbleOn` (d20 face arrays), `damageFloor` (minimum
+  damage on hit), `explodingDamageDice` (max-on-die chain), and
+  `xpThresholds` / `proficiencyByLevel` (override progression
+  curves). Defaults preserve SRD 5.2 exactly; the merged frozen
+  object is exposed on `engine.rules`. See
+  [§ Plugins (Phase B: rule modifications)](#plugins-phase-b-rule-modifications).
 
 ## Out of scope
 
@@ -95,9 +116,15 @@ SRD.species.dragonborn;
 | `XP` | `src/xp.js` |
 | `Movesets` | `src/movesets.js` |
 | `Beats` | `src/beats/index.js` |
+| `Character` | `src/character.js` |
 | `SRD` | `src/srd/index.js` |
 
 `Classes` is exported as a back-compat alias for `SRD.classes`.
+
+`Character.deriveSheet(record, registries)` is also exposed as
+`engine.deriveSheet(record)` for the common single-engine case — same
+function, with the engine's registries pre-bound. See
+[character-sheet.md](character-sheet.md).
 
 ### `createEngine(opts)` (custom rule sets, plugins)
 

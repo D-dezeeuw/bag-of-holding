@@ -190,8 +190,8 @@ excluded — every new library is new; that's not a selling point.
 | 1 | Zero runtime dependencies, single ESM file | **9** | Competitors are either multi-MB (Foundry) or stale data dumps. Genuinely rare. |
 | 2 | CDN-loadable via `unpkg` with SRI pinning | **9** | No maintained JS rules kernel ships this way. |
 | 3 | AI-agnostic by construction (`boundary.md` discipline) | **9** | Every AI-DM project bakes a provider into the kernel; this one explicitly refuses. |
-| 4 | Pure functions + replay-deterministic | **8** | Other engines drift into hidden state; this is Spektrum-tier discipline. Seedable RNG is roadmap (`0.1`), not shipped. |
-| 5 | Three-tier plugin system (content / rules / behaviour) | **7** | Phase A shipped, Phase B/C on roadmap. Genuinely novel surface; would be 9 if all three were live. |
+| 4 | Pure functions + replay-deterministic | **8** | Other engines drift into hidden state; this is Spektrum-tier discipline. Seedable RNG + replay verifier shipped in `0.1.0`. |
+| 5 | Three-tier plugin system (content / rules / behaviour) | **7** | Phase A (content) **and** Phase B (rule knobs) shipped in `0.1.x`/`0.2.0`; Phase C (hooks) on roadmap. Genuinely novel surface; reaches 9 when C lands. |
 | 6 | Hand-maintained `.d.ts` with `tsc --noEmit` drift gate | **7** | Uncommon discipline; quality signal more than a marketing line. |
 | 7 | Beat runtime alongside rules math in one library | **8** | The only "rules + narrative-structure together" library in JS. Ink-adjacent but with 5e built in. |
 | 8 | SRD 5.2 (2025) compliance | **6** | NeverEndingQuest claims 5.2.1 too; nice to be current, not unique. |
@@ -206,23 +206,27 @@ excluded — every new library is new; that's not a selling point.
    This trio defines a niche nothing else occupies.
 2. **"AI-loop-ready, AI-agnostic"** — rows 3 + 10. Every AI-DM project
    is married to one model; this one is married to none.
-3. **"Plugin system at the kernel"** — rows 5 + 7. Once Phases B/C
-   land, the homebrew + theme story is something Foundry can only
-   approximate via class extension.
+3. **"Plugin system at the kernel"** — rows 5 + 7. Phases A and B
+   have shipped (`0.1.x` / `0.2.0`); once Phase C lands the combined
+   homebrew + theme story is something Foundry can only approximate
+   via class extension.
 
 **Today's marks if scored against only what's shipped, not the
 roadmap target:**
 
 | Row | At 1.0 | Today | Gap closed by |
 | --- | --- | --- | --- |
-| 4  Replay-deterministic | 8 | 6 | Seedable RNG (`0.1.0`) |
-| 5  Plugin system | 7 | 6 | Phases B/C (`0.2.0`, `0.3.0`) |
-| 9  Sub-25 kB | 7 | 6 | CI bundle budget (`1.0.0`) |
+| 4  Replay-deterministic | 8 | **8** | ✅ Seedable RNG + roll log + replay verifier shipped in `0.1.0` |
+| 5  Plugin system | 7 | **7** | ✅ Phases A and B shipped; Phase C (`0.3.0`) closes the last gap |
+| 9  Sub-25 kB | 7 | 6 | CI bundle budget + tree-shaking polish (`1.0.0`) |
 | 10 AI-loop output shape | 8 | 8 | Already shipped — kept honest as "today" |
 
-The honest read: the highest-value distinctiveness depends on
-roadmap items landing. The decision criterion below is what stops
-us from coasting on potential.
+The honest read: replay-determinism and plugin extensibility have
+both landed; the remaining distinctiveness is mostly polish.
+"Sub-25 kB" is the only major selling point still in deficit, and
+it's a CI/tree-shaking story rather than a missing feature. The
+decision criterion below is what stops us from coasting on
+potential.
 
 ## What we know vs. what we suspect
 
