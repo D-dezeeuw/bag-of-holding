@@ -5,13 +5,14 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-19: `0.3.0`, pre-release. Tier 1 (levels 1–5)
+> Status as of 2026-05-19: `0.4.0`, pre-release. Tier 1 (levels 1–5)
 > SRD 5.2 surface with Phase A (content), Phase B (rule
-> modifications), **and** Phase C (behavioural hooks) plugin systems
-> shipped; forensically inspectable randomness (seedable RNG, roll
-> log, context tags, replay verifier) from 0.1.0; character-sheet
-> derivation; hand-maintained TypeScript declarations; 253 tests at
-> 100 / 100 / 100 coverage. GitHub-tagged through `v0.3.0`. npm
+> modifications), and Phase C (behavioural hooks) plugin systems;
+> forensically inspectable randomness from 0.1.0; character-sheet
+> derivation; **encounter system** (initiative tracker, action
+> budgets, multi-attack, opportunity attacks, cover & range) from
+> 0.4.0; hand-maintained TypeScript declarations; 293 tests at
+> 100 / 100 / 100 coverage. GitHub-tagged through `v0.4.0`. npm
 > publish pending.
 
 ## Vision
@@ -172,24 +173,23 @@ Closes the plugin trifecta: content (A), rules (B), behaviour (C).
 
 ## Mid-term: combat and spellcasting depth
 
-### `0.4.0` — Combat completeness
+### `0.4.0` — Combat completeness ✅ shipped
 
 Today the engine resolves *one attack*. To run a full encounter the
 host has to compose the missing pieces by hand.
 
 - **Initiative tracker.** `Combat.startEncounter(participants)`
   returns a turn-order object the loop steps through. Tracks
-  conditions per actor between turns.
+  action budgets per actor between turns.
 - **Action economy enforcement.** Per-turn budgets (action, bonus,
-  reaction, movement); the engine refuses a second action and
-  returns a structured `{ allowed: false, reason: 'no-action-left' }`.
-- **Multi-attack** (Fighter L5's Extra Attack and the L1 weapon mastery
-  count slot).
-- **Opportunity attacks.** Triggered when an actor leaves another's
-  reach; resolved through `attackRoll` with the reaction budget
-  consumed.
-- **Cover and range.** Abstract enough for text-based play
-  (`cover: 'half' | 'three-quarter' | 'full'`).
+  reaction, movement); `Combat.spend(state, id, cost)` returns
+  `{ allowed: true, state }` or `{ allowed: false, reason }`.
+- **Multi-attack** via `Combat.attacksPerAction(classDef, level)`
+  reading each class's `extraAttacks` table.
+- **Opportunity attacks** via `Combat.opportunityAttack(state, …)`,
+  consuming the reactor's reaction budget and rolling the attack.
+- **Cover and range** via `Combat.effectiveAc(baseAc, cover)` and
+  `Combat.rangeBand({ distance, normalRange, longRange })`.
 
 ### `0.5.0` — Spellcasting mechanics
 

@@ -13,6 +13,9 @@ export default {
   primaryAbility: 'str',
   savingThrowProficiencies: ['str', 'con'],
   weaponMasterySlots: 3,
+  // Extra Attack at L5: one additional attack per Attack action.
+  // Encounter system reads this via `attacksPerAction(classDef, level)`.
+  extraAttacks: { 5: 1 },
   features: {
     1: ['Fighting Style', 'Second Wind', 'Weapon Mastery'],
     2: ['Action Surge', 'Tactical Mind'],

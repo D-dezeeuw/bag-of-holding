@@ -35,6 +35,7 @@ import * as Movesets from './movesets.js';
 import * as Beats from './beats/index.js';
 import * as Classes from './classes/index.js';
 import * as Character from './character.js';
+import * as EncounterBase from './encounter.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -380,7 +381,31 @@ export function createEngine(opts = {}) {
     },
     MASTERY_PROPERTIES: masteryProperties,
     applyMastery: (weapon, target, attackResult, attacker) =>
-      CombatBase.applyMastery(weapon, target, attackResult, attacker, masteryHandlers)
+      CombatBase.applyMastery(weapon, target, attackResult, attacker, masteryHandlers),
+    // === Encounter system (since 0.4.0) ===
+    //
+    // Bound here rather than as a separate top-level namespace so
+    // the encounter functions share the engine's rng and rules
+    // without the caller threading them per call.
+    startEncounter: (participants) => EncounterBase.startEncounter(participants, rng),
+    rollOrder: (participants) => EncounterBase.rollOrder(participants, rng),
+    currentActor: EncounterBase.currentActor,
+    endTurn: EncounterBase.endTurn,
+    removeParticipant: EncounterBase.removeParticipant,
+    spend: EncounterBase.spend,
+    freshBudget: EncounterBase.freshBudget,
+    attacksPerAction: EncounterBase.attacksPerAction,
+    opportunityAttack: (state, args) => {
+      const result = EncounterBase.opportunityAttack(state, { ...args, rng, rules });
+      if (result.triggered) {
+        record('attackRoll', result.attack, args.context);
+      }
+      return result;
+    },
+    effectiveAc: EncounterBase.effectiveAc,
+    rangeBand: EncounterBase.rangeBand,
+    ACTION_COSTS: EncounterBase.ACTION_COSTS,
+    COVER_BONUSES: EncounterBase.COVER_BONUSES
   };
 
   // Engine view passed to character derivation. Built once here so

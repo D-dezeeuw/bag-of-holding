@@ -44,6 +44,10 @@ export interface ClassDef {
   primaryAbility?: Ability;
   savingThrowProficiencies?: Ability[];
   weaponMasterySlots?: number;
+  /** Map of `level → extra attacks per Attack action`. Fighter 5 →
+   *  `{ 5: 1 }` (Extra Attack adds one). Read by
+   *  `Combat.attacksPerAction`. */
+  extraAttacks?: Record<number, number>;
   spellcasting?: { ability: Ability; cantripsKnown?: Record<number, number> };
   features?: Record<number, string[]>;
 }
@@ -272,11 +276,41 @@ export type MasteryHandler = (
   attacker?: { proficiencyBonus?: number } & Record<string, unknown>
 ) => MasteryRider;
 
+/** A participant in an encounter: at minimum an `id`, `dexterity`,
+ *  and `speed`. Hosts can attach any extra fields (hp, faction, etc.);
+ *  the encounter tracker preserves them. */
+export interface Participant {
+  id: string;
+  dexterity: number;
+  speed: number;
+  [extra: string]: unknown;
+}
+
+/** Per-actor budget for one turn. `null` means "no budget" — used
+ *  for movement on a flying creature standing still, etc. */
+export interface ActionBudget {
+  action: number;
+  bonus: number;
+  reaction: number;
+  movement: number | null;
+}
+
+/** Encounter state. Pure — every mutation returns a new state. */
+export interface EncounterState {
+  order: (Participant & { initiative: number; initiativeD20: number })[];
+  turnIndex: number;
+  round: number;
+  budgets: Record<string, ActionBudget>;
+  log: Array<{ kind: string; [extra: string]: unknown }>;
+}
+
+export type CoverName = 'none' | 'half' | 'three-quarters' | 'full';
+
 export interface CombatNamespace {
   /** `context` (engine-bound only) attaches to the corresponding
    *  `RollEntry` for trace-back. */
   rollInitiative(args: InitiativeArgs, context?: unknown): number;
-  attackRoll(args: AttackRollArgs, context?: unknown): AttackRollResult;
+  attackRoll(args: AttackRollArgs, context?: unknown): AttackRollResult & { cancelled?: true };
   damageRoll(args: DamageRollArgs, context?: unknown): DamageRollResult;
   readonly MASTERY_PROPERTIES: readonly MasteryName[];
   applyMastery(
@@ -285,6 +319,51 @@ export interface CombatNamespace {
     attackResult: AttackRollResult,
     attacker?: { proficiencyBonus?: number } & Record<string, unknown>
   ): MasteryRider;
+
+  // === Encounter system (since 0.4.0) ===
+  /** Start an encounter: rolls initiative for every participant and
+   *  builds a fresh action-budget table. */
+  startEncounter(participants: Participant[]): EncounterState;
+  /** Sort participants by initiative without building full state.
+   *  Useful for previewing the turn order before committing. */
+  rollOrder(participants: Participant[]): EncounterState['order'];
+  currentActor(state: EncounterState): Participant | null;
+  /** Advance to the next actor and refresh their budget. Returns
+   *  `finished: true` only when the encounter has zero participants. */
+  endTurn(state: EncounterState): { state: EncounterState; finished: boolean };
+  /** Remove a participant (death, fled, withdrew). */
+  removeParticipant(state: EncounterState, actorId: string): EncounterState;
+  /** Spend a budget slot. `amount` defaults to 1; movement spends feet. */
+  spend(
+    state: EncounterState,
+    actorId: string,
+    cost: 'action' | 'bonus' | 'reaction' | 'movement' | 'free' | string,
+    amount?: number
+  ): { allowed: true; state: EncounterState } | { allowed: false; reason: string };
+  /** Fresh budget object for an actor with the given speed. */
+  freshBudget(speed: number): ActionBudget;
+  /** Number of attacks per Attack action for a class at a level. */
+  attacksPerAction(classDef: ClassDef | null | undefined, level: number): number;
+  /** Resolve an opportunity attack. Returns the new encounter state
+   *  alongside the attack outcome, or `triggered: false` with a reason. */
+  opportunityAttack(
+    state: EncounterState,
+    args: {
+      reactorId: string;
+      attackerArgs: AttackRollArgs;
+      disengaged?: boolean;
+      context?: unknown;
+    }
+  ):
+    | { triggered: true; attack: AttackRollResult; state: EncounterState }
+    | { triggered: false; reason: string; state: EncounterState };
+  /** Effective AC after cover. `null` when cover is `full`. */
+  effectiveAc(baseAc: number, cover?: CoverName | string): number | null;
+  /** Classify ranged distance against normal/long range. */
+  rangeBand(args: { distance: number; normalRange: number; longRange: number }):
+    'in-range-normal' | 'in-range-long' | 'out-of-range';
+  readonly ACTION_COSTS: readonly string[];
+  readonly COVER_BONUSES: Readonly<Record<CoverName, number | null>>;
 }
 
 // ============================================================
