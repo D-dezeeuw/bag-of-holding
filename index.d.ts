@@ -122,13 +122,54 @@ export interface DiceRoll {
   total: number;
 }
 
+/**
+ * A pseudo-random number generator. Signature matches `Math.random`
+ * (zero-arg function returning a float in [0, 1)). Pass
+ * `Dice.seededRng(seed)` for deterministic replay.
+ */
+export type RNG = () => number;
+
 export interface DiceNamespace {
   parse(spec: string): DiceSpec;
-  rollDie(sides: number): number;
-  roll(spec: string): DiceRoll;
-  rollAdvantage(spec: string): DiceRoll;
-  rollDisadvantage(spec: string): DiceRoll;
+  /** Module-level: optional `rng` for determinism.
+   *  Engine-bound: optional `context` second arg for trace-back. */
+  rollDie(sides: number, rngOrContext?: RNG | unknown): number;
+  roll(spec: string, rngOrContext?: RNG | unknown): DiceRoll;
+  rollAdvantage(spec: string, rngOrContext?: RNG | unknown): DiceRoll;
+  rollDisadvantage(spec: string, rngOrContext?: RNG | unknown): DiceRoll;
+  seededRng(seed: number): RNG;
 }
+
+/**
+ * The shape of one entry in `engine.rollLog`. Every entry has an
+ * `index` (monotonic across the session) and an `op` discriminator;
+ * additional fields depend on the operation. Optional `context`
+ * carries whatever the caller passed for trace-back.
+ */
+export type RollEntry =
+  | { index: number; op: 'rollDie';          sides: number; value: number;                                                                        context?: unknown }
+  | { index: number; op: 'roll';             spec: string;  rolls: number[]; modifier: number; total: number;                                     context?: unknown }
+  | { index: number; op: 'rollAdvantage';    spec: string;  rolls: number[]; modifier: number; total: number;                                     context?: unknown }
+  | { index: number; op: 'rollDisadvantage'; spec: string;  rolls: number[]; modifier: number; total: number;                                     context?: unknown }
+  | { index: number; op: 'rollInitiative';   dexterity: number; value: number;                                                                    context?: unknown }
+  | { index: number; op: 'attackRoll';       d20: number; attackBonus: number; total: number; ac: number; hit: boolean; critical: boolean; fumble: boolean; context?: unknown }
+  | { index: number; op: 'damageRoll';       damageDice: string; baseRolls: number[]; critRolls: number[]; damageMod: number; total: number;     context?: unknown }
+  | { index: number; op: 'abilityCheck';     abilityScore: number; proficient: boolean; proficiencyBonus: number; d20: number; mod: number; total: number; dc: number; success: boolean; context?: unknown }
+  | { index: number; op: 'savingThrow';      abilityScore: number; proficient: boolean; proficiencyBonus: number; d20: number; mod: number; total: number; dc: number; success: boolean; context?: unknown };
+
+export interface VerifyLogArgs {
+  seed: number;
+  log: RollEntry[];
+}
+
+export type VerifyLogResult =
+  | { ok: true }
+  | { ok: false; divergedAt: number; expected: unknown; actual: unknown };
+
+/** Replay a roll log forward from `seed` and verify each operation
+ *  reproduces the logged outcome. See `src/replay.js` for the full
+ *  contract. */
+export function verifyLog(args: VerifyLogArgs): VerifyLogResult;
 
 // ============================================================
 // Checks
@@ -152,8 +193,11 @@ export interface AbilityCheckResult {
 export interface ChecksNamespace {
   modFromScore(score: number): number;
   clampDC(dc: number): number;
-  abilityCheck(args: AbilityCheckArgs): AbilityCheckResult;
-  savingThrow(args: AbilityCheckArgs): AbilityCheckResult;
+  /** Engine-bound version optionally takes a `context` second arg
+   *  that's attached to the corresponding `RollEntry`. Module-level
+   *  version takes an optional `rng` instead. */
+  abilityCheck(args: AbilityCheckArgs, context?: unknown): AbilityCheckResult;
+  savingThrow(args: AbilityCheckArgs, context?: unknown): AbilityCheckResult;
 }
 
 // ============================================================
@@ -222,9 +266,11 @@ export type MasteryHandler = (
 ) => MasteryRider;
 
 export interface CombatNamespace {
-  rollInitiative(args: InitiativeArgs): number;
-  attackRoll(args: AttackRollArgs): AttackRollResult;
-  damageRoll(args: DamageRollArgs): DamageRollResult;
+  /** `context` (engine-bound only) attaches to the corresponding
+   *  `RollEntry` for trace-back. */
+  rollInitiative(args: InitiativeArgs, context?: unknown): number;
+  attackRoll(args: AttackRollArgs, context?: unknown): AttackRollResult;
+  damageRoll(args: DamageRollArgs, context?: unknown): DamageRollResult;
   readonly MASTERY_PROPERTIES: readonly MasteryName[];
   applyMastery(
     weapon: Item,
@@ -374,6 +420,17 @@ export interface EngineOptions {
   extraItems?: Record<string, Item>;
   extraConditions?: string[];
   extraMastery?: Record<string, MasteryHandler>;
+  /** Custom RNG. Default `Math.random`. Pass `Dice.seededRng(seed)`
+   *  for replay-deterministic play. */
+  rng?: RNG;
+  /** Called with every roll entry immediately after it lands on
+   *  `engine.rollLog`. Use for telemetry, live debug overlays, or
+   *  piping rolls into Spektrum history. */
+  onRoll?: (entry: RollEntry) => void;
+  /** Drop-oldest cap on `engine.rollLog`. Default `Infinity`. The
+   *  per-entry `index` is monotonic across the full session, so
+   *  dropped-then-kept entries don't shift logical positions. */
+  rollLogCap?: number;
 }
 
 export interface Engine {
@@ -390,6 +447,13 @@ export interface Engine {
   XP: XPNamespace;
   Movesets: MovesetsNamespace;
   Beats: BeatsNamespace;
+  /** Append-only log of every roll the engine has produced this
+   *  session. Plain JSON — serialise it, attach it to bug reports,
+   *  feed it to `verifyLog` to confirm reproducibility. */
+  rollLog: RollEntry[];
+  /** Replay-verify a roll log. Equivalent to the module-level
+   *  `verifyLog` export; lives on the engine for ergonomics. */
+  verifyLog(args: VerifyLogArgs): VerifyLogResult;
 }
 
 export function createEngine(opts?: EngineOptions): Engine;

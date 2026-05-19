@@ -19,6 +19,12 @@
 // thresholds, exploding dice, alternative XP curves) and behavioural
 // hooks (`beforeAttack`, `afterDamage`) are deferred to Phases B/C —
 // see docs/spec.md § Plugins.
+//
+// 0.1.0 also adds **forensically inspectable randomness**: pass
+// `rng: Dice.seededRng(seed)` for deterministic play, read
+// `engine.rollLog` for the full audit trail, tag rolls with
+// `context` for trace-back, and call `engine.verifyLog(log)` to
+// replay-verify a session.
 
 import * as Dice from './dice.js';
 import * as Checks from './checks.js';
@@ -28,6 +34,7 @@ import * as XP from './xp.js';
 import * as Movesets from './movesets.js';
 import * as Beats from './beats/index.js';
 import * as Classes from './classes/index.js';
+import { verifyLog } from './replay.js';
 
 import defaultSpecies     from './srd/species.js';
 import defaultBackgrounds from './srd/backgrounds.js';
@@ -118,31 +125,6 @@ function buildConditions(extraConditions = []) {
 }
 
 /**
- * Build a per-engine `Combat` namespace whose `applyMastery` is
- * bound to this engine's combined handler table. Custom mastery
- * properties contributed by plugins must each be a function — we
- * check that explicitly because the only way the dispatch can fail
- * silently is by handing it a non-callable handler.
- */
-function buildCombat(extraMastery = {}) {
-  for (const [name, handler] of Object.entries(extraMastery)) {
-    if (typeof handler !== 'function') {
-      throw new Error(`extraMastery.${name} must be a function`);
-    }
-  }
-  const handlers = Object.freeze({ ...CombatBase.DEFAULT_MASTERY_HANDLERS, ...extraMastery });
-  const masteryProperties = Object.freeze(Object.keys(handlers));
-  return {
-    rollInitiative: CombatBase.rollInitiative,
-    attackRoll: CombatBase.attackRoll,
-    damageRoll: CombatBase.damageRoll,
-    MASTERY_PROPERTIES: masteryProperties,
-    applyMastery: (weapon, target, attackResult, attacker) =>
-      CombatBase.applyMastery(weapon, target, attackResult, attacker, handlers)
-  };
-}
-
-/**
  * Create a new engine instance. With no options, you get the SRD 5.2
  * defaults — the same set the module-level default singleton uses.
  * With plugin contributions in `opts`, those are validated and
@@ -154,6 +136,18 @@ function buildCombat(extraMastery = {}) {
  * and trust that any binding to per-engine state has already been
  * done for you.
  *
+ * **0.1.0 — determinism options:**
+ *   - `rng`: a `() => [0, 1)` function (default: `Math.random`).
+ *     Pass `Dice.seededRng(seed)` for replay-deterministic play.
+ *     Threaded to every rolling function the engine owns.
+ *   - `onRoll`: called with each `RollEntry` immediately after it's
+ *     appended to `engine.rollLog`. Useful for telemetry, live
+ *     debug overlays, or piping rolls into Spektrum history.
+ *   - `rollLogCap`: drop-oldest size cap on the in-memory log
+ *     (default: `Infinity`). The roll counter on each entry is
+ *     monotonic across the session, so dropped-then-kept entries
+ *     don't shift indexes.
+ *
  * @param {object} [opts]
  * @param {object} [opts.extraSpecies]      Map of id → species record.
  * @param {object} [opts.extraClasses]      Map of id → class record.
@@ -163,6 +157,9 @@ function buildCombat(extraMastery = {}) {
  * @param {object} [opts.extraItems]        Map of id → item record.
  * @param {string[]} [opts.extraConditions] Names of new boolean conditions.
  * @param {object} [opts.extraMastery]      Map of name → MasteryHandler.
+ * @param {() => number} [opts.rng]         Custom RNG; default `Math.random`.
+ * @param {(entry: object) => void} [opts.onRoll]  Per-roll callback.
+ * @param {number} [opts.rollLogCap]        Max log entries (default ∞).
  */
 export function createEngine(opts = {}) {
   const species     = mergeRegistry('species',     defaultSpecies,     opts.extraSpecies);
@@ -172,13 +169,128 @@ export function createEngine(opts = {}) {
   const spells      = mergeRegistry('spells',      defaultSpells,      opts.extraSpells);
   const items       = mergeRegistry('items',       defaultItems,       opts.extraItems);
 
-  const Conditions  = buildConditions(opts.extraConditions);
-  const Combat      = buildCombat(opts.extraMastery);
+  const ConditionsBound  = buildConditions(opts.extraConditions);
+
+  // === Determinism plumbing ===
+  const rng = opts.rng ?? Math.random;
+  const rollLogCap = opts.rollLogCap ?? Infinity;
+  const rollLog = [];
+  let rollCount = 0;
+
+  const record = (op, payload, context) => {
+    const entry = { index: rollCount++, op, ...payload };
+    if (context !== undefined) entry.context = context;
+    rollLog.push(entry);
+    if (opts.onRoll) opts.onRoll(entry);
+    if (rollLog.length > rollLogCap) {
+      rollLog.splice(0, rollLog.length - rollLogCap);
+    }
+    return entry;
+  };
+
+  // === Per-engine namespaces ===
+  // Dice — logged wrappers + the seedable RNG helper. Pure math
+  // (`parse`) passes through unchanged because it does no rolling.
+  const DiceBound = {
+    parse: Dice.parse,
+    seededRng: Dice.seededRng,
+    rollDie: (sides, context) => {
+      const value = Dice.rollDie(sides, rng);
+      record('rollDie', { sides, value }, context);
+      return value;
+    },
+    roll: (spec, context) => {
+      const result = Dice.roll(spec, rng);
+      record('roll', { spec, rolls: result.rolls, modifier: result.modifier, total: result.total }, context);
+      return result;
+    },
+    rollAdvantage: (spec, context) => {
+      const result = Dice.rollAdvantage(spec, rng);
+      record('rollAdvantage', { spec, rolls: result.rolls, modifier: result.modifier, total: result.total }, context);
+      return result;
+    },
+    rollDisadvantage: (spec, context) => {
+      const result = Dice.rollDisadvantage(spec, rng);
+      record('rollDisadvantage', { spec, rolls: result.rolls, modifier: result.modifier, total: result.total }, context);
+      return result;
+    }
+  };
+
+  // Checks — only `abilityCheck` and `savingThrow` are stochastic;
+  // `modFromScore` and `clampDC` are pure helpers.
+  const ChecksBound = {
+    modFromScore: Checks.modFromScore,
+    clampDC: Checks.clampDC,
+    abilityCheck: (args, context) => {
+      const result = Checks.abilityCheck(args, rng);
+      record('abilityCheck', {
+        abilityScore: args.abilityScore,
+        proficient: args.proficient ?? false,
+        proficiencyBonus: args.proficiencyBonus ?? 2,
+        ...result
+      }, context);
+      return result;
+    },
+    savingThrow: (args, context) => {
+      const result = Checks.savingThrow(args, rng);
+      record('savingThrow', {
+        abilityScore: args.abilityScore,
+        proficient: args.proficient ?? false,
+        proficiencyBonus: args.proficiencyBonus ?? 2,
+        ...result
+      }, context);
+      return result;
+    }
+  };
+
+  // Combat — bind both the mastery handler table (plugin contracts)
+  // AND the rolling wrappers (logging contracts). `applyMastery`
+  // doesn't roll dice; it's pure dispatch over the result of a
+  // separate `attackRoll`, so no log entry is needed.
+  if (opts.extraMastery) {
+    for (const [name, handler] of Object.entries(opts.extraMastery)) {
+      if (typeof handler !== 'function') {
+        throw new Error(`extraMastery.${name} must be a function`);
+      }
+    }
+  }
+  const masteryHandlers = Object.freeze({
+    ...CombatBase.DEFAULT_MASTERY_HANDLERS,
+    ...(opts.extraMastery ?? {})
+  });
+  const masteryProperties = Object.freeze(Object.keys(masteryHandlers));
+  const CombatBound = {
+    rollInitiative: (args, context) => {
+      const value = CombatBase.rollInitiative(args, rng);
+      record('rollInitiative', { dexterity: args.dexterity, value }, context);
+      return value;
+    },
+    attackRoll: (args, context) => {
+      const result = CombatBase.attackRoll(args, rng);
+      record('attackRoll', result, context);
+      return result;
+    },
+    damageRoll: (args, context) => {
+      const result = CombatBase.damageRoll(args, rng);
+      record('damageRoll', result, context);
+      return result;
+    },
+    MASTERY_PROPERTIES: masteryProperties,
+    applyMastery: (weapon, target, attackResult, attacker) =>
+      CombatBase.applyMastery(weapon, target, attackResult, attacker, masteryHandlers)
+  };
 
   return {
     // Data registries — plain objects, mutate at your own risk.
     species, classes, backgrounds, feats, spells, items,
-    // Math + helpers (some bound to this engine's data).
-    Dice, Checks, Combat, Conditions, XP, Movesets, Beats
+    // Math + helpers (bound to this engine's data + rng).
+    Dice: DiceBound,
+    Checks: ChecksBound,
+    Combat: CombatBound,
+    Conditions: ConditionsBound,
+    XP, Movesets, Beats,
+    // Audit / replay surface.
+    rollLog,
+    verifyLog
   };
 }

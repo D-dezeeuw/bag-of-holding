@@ -149,7 +149,85 @@ Hand-maintained TypeScript declarations ship alongside `index.js`. The `npm run 
 
 ## Determinism
 
-Dice use `Math.random` at v0. The engine does **not** ship a seedable RNG
-yet — when the app needs reproducibility (world generation, replay) it
-should provide its own seedable RNG and pass it through. A seedable
-backend is a probable v0.1 addition.
+The engine's stochastic surface is **forensically inspectable** from
+0.1.0 onward. Same seed → same sequence of rolls, every roll
+captured in an audit log, every operation re-verifiable.
+
+### Seeding the RNG
+
+`Dice.seededRng(seed)` returns a function with the same `() => [0, 1)`
+signature as `Math.random`. Pass it to `createEngine` and every
+rolling function becomes deterministic:
+
+```js
+import { createEngine, Dice } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine({ rng: Dice.seededRng(42) });
+engine.Combat.attackRoll({ attackBonus: 5, ac: 14 });
+// Two engines with the same seed produce identical results.
+```
+
+Default algorithm is **Mulberry32** — small, well-studied, plenty
+good for game RNG (not cryptographically secure). Same-seed
+sequences are part of the public contract: pinned tests in
+`tests/rng.test.js` lock specific outputs so any drift in the
+algorithm fails CI loudly.
+
+Each rolling function also accepts an optional `rng` parameter
+directly (module-level call), so consumers can use the rolling
+math without an engine if they want — e.g., a standalone dice
+roller widget.
+
+### The roll log
+
+Every roll the engine produces appends an entry to
+`engine.rollLog`:
+
+```js
+engine.Dice.rollDie(20);                // → 13
+engine.rollLog[0];                      // → { index: 0, op: 'rollDie', sides: 20, value: 13 }
+```
+
+One entry per _operation_ (not per individual die — `roll('3d6+2')`
+is one entry with its three rolls baked in). The `index` field is
+monotonic across the full session; entries that fall off the
+configurable `rollLogCap` keep their original indexes.
+
+Optional `onRoll(entry)` callback fires immediately after each
+entry is appended — useful for live debug overlays, telemetry, or
+piping rolls into Spektrum history.
+
+### Context tags for trace-back
+
+Every rolling function on the engine accepts an optional `context`
+second argument (string or object) that lands on the entry:
+
+```js
+engine.Combat.attackRoll({ attackBonus: 5, ac: 14 }, 'turn 14 vs orc');
+engine.Checks.savingThrow({ abilityScore: 14, dc: 12 }, { actor: 'pc.danny', why: 'poison cloud' });
+```
+
+The context exists for the human reading the log later. The engine
+doesn't introspect it; it just attaches and forgets.
+
+### Replay verification
+
+`verifyLog({ seed, log })` walks a recorded log forward from `seed`
+and reports the first divergence. Available as both a top-level
+export and an `engine.verifyLog` method (they're the same function).
+
+```js
+import { verifyLog } from '@zeeuw/bag-of-holding';
+
+const result = verifyLog({ seed: 42, log: engine.rollLog });
+if (!result.ok) {
+  console.error(`Log diverged at index ${result.divergedAt}`);
+}
+```
+
+Returns `{ ok: true }` on clean replay or
+`{ ok: false, divergedAt, expected, actual }` on the first
+disagreement. Useful for catching regressions, AI hallucinations
+claiming the engine rolled something it didn't, and state
+corruption across saves. Unknown ops throw loudly — a forwards-
+incompatible log shouldn't silently pass verification.

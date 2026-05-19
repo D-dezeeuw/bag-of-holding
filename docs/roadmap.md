@@ -43,24 +43,59 @@ Three properties we won't trade away:
 
 ## Near-term: stabilise and round out the kernel
 
-### `0.1.0` — Determinism
+### `0.1.0` — Determinism with audit, test, and trace-back
 
-The blocking gap before any consumer can rely on replay.
+The blocking gap before any consumer can rely on replay. Going
+beyond "seedable" — this release makes the engine's stochastic
+surface *forensically inspectable*: every random outcome is
+reproducible, recordable, and traceable back to the roll that
+caused it.
 
-- **Seedable RNG.** Replace the direct `Math.random` in `dice.js` with
-  a thread-through-able RNG. Default to `Math.random` when none is
-  supplied; engine factory accepts a `rng` option. Consumers that
-  need replay (Spektrum-backed apps, AI agent tests) pass in a
-  seeded generator.
-- **Roll log.** Optional `recordRoll` hook on the engine so every
-  `rollDie` call can be captured for replay or audit.
-- **First npm publish.** Tag `v0.1.0`, push to npm with the existing
-  `types` + `exports` shape. Verify the CDN paths
-  (`unpkg.com/@zeeuw/bag-of-holding@0.1.0/index.js`) resolve.
+- **Seedable RNG.** New `Dice.seededRng(seed)` returns a deterministic
+  function with the same `() => [0, 1)` signature as `Math.random`.
+  Default algorithm: Mulberry32 (32-bit state, ~6 lines, widely used
+  for game RNG). Every rolling function (`rollDie`, `roll`,
+  `attackRoll`, `damageRoll`, `abilityCheck`, `savingThrow`,
+  `rollInitiative`) takes an optional `rng` parameter; the engine
+  factory threads one shared rng to all of them via bound wrappers.
+- **Roll log.** The engine maintains an append-only `rollLog`
+  capturing every die roll. Entry shape:
+
+  ```js
+  { index, op, sides, value, context?: unknown, ts? }
+  ```
+
+  Plain JSON — serialise it, attach it to a bug report, ship it to
+  a teammate, replay it later. Configurable size cap (drop-oldest on
+  overflow) so long sessions don't balloon memory.
+- **Context tags for trace-back.** Every rolling function accepts an
+  optional `context` field (string or object) that's attached to the
+  log entry. The loop tags rolls with what they were *for*
+  (`'attack vs orc, turn 14'`, `'death save'`, `'wild magic surge
+  check'`), so a postmortem can answer *"which roll caused this
+  outcome?"* without re-running the session.
+- **Replay verifier.** `Dice.verifyLog({ seed, log })` walks a
+  recorded log forward from the seed, comparing each generated roll
+  to the logged value. Returns `{ ok: true }` on match, or
+  `{ ok: false, divergedAt: index, expected, actual }` on the first
+  disagreement. Catches regressions, AI hallucinations claiming the
+  engine rolled something it didn't, and state corruption across
+  saves.
+- **Test pins.** New `tests/rng.test.js` locks specific seed→output
+  pairs across all rolling functions. If anyone touches the Mulberry32
+  implementation the tests fail loud — preventing silent
+  determinism regressions across versions. Coverage stays at
+  100 / 100 / 100.
+- **First milestone npm publish.** Tag `v0.1.0`, publish to npm.
+  The `0.0.1` placeholder publish (already shipped or in flight) is
+  superseded; consumers pin `^0.1.0` from here on.
 
 *Why first:* Dungeons-and-Dans depends on Spektrum's history primitive
-for undo and chapter rewinds; the rules engine must be replay-compatible
-before the app can wire it in.
+for undo and chapter rewinds; the rules engine must be replay-
+compatible before the app can wire it in. The audit / test / trace-
+back surface also unlocks reliable AI-loop testing — *"the AI claims
+it rolled X, did it?"* becomes a verifiable question, not a vibes-
+based dispute.
 
 ### `0.2.0` — Rule modifications (plugin Phase B)
 

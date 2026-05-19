@@ -36,10 +36,12 @@ export function clampDC(dc) {
  *
  * `proficient` defaults to false because most checks aren't
  * proficient, and forgetting the flag should bias toward the less
- * favourable outcome rather than the more favourable one.
+ * favourable outcome rather than the more favourable one. The `rng`
+ * cascades through `rollDie` so a seeded engine produces reproducible
+ * check sequences end-to-end.
  */
-export function abilityCheck({ abilityScore, proficient = false, proficiencyBonus = 2, dc }) {
-  const d20 = rollDie(20);
+export function abilityCheck({ abilityScore, proficient = false, proficiencyBonus = 2, dc }, rng = Math.random) {
+  const d20 = rollDie(20, rng);
   const mod = modFromScore(abilityScore) + (proficient ? proficiencyBonus : 0);
   const total = d20 + mod;
   const target = clampDC(dc);
@@ -53,6 +55,6 @@ export function abilityCheck({ abilityScore, proficient = false, proficiencyBonu
  * the names separate even though one delegates. That makes call
  * sites — and grep — read closer to the rule being applied.
  */
-export function savingThrow(args) {
-  return abilityCheck(args);
+export function savingThrow(args, rng = Math.random) {
+  return abilityCheck(args, rng);
 }

@@ -6,6 +6,7 @@
 
 import defaultEngine, {
   createEngine,
+  verifyLog,
   Dice,
   Checks,
   Combat,
@@ -34,7 +35,10 @@ import defaultEngine, {
   type MasteryHandler,
   type MasteryRider,
   type AttackRollResult,
-  type Beat
+  type Beat,
+  type RNG,
+  type RollEntry,
+  type VerifyLogResult
 } from '../../index.js';
 
 // ============================================================
@@ -134,6 +138,33 @@ Checks.abilityCheck({ abilityScore: 14, dc: 12, weight: 200 });
 // @ts-expect-error — Species without required fields should be a type error
 const _badSpecies: Species = { id: 'broken' };
 
+// === RNG / roll log / verify ===
+
+const seeded: RNG = Dice.seededRng(42);
+const _floatInUnitInterval: number = seeded();
+
+const seededEngine: Engine = createEngine({
+  rng: Dice.seededRng(1234),
+  onRoll: (entry: RollEntry) => { void entry.index; void entry.op; },
+  rollLogCap: 1000
+});
+
+seededEngine.Combat.attackRoll({ attackBonus: 5, ac: 14 }, 'turn 14 vs orc');
+seededEngine.Dice.rollDie(20, 'spot check');
+seededEngine.Checks.savingThrow({ abilityScore: 14, dc: 12 }, { actor: 'pc' });
+
+const _log: RollEntry[] = seededEngine.rollLog;
+
+// Both call shapes resolve.
+const _viaEngine: VerifyLogResult = seededEngine.verifyLog({ seed: 1234, log: _log });
+const _viaModule: VerifyLogResult = verifyLog({ seed: 1234, log: _log });
+
+// Discriminated-union narrowing.
+if (!_viaModule.ok) {
+  const _idx: number = _viaModule.divergedAt;
+  void _idx;
+}
+
 // Reference every local so tsc doesn't complain about unused.
 void _initiative; void _attack; void _success; void _saveMod; void _rolls;
 void cleared; void present; void _level; void _dead; void _masteryNames;
@@ -141,3 +172,5 @@ void _pinRider; void _level5; void _next; void _chipId; void _validation;
 void _srdSpecies; void _legacyClasses; void _spreadSpecies; void _spreadClasses;
 void _spreadBackgrounds; void _spreadFeats; void _spreadSpells; void _spreadItems;
 void _badSpecies; void customEngine;
+void seeded; void _floatInUnitInterval; void seededEngine;
+void _log; void _viaEngine; void _viaModule;

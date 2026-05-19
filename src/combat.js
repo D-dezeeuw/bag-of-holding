@@ -6,10 +6,12 @@ import { modFromScore } from './checks.js';
  * combat (not checks) because it belongs to the encounter system —
  * the loop calls `rollInitiative` at the start of combat, never as
  * a generic check. Keeping it here means combat code never has to
- * reach into another module to start a turn.
+ * reach into another module to start a turn. The `rng` cascades
+ * through `rollDie` so seeded engines produce reproducible turn
+ * orders.
  */
-export function rollInitiative({ dexterity }) {
-  return rollDie(20) + modFromScore(dexterity);
+export function rollInitiative({ dexterity }, rng = Math.random) {
+  return rollDie(20, rng) + modFromScore(dexterity);
 }
 
 /**
@@ -24,8 +26,8 @@ export function rollInitiative({ dexterity }) {
  * sometimes try to defeat it, so it's encoded here as the single
  * source of truth rather than left to the loop.
  */
-export function attackRoll({ attackBonus, ac }) {
-  const d20 = rollDie(20);
+export function attackRoll({ attackBonus, ac }, rng = Math.random) {
+  const d20 = rollDie(20, rng);
   const critical = d20 === 20;
   const fumble = d20 === 1;
   const total = d20 + attackBonus;
@@ -46,9 +48,9 @@ export function attackRoll({ attackBonus, ac }) {
  *   3. `damageMod = 0` and `critical = false` defaults so test
  *      and AI-tool callers that pass only `damageDice` work.
  */
-export function damageRoll({ damageDice, damageMod = 0, critical = false }) {
-  const base = rollDice(damageDice);
-  const extra = critical ? rollDice(damageDice) : { rolls: [], total: 0 };
+export function damageRoll({ damageDice, damageMod = 0, critical = false }, rng = Math.random) {
+  const base = rollDice(damageDice, rng);
+  const extra = critical ? rollDice(damageDice, rng) : { rolls: [], total: 0 };
   const total = Math.max(1, base.total + extra.total + damageMod);
   return {
     damageDice,
