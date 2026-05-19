@@ -30,11 +30,13 @@ import * as Dice from './dice.js';
 import * as Checks from './checks.js';
 import * as CombatBase from './combat.js';
 import * as ConditionsBase from './conditions.js';
-import * as XP from './xp.js';
+import * as XPBase from './xp.js';
 import * as Movesets from './movesets.js';
 import * as Beats from './beats/index.js';
 import * as Classes from './classes/index.js';
+import * as Character from './character.js';
 import { verifyLog } from './replay.js';
+import { buildRules } from './rules.js';
 
 import defaultSpecies     from './srd/species.js';
 import defaultBackgrounds from './srd/backgrounds.js';
@@ -94,6 +96,25 @@ function mergeRegistry(registry, defaults, extras = {}) {
 }
 
 /**
+ * Build a per-engine `XP` namespace whose progression tables can be
+ * overridden via `rules.xpThresholds` / `rules.proficiencyByLevel`
+ * (Phase B). When the rule values are `null`, the SRD 5.2 defaults
+ * from `xp.js` apply — same behaviour as not overriding at all,
+ * just expressed through a single path.
+ */
+function buildXP(rules) {
+  const thresholds = rules.xpThresholds ?? XPBase.THRESHOLDS;
+  const proficiency = rules.proficiencyByLevel ?? XPBase.PROFICIENCY_BY_LEVEL;
+  return {
+    THRESHOLDS: thresholds,
+    PROFICIENCY_BY_LEVEL: proficiency,
+    levelForXP: (xp) => XPBase.levelForXP(xp, thresholds),
+    nextLevelThreshold: (xp) => XPBase.nextLevelThreshold(xp, thresholds),
+    awardMilestone: ({ pc, beat }) => XPBase.awardMilestone({ pc, beat }, thresholds)
+  };
+}
+
+/**
  * Build a per-engine `Conditions` namespace whose `apply` is bound
  * to this engine's combined condition list. The boolean condition
  * vocabulary expands deterministically: SRD 5.2 conditions come
@@ -102,7 +123,8 @@ function mergeRegistry(registry, defaults, extras = {}) {
  *
  * Exhaustion stays as it is — a numeric scalar, not part of the
  * boolean list. Plugins that want to extend Exhaustion semantics
- * (gritty resting, faster death) belong to Phase B (rule mods).
+ * (gritty resting, faster death) can do so by combining rule mods
+ * (Phase B) with their own host-side state machine.
  */
 function buildConditions(extraConditions = []) {
   if (!Array.isArray(extraConditions)) {
@@ -148,6 +170,14 @@ function buildConditions(extraConditions = []) {
  *     monotonic across the session, so dropped-then-kept entries
  *     don't shift indexes.
  *
+ * **0.2.0 — rule modifications (plugin Phase B):**
+ *   - `rules`: small named-knob object tuning combat/XP math.
+ *     Validated at construction; defaults preserve SRD 5.2 exactly.
+ *     See `src/rules.js § DEFAULT_RULES` for the full knob list.
+ *     The merged frozen object is exposed as `engine.rules` for
+ *     introspection (handy when a host wants to render "this pack
+ *     uses Pathfinder crits" in the UI).
+ *
  * @param {object} [opts]
  * @param {object} [opts.extraSpecies]      Map of id → species record.
  * @param {object} [opts.extraClasses]      Map of id → class record.
@@ -160,6 +190,7 @@ function buildConditions(extraConditions = []) {
  * @param {() => number} [opts.rng]         Custom RNG; default `Math.random`.
  * @param {(entry: object) => void} [opts.onRoll]  Per-roll callback.
  * @param {number} [opts.rollLogCap]        Max log entries (default ∞).
+ * @param {object} [opts.rules]             Phase B rule overrides; see DEFAULT_RULES.
  */
 export function createEngine(opts = {}) {
   const species     = mergeRegistry('species',     defaultSpecies,     opts.extraSpecies);
@@ -170,6 +201,12 @@ export function createEngine(opts = {}) {
   const items       = mergeRegistry('items',       defaultItems,       opts.extraItems);
 
   const ConditionsBound  = buildConditions(opts.extraConditions);
+
+  // === Phase B rule modifications ===
+  const rules = buildRules(opts.rules);
+
+  // === Engine-bound XP namespace (respects rule overrides) ===
+  const XPBound = buildXP(rules);
 
   // === Determinism plumbing ===
   const rng = opts.rng ?? Math.random;
@@ -266,12 +303,12 @@ export function createEngine(opts = {}) {
       return value;
     },
     attackRoll: (args, context) => {
-      const result = CombatBase.attackRoll(args, rng);
+      const result = CombatBase.attackRoll(args, rng, rules);
       record('attackRoll', result, context);
       return result;
     },
     damageRoll: (args, context) => {
-      const result = CombatBase.damageRoll(args, rng);
+      const result = CombatBase.damageRoll(args, rng, rules);
       record('damageRoll', result, context);
       return result;
     },
@@ -280,17 +317,32 @@ export function createEngine(opts = {}) {
       CombatBase.applyMastery(weapon, target, attackResult, attacker, masteryHandlers)
   };
 
+  // Engine view passed to character derivation. Built once here so
+  // every `deriveSheet` call sees the same plugin-merged registries
+  // without re-allocating; the view is structural, so consumers can
+  // also use the engine directly (it satisfies the same shape).
+  const characterRegistries = {
+    species, classes, backgrounds, feats, items, XP: XPBound
+  };
+
   return {
     // Data registries — plain objects, mutate at your own risk.
     species, classes, backgrounds, feats, spells, items,
-    // Math + helpers (bound to this engine's data + rng).
+    // Math + helpers (bound to this engine's data + rng + rules).
     Dice: DiceBound,
     Checks: ChecksBound,
     Combat: CombatBound,
     Conditions: ConditionsBound,
-    XP, Movesets, Beats,
+    XP: XPBound,
+    Movesets, Beats,
+    // Character derivation — turns a host-owned record into a
+    // frozen sheet. See docs/character-sheet.md.
+    deriveSheet: (record) => Character.deriveSheet(record, characterRegistries),
     // Audit / replay surface.
     rollLog,
-    verifyLog
+    verifyLog,
+    // Frozen merged rules — exposed for introspection ("which
+    // pack is loaded?" UI, debug overlay, telemetry).
+    rules
   };
 }

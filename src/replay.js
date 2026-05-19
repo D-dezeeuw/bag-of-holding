@@ -7,6 +7,7 @@
 import { seededRng, rollDie, roll, rollAdvantage, rollDisadvantage } from './dice.js';
 import { abilityCheck, savingThrow } from './checks.js';
 import { attackRoll, damageRoll, rollInitiative } from './combat.js';
+import { DEFAULT_RULES, buildRules } from './rules.js';
 
 const arraysEqual = (a, b) =>
   Array.isArray(a) && Array.isArray(b)
@@ -31,14 +32,21 @@ const arraysEqual = (a, b) =>
  * **What this does NOT do:** it doesn't re-execute the *surrounding
  * application logic* (turn loop, AI calls, narration). It only
  * verifies that the engine's stochastic outputs, in the order they
- * were recorded, are reproducible from the given seed.
+ * were recorded, are reproducible from the given seed and rules.
  *
  * The log entries' `op` field is the dispatch key. Unknown ops throw
  * loudly — a forwards-incompatible log shouldn't silently pass
  * verification.
+ *
+ * **Rule packs:** if the original session used a custom `rules`
+ * object (Phase B), pass the same one in. Replay against the wrong
+ * rules will diverge at the first crit/fumble/damage-floor-affected
+ * roll — which is correct: a log produced under one rule set
+ * isn't reproducible under another.
  */
-export function verifyLog({ seed, log }) {
+export function verifyLog({ seed, log, rules: rulesOpt }) {
   const rng = seededRng(seed);
+  const rules = rulesOpt === undefined ? DEFAULT_RULES : buildRules(rulesOpt);
   for (let i = 0; i < log.length; i++) {
     const entry = log[i];
     let actual;
@@ -74,7 +82,7 @@ export function verifyLog({ seed, log }) {
         }
         break;
       case 'attackRoll':
-        actual = attackRoll({ attackBonus: entry.attackBonus, ac: entry.ac }, rng);
+        actual = attackRoll({ attackBonus: entry.attackBonus, ac: entry.ac }, rng, rules);
         if (actual.d20 !== entry.d20 || actual.hit !== entry.hit) {
           return { ok: false, divergedAt: i, expected: entry, actual };
         }
@@ -84,7 +92,7 @@ export function verifyLog({ seed, log }) {
           damageDice: entry.damageDice,
           damageMod: entry.damageMod,
           critical: entry.critRolls.length > 0
-        }, rng);
+        }, rng, rules);
         if (actual.total !== entry.total || !arraysEqual(actual.baseRolls, entry.baseRolls)) {
           return { ok: false, divergedAt: i, expected: entry, actual };
         }

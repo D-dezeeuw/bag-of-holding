@@ -69,6 +69,39 @@ export function rollDisadvantage(spec, rng = Math.random) {
 }
 
 /**
+ * Roll a dice expression with **exploding dice**: every die that
+ * rolls its maximum value triggers another roll of the same die,
+ * added on. Used by the engine's `explodingDamageDice` rule for
+ * "savage worlds"-style critical damage; can also be called directly
+ * for any host that wants exploding dice as a one-off mechanic.
+ *
+ * Chains compound — a max roll can chain into another max roll
+ * which chains again. There's no cap in the SRD; in practice the
+ * probability decays geometrically (1/sides per chain step), so a
+ * runaway chain is extremely rare with normal dice. A degenerate
+ * RNG that always returns max would loop forever; callers using a
+ * custom RNG should ensure it's uniform.
+ *
+ * Returns the same shape as `roll`, with `rolls` containing every
+ * die that hit the table — original three for `3d6` plus any
+ * explosion follow-ups. The `count` field in the parsed spec stays
+ * the original; the array's length grows.
+ */
+export function rollExplosive(spec, rng = Math.random) {
+  const { count, sides, modifier } = parse(spec);
+  const rolls = [];
+  for (let i = 0; i < count; i++) {
+    let value;
+    do {
+      value = rollDie(sides, rng);
+      rolls.push(value);
+    } while (value === sides);
+  }
+  const total = rolls.reduce((a, b) => a + b, 0) + modifier;
+  return { spec, rolls, modifier, total };
+}
+
+/**
  * Build a deterministic, seedable replacement for `Math.random`.
  * Returns a function with the same `() => [0, 1)` signature, so it's
  * a drop-in: pass it to any rolling function or hand it to the

@@ -1,5 +1,6 @@
-import { rollDie, roll as rollDice } from './dice.js';
+import { rollDie, roll as rollDice, rollExplosive } from './dice.js';
 import { modFromScore } from './checks.js';
+import { DEFAULT_RULES } from './rules.js';
 
 /**
  * Initiative is mechanically just `d20 + DEX mod`, but it lives in
@@ -21,15 +22,16 @@ export function rollInitiative({ dexterity }, rng = Math.random) {
  * connect cleanly" vs "the blade scrapes off the plate" — and we
  * don't want every caller redoing the nat-20 / nat-1 comparison.
  *
- * Nat 20 always hits and nat 1 always misses, regardless of AC and
- * attack bonus. That's SRD canon; cheaters and AI hallucinators
- * sometimes try to defeat it, so it's encoded here as the single
- * source of truth rather than left to the loop.
+ * Crit and fumble faces are configurable via `rules.critOn` /
+ * `rules.fumbleOn` (Phase B). Defaults follow SRD canon: 20 always
+ * crits, 1 always fumbles, regardless of AC and attack bonus.
+ * Custom packs (Pathfinder-style 19–20, Champion Fighter's
+ * Improved Critical) override the arrays.
  */
-export function attackRoll({ attackBonus, ac }, rng = Math.random) {
+export function attackRoll({ attackBonus, ac }, rng = Math.random, rules = DEFAULT_RULES) {
   const d20 = rollDie(20, rng);
-  const critical = d20 === 20;
-  const fumble = d20 === 1;
+  const critical = rules.critOn.includes(d20);
+  const fumble = rules.fumbleOn.includes(d20);
   const total = d20 + attackBonus;
   const hit = critical || (!fumble && total >= ac);
   return { d20, attackBonus, total, ac, hit, critical, fumble };
@@ -42,16 +44,23 @@ export function attackRoll({ attackBonus, ac }, rng = Math.random) {
  *      SRD § "Critical Hits". A common port-bug is doubling the
  *      whole total; we avoid it by rolling the extra dice
  *      separately and adding the flat modifier once.
- *   2. Total damage floors at 1. A creature reduced to a negative
- *      result by a debuff shouldn't heal the target — the floor
- *      keeps "tickle for 1" rather than producing "heals for 3".
+ *   2. Total damage floors at `rules.damageFloor` (default `1`).
+ *      A creature reduced to a negative result by a debuff
+ *      shouldn't heal the target — the floor keeps "tickle for 1"
+ *      rather than producing "heals for 3". Set to `0` in custom
+ *      rule packs that want "negative modifier fully cancels."
  *   3. `damageMod = 0` and `critical = false` defaults so test
  *      and AI-tool callers that pass only `damageDice` work.
+ *
+ * When `rules.explodingDamageDice` is on, each die that comes up
+ * max rolls again and adds — affects both the base roll and the
+ * crit extra dice.
  */
-export function damageRoll({ damageDice, damageMod = 0, critical = false }, rng = Math.random) {
-  const base = rollDice(damageDice, rng);
-  const extra = critical ? rollDice(damageDice, rng) : { rolls: [], total: 0 };
-  const total = Math.max(1, base.total + extra.total + damageMod);
+export function damageRoll({ damageDice, damageMod = 0, critical = false }, rng = Math.random, rules = DEFAULT_RULES) {
+  const rollFn = rules.explodingDamageDice ? rollExplosive : rollDice;
+  const base = rollFn(damageDice, rng);
+  const extra = critical ? rollFn(damageDice, rng) : { rolls: [], total: 0 };
+  const total = Math.max(rules.damageFloor, base.total + extra.total + damageMod);
   return {
     damageDice,
     baseRolls: base.rolls,

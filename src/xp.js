@@ -26,10 +26,14 @@ export const PROFICIENCY_BY_LEVEL = Object.freeze({ 1: 2, 2: 2, 3: 2, 4: 2, 5: 3
  * entries; introducing log-n complexity for a 5-element table is
  * the classic premature optimisation. Re-evaluate if level cap
  * ever exceeds tier 1.
+ *
+ * The optional `thresholds` parameter lets rule-modification plugins
+ * substitute a custom progression curve (gritty/heroic packs) without
+ * forking this module. Default keeps the SRD 5.2 baseline.
  */
-export function levelForXP(xp) {
+export function levelForXP(xp, thresholds = THRESHOLDS) {
   let level = 1;
-  for (const [lvl, threshold] of Object.entries(THRESHOLDS)) {
+  for (const [lvl, threshold] of Object.entries(thresholds)) {
     if (xp >= threshold) level = Number(lvl);
   }
   return level;
@@ -40,25 +44,26 @@ export function levelForXP(xp) {
  * distinguish "max level reached" from "value not yet computed".
  * Callers rendering progression bars rely on this discriminator.
  */
-export function nextLevelThreshold(xp) {
-  const current = levelForXP(xp);
-  return THRESHOLDS[current + 1] ?? null;
+export function nextLevelThreshold(xp, thresholds = THRESHOLDS) {
+  const current = levelForXP(xp, thresholds);
+  return thresholds[current + 1] ?? null;
 }
 
 /**
  * Milestone XP keyed off a beat's `targetPlaytimeMinutes` rather
  * than a fixed "kill XP" budget. The 10-xp-per-minute rate is the
  * tuning constant: a 30-minute beat → 300 xp → exactly the L1→L2
- * threshold. Treat the multiplier as the dial we'll turn once real
- * playtest data lands.
+ * threshold under the SRD curve. Treat the multiplier as the dial
+ * we'll turn once real playtest data lands.
  *
  * Defaults to 30 minutes when the beat omits the field so that
  * hand-authored beats and older save formats don't crash the loop;
- * 30 is the midpoint of the expected beat length.
+ * 30 is the midpoint of the expected beat length. The `thresholds`
+ * parameter is threaded through for the level-up detection.
  */
-export function awardMilestone({ pc, beat }) {
+export function awardMilestone({ pc, beat }, thresholds = THRESHOLDS) {
   const minutes = beat?.targetPlaytimeMinutes ?? 30;
   const xpDelta = Math.round(minutes * 10);
   const newTotal = pc.xp + xpDelta;
-  return { xpDelta, newTotal, willLevelUp: levelForXP(newTotal) > pc.level };
+  return { xpDelta, newTotal, willLevelUp: levelForXP(newTotal, thresholds) > pc.level };
 }

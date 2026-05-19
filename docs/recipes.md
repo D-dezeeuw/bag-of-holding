@@ -10,48 +10,56 @@ recipe points to the milestone where it gets a first-class helper.
 
 ## Recipes index
 
-**Dice as a standalone tool**
+### Dice as a standalone tool
 
-1. [Roll dice from a static HTML page](#1-roll-dice-from-a-static-html-page)
-2. [Advantage, disadvantage, drop-lowest](#2-advantage-disadvantage-drop-lowest)
-3. [Tree-shake-friendly dice-only consumer](#3-tree-shake-friendly-dice-only-consumer)
+- [1. Roll dice from a static HTML page](#1-roll-dice-from-a-static-html-page)
+- [2. Advantage, disadvantage, drop-lowest](#2-advantage-disadvantage-drop-lowest)
+- [3. Tree-shake-friendly dice-only consumer](#3-tree-shake-friendly-dice-only-consumer)
 
-**Basic checks & combat**
+### Basic checks & combat
 
-4. [Ability check against a DC](#4-ability-check-against-a-dc)
-5. [Single attack → damage flow](#5-single-attack--damage-flow)
-6. [Critical hit handling](#6-critical-hit-handling)
+- [4. Ability check against a DC](#4-ability-check-against-a-dc)
+- [5. Single attack → damage flow](#5-single-attack--damage-flow)
+- [6. Critical hit handling](#6-critical-hit-handling)
 
-**Compound actions**
+### Compound actions
 
-7. [Attack from stealth (compound action with context tags)](#7-attack-from-stealth-compound-action-with-context-tags)
-8. [Opposed check (Shove, Grapple, contest pattern)](#8-opposed-check-shove-grapple-contest-pattern)
-9. [Death save tracker](#9-death-save-tracker)
+- [7. Attack from stealth (compound action with context tags)](#7-attack-from-stealth-compound-action-with-context-tags)
+- [8. Opposed check (Shove, Grapple, contest pattern)](#8-opposed-check-shove-grapple-contest-pattern)
+- [9. Death save tracker](#9-death-save-tracker)
 
-**Conditions**
+### Conditions
 
-10. [Apply, remove, query conditions](#10-apply-remove-query-conditions)
-11. [Exhaustion accumulation (forced march)](#11-exhaustion-accumulation-forced-march)
+- [10. Apply, remove, query conditions](#10-apply-remove-query-conditions)
+- [11. Exhaustion accumulation (forced march)](#11-exhaustion-accumulation-forced-march)
 
-**Custom rules (Phase A plugins)**
+### Custom content (Phase A plugins)
 
-12. [Homebrew species](#12-homebrew-species)
-13. [Custom weapon mastery property](#13-custom-weapon-mastery-property)
-14. [Custom condition](#14-custom-condition)
-15. [Themed pack as a plugin bundle](#15-themed-pack-as-a-plugin-bundle)
+- [12. Homebrew species](#12-homebrew-species)
+- [13. Custom weapon mastery property](#13-custom-weapon-mastery-property)
+- [14. Custom condition](#14-custom-condition)
+- [15. Themed pack as a plugin bundle](#15-themed-pack-as-a-plugin-bundle)
 
-**Determinism & replay**
+### Custom rules (Phase B knobs)
 
-16. [Seeded session](#16-seeded-session)
-17. [Live debug overlay via onRoll](#17-live-debug-overlay-via-onroll)
-18. [Save and restore a session](#18-save-and-restore-a-session)
-19. [Trace-back: "why did the boss die in one hit?"](#19-trace-back-why-did-the-boss-die-in-one-hit)
+- [16. Pathfinder-style crit range (19–20)](#16-pathfinder-style-crit-range-1920)
+- [17. Exploding damage dice (savage flavour)](#17-exploding-damage-dice-savage-flavour)
+- [18. Gritty XP curve (slower progression)](#18-gritty-xp-curve-slower-progression)
+- [19. No-damage-floor mode](#19-no-damage-floor-mode)
+- [20. Themed pack combining content and rules](#20-themed-pack-combining-content-and-rules)
 
-**Multi-engine and host integrations**
+### Determinism & replay
 
-20. [Tutorial sandbox alongside the live game](#20-tutorial-sandbox-alongside-the-live-game)
-21. [Wiring into Spektrum history](#21-wiring-into-spektrum-history)
-22. [Minimal AI-loop shape](#22-minimal-ai-loop-shape)
+- [21. Seeded session](#21-seeded-session)
+- [22. Live debug overlay via onRoll](#22-live-debug-overlay-via-onroll)
+- [23. Save and restore a session](#23-save-and-restore-a-session)
+- [24. Trace-back: "why did the boss die in one hit?"](#24-trace-back-why-did-the-boss-die-in-one-hit)
+
+### Multi-engine and host integrations
+
+- [25. Tutorial sandbox alongside the live game](#25-tutorial-sandbox-alongside-the-live-game)
+- [26. Wiring into Spektrum history](#26-wiring-into-spektrum-history)
+- [27. Minimal AI-loop shape](#27-minimal-ai-loop-shape)
 
 ---
 
@@ -477,7 +485,156 @@ A pack is just an `EngineOptions` object. Distribute as an npm
 package, a JSON file, a literal — any shape the host can pass
 straight into `createEngine`.
 
-## 16. Seeded session
+## 16. Pathfinder-style crit range (19–20)
+
+**Use case:** Wider crit range — common in Pathfinder, in "this
+weapon scores criticals on a 19 or 20" house rules, and as the
+mechanical effect of a Champion Fighter's L3 Improved Critical.
+
+```js
+import { createEngine, Dice } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine({
+  rng: Dice.seededRng(42),
+  rules: { critOn: [19, 20] }
+});
+
+engine.Combat.attackRoll({ attackBonus: 5, ac: 14 });
+// d20 of 19 or 20 → result.critical === true, hit === true
+```
+
+Every other rule (fumble on 1, damageFloor of 1, no exploding
+dice, SRD XP curve) stays at its default. Opt in per-knob.
+
+## 17. Exploding damage dice (savage flavour)
+
+**Use case:** Every damage die that rolls max rolls again — chains
+can compound, producing rare but spectacular damage. Borrowed from
+Savage Worlds; popular in over-the-top action campaigns.
+
+```js
+import { createEngine, Dice } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine({
+  rng: Dice.seededRng(42),
+  rules: { explodingDamageDice: true }
+});
+
+const damage = engine.Combat.damageRoll({
+  damageDice: '2d6',
+  damageMod: 3,
+  critical: true
+});
+// damage.baseRolls and damage.critRolls may each include more
+// than the declared count if any die rolled max and chained.
+```
+
+Affects both the base roll and the crit extra dice. Chains
+compound: a max → max → max sequence is rare but allowed. For a
+one-off "this attack only" exploding mechanic without enabling
+the engine rule, call `Dice.rollExplosive(spec, rng)` directly.
+
+## 18. Gritty XP curve (slower progression)
+
+**Use case:** A 100-hour campaign should feel like a slow rise to
+heroic stature, not "level 5 in week two." Raise the thresholds.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine({
+  rules: {
+    xpThresholds: {
+      1: 0,
+      2: 1500,    // SRD: 300 → 5× longer
+      3: 4500,    // SRD: 900
+      4: 13500,   // SRD: 2700
+      5: 35000    // SRD: 6500
+    }
+  }
+});
+
+engine.XP.levelForXP(1000);            // → 1  (still L1)
+engine.XP.nextLevelThreshold(1000);    // → 1500
+
+const result = engine.XP.awardMilestone({
+  pc: { xp: 1400, level: 1 },
+  beat: { targetPlaytimeMinutes: 30 }
+});
+result.willLevelUp;                    // → true (1400 + 300 ≥ 1500)
+```
+
+Set `proficiencyByLevel` alongside if the bonus curve should also
+stretch — otherwise PCs gain proficiency bumps faster than levels.
+
+## 19. No-damage-floor mode
+
+**Use case:** A heavy debuff (Bane, Bestow Curse, Bardic Vicious
+Mockery on a weak target) reduces damage below zero. SRD says
+"floor at 1." Some packs want "the modifier fully cancels — the
+hit deals 0."
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine({
+  rules: { damageFloor: 0 }
+});
+
+const damage = engine.Combat.damageRoll({
+  damageDice: '1d4',
+  damageMod: -10   // Vicious Mockery-style stacked debuffs
+});
+damage.total;       // can be 0 under this rule (would be 1 under SRD)
+```
+
+The floor only affects the *minimum*; positive damage is never
+capped. Combine with `explodingDamageDice` for "everything is
+swingier" packs.
+
+## 20. Themed pack combining content and rules
+
+**Use case:** Ship a coherent pack — homebrew species, items,
+conditions, AND rule modifications — as one object a host can
+opt into wholesale.
+
+```js
+// pirates-of-the-sundered-sea.js
+export default {
+  extraSpecies: {
+    'merfolk':   { id: 'merfolk',   name: 'Merfolk',   size: 'medium', speed: 10, traits: ['Swim 30ft', 'Amphibious'] },
+    'sea-witch': { id: 'sea-witch', name: 'Sea-Witch', size: 'medium', speed: 30, traits: ['Stormcall'] }
+  },
+  extraItems: {
+    'cutlass':   { id: 'cutlass',   name: 'Cutlass',   type: 'weapon', damage: '1d8',  damageType: 'slashing', mastery: 'sap' },
+    'flintlock': { id: 'flintlock', name: 'Flintlock', type: 'weapon', damage: '1d10', damageType: 'piercing', mastery: 'push' }
+  },
+  extraConditions: ['waterlogged', 'cursed-by-the-sea'],
+
+  // High-action piracy: wide crits + exploding dice + slow
+  // progression so the campaign earns its level-ups.
+  rules: {
+    critOn: [19, 20],
+    explodingDamageDice: true,
+    xpThresholds: { 1: 0, 2: 1000, 3: 3000, 4: 8000, 5: 20000 }
+  }
+};
+
+// host.js
+import { createEngine } from '@zeeuw/bag-of-holding';
+import piratesPack from './pirates-of-the-sundered-sea.js';
+
+const engine = createEngine(piratesPack);
+engine.rules.critOn;     // → [19, 20]  — host can introspect what's loaded
+```
+
+Phase A content options (`extraSpecies`, `extraItems`, etc.) and
+Phase B `rules` overrides live in the same `EngineOptions`
+object, so a "pack" is just a literal. No registration ceremony,
+no plugin lifecycle — the host hands the object to `createEngine`
+and gets a pre-configured engine back.
+
+## 21. Seeded session
 
 **Use case:** Reproducible play — same seed produces the same
 sequence of rolls for any consumer running this exact engine
@@ -498,7 +655,7 @@ for any sequence of operations. Useful for: unit-testing your loop
 without mocks, sharing a "weird crit" for repro, running a
 deterministic AI-loop test harness.
 
-## 17. Live debug overlay via onRoll
+## 22. Live debug overlay via onRoll
 
 **Use case:** Stream every roll to a developer-mode panel as it
 happens — the Nerd-mode sidebar of an AI-DM client.
@@ -522,7 +679,7 @@ engine.Combat.attackRoll({ attackBonus: 5, ac: 14 });
 The callback is synchronous and runs after the entry is appended
 to `rollLog` — readers see the same shape either way.
 
-## 18. Save and restore a session
+## 23. Save and restore a session
 
 **Use case:** Persist a session to disk / save slot, restore it
 later, verify the engine still produces the same outcomes.
@@ -556,7 +713,7 @@ The log is plain JSON; serialise it however your host already
 handles persistence (Spektrum's `serialize`, localStorage,
 IndexedDB, file download).
 
-## 19. Trace-back: "why did the boss die in one hit?"
+## 24. Trace-back: "why did the boss die in one hit?"
 
 **Use case:** Postmortem. A player asks: how did that happen?
 Walk the roll log filtered by context.
@@ -588,7 +745,7 @@ The richer the context tag (object, not string), the easier the
 postmortem. Convention worth adopting: every rolling call gets a
 context object with at least `{ action, actor, target }`.
 
-## 20. Tutorial sandbox alongside the live game
+## 25. Tutorial sandbox alongside the live game
 
 **Use case:** Run a tutorial / preview engine that doesn't
 contaminate the live campaign — different rules, different
@@ -616,7 +773,7 @@ This is the killer use case for the instance-scoped engine design.
 A live campaign and a "what would my character look like as a
 pirate?" preview can coexist without one leaking into the other.
 
-## 21. Wiring into Spektrum history
+## 26. Wiring into Spektrum history
 
 **Use case:** Use Spektrum (the sister state-engine library) to
 hold canonical game state, with bag-of-holding producing the rolls
@@ -648,7 +805,7 @@ Two replay surfaces compose: Spektrum's history rebuilds state
 mutations; bag-of-holding's `verifyLog` confirms the rolls
 themselves are reproducible. Both use the same seed.
 
-## 22. Minimal AI-loop shape
+## 27. Minimal AI-loop shape
 
 **Use case:** An LLM proposes an action; the engine resolves the
 mechanics; the LLM narrates the outcome. Engine never talks to

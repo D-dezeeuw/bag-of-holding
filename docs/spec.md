@@ -141,7 +141,55 @@ The engine factory accepts content contributions through `EngineOptions`. Each c
 
 **Plugin handler shape.** A mastery handler is a pure function `(weapon, target, attackResult, attacker) → MasteryRider`. The rider object describes the consequence (`{ kind: 'pin', ... }`); the game loop turns that into a state delta and a piece of prose. Handlers must be pure — same inputs, same output — so the engine stays replay-deterministic.
 
-**What's _not_ in Phase A.** Custom crit thresholds, exploding dice, alternate XP curves, and other rule modifications belong to Phase B (deferred). Behavioural hooks (`beforeAttack`, `afterDamage`, `onLevelUp`) belong to Phase C (also deferred). Both phases will land when a real consumer demands them; speculative API design here would lock in shapes that turn out wrong.
+## Plugins (Phase B: rule modifications)
+
+Phase B lets a plugin retune the engine's *math* — crit ranges,
+damage floors, exploding dice, XP and proficiency curves — without
+forking the engine. Every knob has a default that preserves the
+SRD 5.2 baseline exactly; opting in is per-knob, no all-or-nothing.
+
+```js
+const engine = createEngine({
+  rules: {
+    critOn: [19, 20],            // Pathfinder-style crit range
+    damageFloor: 0,              // negative mods can fully cancel
+    explodingDamageDice: true,   // savage-worlds-flavoured damage
+    xpThresholds: { 1: 0, 2: 1000, 3: 5000, 4: 15000, 5: 35000 }
+  }
+});
+```
+
+| Knob | Type | Default | Effect |
+| --- | --- | --- | --- |
+| `critOn` | `number[]` | `[20]` | d20 faces that count as critical hits. |
+| `fumbleOn` | `number[]` | `[1]` | d20 faces that count as fumbles. |
+| `damageFloor` | `number` | `1` | Minimum damage on a successful hit. |
+| `explodingDamageDice` | `boolean` | `false` | If a damage die rolls max, roll again and add. Affects base and crit dice. |
+| `xpThresholds` | `Record<number, number>` \| `null` | `null` (SRD) | Override progression curve. |
+| `proficiencyByLevel` | `Record<number, number>` \| `null` | `null` (SRD) | Override proficiency-bonus table. |
+
+**Validation** is at construction time: each knob is checked for
+shape and range, with errors pointing at the specific offending
+field (`rules.critOn must be an array of integers in [1, 20]`). A
+malformed `rules` object fails the engine factory immediately, not
+silently at first roll.
+
+**Introspection.** The merged, frozen rules object is exposed on
+`engine.rules` so hosts can render which pack is loaded
+(`engine.rules.critOn` for a Nerd-mode badge, etc.).
+
+**Replay with custom rules.** `verifyLog` accepts an optional
+`rules` parameter — same one used by the producing engine. A log
+produced under custom rules will diverge when replayed against
+the defaults; that's correct behaviour, not a bug.
+
+## Plugins (Phase C: behavioural hooks — deferred)
+
+A small, deliberately-scoped hook surface (`beforeAttack`,
+`afterDamage`, `onLevelUp`, `onConditionApplied`, `onDeath`) lands
+when a real consumer demonstrates the need. Speculative API design
+here would lock in shapes that turn out wrong; the roadmap pins it
+to `0.3.0`.
 
 ## Types (`index.d.ts`)
 
@@ -188,7 +236,7 @@ engine.Dice.rollDie(20);                // → 13
 engine.rollLog[0];                      // → { index: 0, op: 'rollDie', sides: 20, value: 13 }
 ```
 
-One entry per _operation_ (not per individual die — `roll('3d6+2')`
+One entry per *operation* (not per individual die — `roll('3d6+2')`
 is one entry with its three rolls baked in). The `index` field is
 monotonic across the full session; entries that fall off the
 configurable `rollLogCap` keep their original indexes.

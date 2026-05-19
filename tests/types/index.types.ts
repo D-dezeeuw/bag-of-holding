@@ -38,7 +38,9 @@ import defaultEngine, {
   type Beat,
   type RNG,
   type RollEntry,
-  type VerifyLogResult
+  type VerifyLogResult,
+  type EngineRules,
+  type ResolvedRules
 } from '../../index.js';
 
 // ============================================================
@@ -165,6 +167,44 @@ if (!_viaModule.ok) {
   void _idx;
 }
 
+// === Rule modifications (Phase B) ===
+
+const houseRulesPack: EngineRules = {
+  critOn: [19, 20],
+  fumbleOn: [1, 2],
+  damageFloor: 0,
+  explodingDamageDice: true,
+  xpThresholds: { 1: 0, 2: 1000 },
+  proficiencyByLevel: { 1: 2, 2: 2 }
+};
+
+const grittyEngine: Engine = createEngine({
+  rng: Dice.seededRng(99),
+  rules: houseRulesPack
+});
+
+// Resolved rules exposed for inspection.
+const _resolved: ResolvedRules = grittyEngine.rules;
+const _critFaces: readonly number[] = _resolved.critOn;
+
+// Rolling functions still typed correctly.
+grittyEngine.Combat.attackRoll({ attackBonus: 5, ac: 14 });
+
+// Exploding dice helper is in the Dice namespace.
+const _explosiveRoll = Dice.rollExplosive('2d6', Dice.seededRng(42));
+void _explosiveRoll.total;
+
+// verifyLog with custom rules.
+const _replayWithRules: VerifyLogResult = verifyLog({
+  seed: 99,
+  log: grittyEngine.rollLog,
+  rules: houseRulesPack
+});
+
+// XP namespace respects override table.
+const _grittyLevel: number = grittyEngine.XP.levelForXP(2000);
+void _grittyLevel;
+
 // Reference every local so tsc doesn't complain about unused.
 void _initiative; void _attack; void _success; void _saveMod; void _rolls;
 void cleared; void present; void _level; void _dead; void _masteryNames;
@@ -174,3 +214,5 @@ void _spreadBackgrounds; void _spreadFeats; void _spreadSpells; void _spreadItem
 void _badSpecies; void customEngine;
 void seeded; void _floatInUnitInterval; void seededEngine;
 void _log; void _viaEngine; void _viaModule;
+void houseRulesPack; void grittyEngine; void _resolved; void _critFaces;
+void _explosiveRoll; void _replayWithRules;
