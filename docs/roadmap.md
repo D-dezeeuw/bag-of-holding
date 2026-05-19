@@ -5,15 +5,12 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-19: `0.4.0`, pre-release. Tier 1 (levels 1–5)
-> SRD 5.2 surface with Phase A (content), Phase B (rule
-> modifications), and Phase C (behavioural hooks) plugin systems;
-> forensically inspectable randomness from 0.1.0; character-sheet
-> derivation; **encounter system** (initiative tracker, action
-> budgets, multi-attack, opportunity attacks, cover & range) from
-> 0.4.0; hand-maintained TypeScript declarations; 293 tests at
-> 100 / 100 / 100 coverage. GitHub-tagged through `v0.4.0`. npm
-> publish pending.
+> Status as of 2026-05-19: `0.5.0`, pre-release. SRD 5.2 surface
+> with Phase A/B/C plugin systems; forensically inspectable
+> randomness from 0.1.0; character-sheet derivation; encounter
+> system from 0.4.0; **spellcasting mechanics** (slots, rests,
+> concentration, cantrip scaling, prep lists) from 0.5.0; 346
+> tests at 100 / 100 / 100 coverage. GitHub-tagged through `v0.5.0`.
 
 ## Vision
 
@@ -191,19 +188,28 @@ host has to compose the missing pieces by hand.
 - **Cover and range** via `Combat.effectiveAc(baseAc, cover)` and
   `Combat.rangeBand({ distance, normalRange, longRange })`.
 
-### `0.5.0` — Spellcasting mechanics
+### `0.5.0` — Spellcasting mechanics ✅ shipped
 
-Spell *records* ship at `0.0`; spell *mechanics* don't.
+Spell *records* ship at `0.0`; spell *mechanics* land here.
 
-- **Spell slot tables and tracking.** Per-class, per-level, with rest
-  semantics.
-- **Concentration.** One concentration spell at a time; damage
-  triggers a CON save; existing concentration drops on a new cast.
-- **Preparation lists** for Cleric, Wizard, Druid, Paladin, Ranger.
-- **Cantrip scaling** by character level (SRD's "at higher levels"
-  table for damage cantrips).
-- **Reaction-cast hooks.** Shield, Counterspell — surfaced as Phase
-  C hooks once 0.3 lands.
+- **Spell slot tables** for full-caster (Wizard et al., L1–20),
+  half-caster (Paladin/Ranger, L2–20), and Warlock Pact slots.
+  `Spellcasting.freshSlots(progression, level)`.
+- **Slot consumption** with auto-upcasting and refund:
+  `consumeSlot`, `refundSlot`.
+- **Rest semantics.** `longRest` refills everything; `shortRest`
+  refills only `source: 'pact'` slots.
+- **Concentration.** `startConcentration`/`endConcentration` track
+  one active spell per caster; `concentrationSaveDC(damage)`
+  returns `max(10, floor(damage/2))`.
+- **Cantrip scaling.** `cantripTier(level)` and
+  `scaledDamageSpec(spec, level)` handle the 5/11/17 breakpoints.
+- **Preparation lists.** `preparedSpellCount({ casterLevel,
+  abilityMod, progression })` and `validatePreparation({ known,
+  prepared, … })`.
+- **Reaction-cast** integrates with Phase C hooks: register a
+  `beforeAttack` handler that returns `{ ac: ac + 5 }` for the
+  Shield spell pattern.
 
 ### `0.6.0` — Class breadth
 

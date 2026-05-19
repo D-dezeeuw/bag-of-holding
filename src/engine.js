@@ -36,6 +36,7 @@ import * as Beats from './beats/index.js';
 import * as Classes from './classes/index.js';
 import * as Character from './character.js';
 import * as EncounterBase from './encounter.js';
+import * as Spellcasting from './spellcasting.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -426,6 +427,9 @@ export function createEngine(opts = {}) {
     Conditions: ConditionsBound,
     XP: XPBound,
     Movesets, Beats,
+    // Spellcasting: pure module, no engine binding needed (slot
+    // tables are static; concentration state lives on the actor).
+    Spellcasting,
     // Character derivation — turns a host-owned record into a
     // frozen sheet. See docs/character-sheet.md.
     deriveSheet: (record) => Character.deriveSheet(record, characterRegistries),

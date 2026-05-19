@@ -37,6 +37,11 @@ export interface Species {
   traits?: string[];
 }
 
+/** Spellcasting progression tier. `full` = Wizard/Cleric/Druid/Bard/
+ *  Sorcerer; `half` = Paladin/Ranger; `warlock` = Pact Magic (short-
+ *  rest refresh); `none` = non-caster classes. */
+export type CasterProgression = 'full' | 'half' | 'warlock' | 'none';
+
 export interface ClassDef {
   id: string;
   name: string;
@@ -48,7 +53,16 @@ export interface ClassDef {
    *  `{ 5: 1 }` (Extra Attack adds one). Read by
    *  `Combat.attacksPerAction`. */
   extraAttacks?: Record<number, number>;
-  spellcasting?: { ability: Ability; cantripsKnown?: Record<number, number> };
+  spellcasting?: {
+    ability: Ability;
+    cantripsKnown?: Record<number, number>;
+    /** Slot progression family. Defaults missing for non-casters. */
+    progression?: CasterProgression;
+    /** `'prepared'` for prep classes (Cleric/Druid/Paladin/Ranger/
+     *  Wizard); `'known'` for known-list classes (Bard/Sorcerer/
+     *  Warlock). */
+    preparation?: 'prepared' | 'known';
+  };
   features?: Record<number, string[]>;
 }
 
@@ -767,6 +781,54 @@ export interface EngineOptions {
   hooks?: HooksOption;
 }
 
+/** One slot record on an actor's character sheet. `source: 'pact'`
+ *  marks Warlock pact slots (short-rest refresh). */
+export interface SpellSlot {
+  level: number;
+  used: number;
+  max: number;
+  source?: 'pact' | string;
+}
+
+/** Active concentration: one spell at a time per caster. */
+export interface ConcentrationState {
+  spellId: string;
+  level: number;
+}
+
+export interface SpellcastingNamespace {
+  fullCasterSlots(casterLevel: number, spellLevel: number): number;
+  halfCasterSlots(casterLevel: number, spellLevel: number): number;
+  warlockPactSlots(casterLevel: number): { count: number; level: number };
+  freshSlots(progression: CasterProgression, casterLevel: number): SpellSlot[];
+  consumeSlot(slots: SpellSlot[], level: number):
+    | { ok: true; slots: SpellSlot[]; levelCast: number }
+    | { ok: false; reason: string };
+  refundSlot(slots: SpellSlot[], level: number): SpellSlot[];
+  longRest(slots: SpellSlot[]): SpellSlot[];
+  shortRest(slots: SpellSlot[]): SpellSlot[];
+  startConcentration(
+    actor: Actor,
+    spell: ConcentrationState
+  ): { actor: Actor; dropped: ConcentrationState | null };
+  concentrationSaveDC(damageTaken: number): number;
+  endConcentration(actor: Actor): Actor;
+  cantripTier(casterLevel: number): 1 | 2 | 3 | 4;
+  scaledDamageSpec(baseSpec: string, casterLevel: number): string;
+  preparedSpellCount(args: {
+    casterLevel: number;
+    abilityMod: number;
+    progression?: CasterProgression;
+  }): number;
+  validatePreparation(args: {
+    known: string[];
+    prepared: string[];
+    casterLevel: number;
+    abilityMod: number;
+    progression: CasterProgression;
+  }): { valid: true } | { valid: false; reason: string };
+}
+
 export interface Engine {
   species: Record<string, Species>;
   classes: Record<string, ClassDef>;
@@ -781,6 +843,7 @@ export interface Engine {
   XP: XPNamespace;
   Movesets: MovesetsNamespace;
   Beats: BeatsNamespace;
+  Spellcasting: SpellcastingNamespace;
   /** Compute a frozen derived sheet from a host-owned character
    *  record. Pure — call as often as state changes. See
    *  docs/character-sheet.md. */
