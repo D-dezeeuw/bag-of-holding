@@ -18,6 +18,7 @@
     "src/",
     "docs/why.md",
     "docs/spec.md",
+    "docs/recipes.md",
     "docs/roadmap.md",
     "docs/boundary.md",
     "docs/beat-schema.md",

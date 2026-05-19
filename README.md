@@ -122,6 +122,10 @@ validation behaviour, and merge semantics.
 
 ## Documentation
 
+- [docs/recipes.md](docs/recipes.md) — pragmatic patterns for building
+  clients: dice as a static-page widget, attack-from-stealth, custom
+  weapon mastery, seeded sessions, save & restore, AI-loop shape, and
+  more. The "how do I actually do X?" reference.
 - [docs/why.md](docs/why.md) — the case for the library: market gap,
   niche, moat, the conditions under which this would be a waste of
   time. Read first.
