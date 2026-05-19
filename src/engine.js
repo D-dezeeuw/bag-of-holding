@@ -37,6 +37,7 @@ import * as Classes from './classes/index.js';
 import * as Character from './character.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
+import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
 
 import defaultSpecies     from './srd/species.js';
 import defaultBackgrounds from './srd/backgrounds.js';
@@ -102,7 +103,7 @@ function mergeRegistry(registry, defaults, extras = {}) {
  * from `xp.js` apply — same behaviour as not overriding at all,
  * just expressed through a single path.
  */
-function buildXP(rules) {
+function buildXP(rules, hooks) {
   const thresholds = rules.xpThresholds ?? XPBase.THRESHOLDS;
   const proficiency = rules.proficiencyByLevel ?? XPBase.PROFICIENCY_BY_LEVEL;
   return {
@@ -110,7 +111,20 @@ function buildXP(rules) {
     PROFICIENCY_BY_LEVEL: proficiency,
     levelForXP: (xp) => XPBase.levelForXP(xp, thresholds),
     nextLevelThreshold: (xp) => XPBase.nextLevelThreshold(xp, thresholds),
-    awardMilestone: ({ pc, beat }) => XPBase.awardMilestone({ pc, beat }, thresholds)
+    awardMilestone: ({ pc, beat }) => {
+      const result = XPBase.awardMilestone({ pc, beat }, thresholds);
+      if (hooks && result.willLevelUp) {
+        const newLevel = XPBase.levelForXP(result.newTotal, thresholds);
+        hooks.fire('onLevelUp', {
+          pc,
+          fromLevel: pc.level,
+          toLevel: newLevel,
+          xpDelta: result.xpDelta,
+          newTotal: result.newTotal
+        });
+      }
+      return result;
+    }
   };
 }
 
@@ -200,13 +214,46 @@ export function createEngine(opts = {}) {
   const spells      = mergeRegistry('spells',      defaultSpells,      opts.extraSpells);
   const items       = mergeRegistry('items',       defaultItems,       opts.extraItems);
 
-  const ConditionsBound  = buildConditions(opts.extraConditions);
+  const ConditionsBoundBase = buildConditions(opts.extraConditions);
 
   // === Phase B rule modifications ===
   const rules = buildRules(opts.rules);
 
+  // === Phase C behavioural hooks ===
+  const hooks = buildHookRegistry(opts.hooks);
+
+  // Conditions namespace bound to fire hooks on apply/exhaustion-death.
+  // We wrap the base bound namespace rather than re-implementing it
+  // so the boolean-condition vocabulary stays the single source of
+  // truth.
+  const ConditionsBound = {
+    ...ConditionsBoundBase,
+    apply: (actor, condition) => {
+      const next = ConditionsBoundBase.apply(actor, condition);
+      hooks.fire('onConditionApplied', { actor: next, condition, previous: actor });
+      return next;
+    },
+    exhaustion: {
+      ...ConditionsBoundBase.exhaustion,
+      gain: (actor, amount) => {
+        const next = ConditionsBoundBase.exhaustion.gain(actor, amount);
+        if (ConditionsBoundBase.exhaustion.isDead(next) && !ConditionsBoundBase.exhaustion.isDead(actor)) {
+          hooks.fire('onDeath', { actor: next, cause: 'exhaustion', previous: actor });
+        }
+        return next;
+      },
+      set: (actor, level) => {
+        const next = ConditionsBoundBase.exhaustion.set(actor, level);
+        if (ConditionsBoundBase.exhaustion.isDead(next) && !ConditionsBoundBase.exhaustion.isDead(actor)) {
+          hooks.fire('onDeath', { actor: next, cause: 'exhaustion', previous: actor });
+        }
+        return next;
+      }
+    }
+  };
+
   // === Engine-bound XP namespace (respects rule overrides) ===
-  const XPBound = buildXP(rules);
+  const XPBound = buildXP(rules, hooks);
 
   // === Determinism plumbing ===
   const rng = opts.rng ?? Math.random;
@@ -303,14 +350,33 @@ export function createEngine(opts = {}) {
       return value;
     },
     attackRoll: (args, context) => {
-      const result = CombatBase.attackRoll(args, rng, rules);
+      // beforeAttack runs first so a hook can short-circuit (Shield
+      // spell raising AC, blur granting disadvantage, etc.). The
+      // hook receives the args and returns a delta — the most
+      // common deltas are `{ ac: newAc }` and `{ cancelled: true }`.
+      // `pre` is a fresh object seeded from args, so attackBonus/ac
+      // are always defined on it; hooks can replace either via a
+      // delta. No `??` fallback needed.
+      const pre = hooks.fire('beforeAttack', { ...args, context });
+      if (pre.cancelled === true) {
+        const cancelled = { d20: 0, attackBonus: args.attackBonus, total: 0, ac: pre.ac, hit: false, critical: false, fumble: false, cancelled: true };
+        record('attackRoll', cancelled, context);
+        return cancelled;
+      }
+      const result = CombatBase.attackRoll({ attackBonus: pre.attackBonus, ac: pre.ac }, rng, rules);
       record('attackRoll', result, context);
       return result;
     },
     damageRoll: (args, context) => {
       const result = CombatBase.damageRoll(args, rng, rules);
-      record('damageRoll', result, context);
-      return result;
+      // afterDamage fires once damage is known. Handlers can adjust
+      // `total` (resistances, vulnerabilities, Heavy Armor Master)
+      // by returning `{ total: newTotal }`. `merged.total` is always
+      // present because it starts as `result.total`.
+      const merged = hooks.fire('afterDamage', { ...result, context });
+      const final = { ...result, total: merged.total };
+      record('damageRoll', final, context);
+      return final;
     },
     MASTERY_PROPERTIES: masteryProperties,
     applyMastery: (weapon, target, attackResult, attacker) =>
@@ -343,6 +409,12 @@ export function createEngine(opts = {}) {
     verifyLog,
     // Frozen merged rules — exposed for introspection ("which
     // pack is loaded?" UI, debug overlay, telemetry).
-    rules
+    rules,
+    // Phase C: read-only hook registry. Hosts can inspect counts
+    // and fire ad-hoc events (e.g. `onDeath` from non-exhaustion
+    // causes the host detects, like dropping below 0 hp).
+    hooks
   };
 }
+
+export { HOOK_EVENTS };

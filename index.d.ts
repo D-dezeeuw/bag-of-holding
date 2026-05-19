@@ -620,6 +620,48 @@ export interface ResolvedRules {
   proficiencyByLevel: Readonly<Record<number, number>> | null;
 }
 
+/**
+ * Plugin Phase C hook events. The five-name set is closed; plugins
+ * register handlers under these keys via `createEngine({ hooks })`.
+ */
+export type HookEvent =
+  | 'beforeAttack'
+  | 'afterDamage'
+  | 'onLevelUp'
+  | 'onConditionApplied'
+  | 'onDeath';
+
+/** Frozen canonical list of hook event names. */
+export const HOOK_EVENTS: readonly HookEvent[];
+
+/**
+ * Hook handler signature. Handlers receive a payload (the args being
+ * resolved, plus any merged deltas from earlier handlers) and return
+ * either `undefined` (no change) or a partial delta object that's
+ * `Object.assign`-merged into the payload before the next handler.
+ *
+ * Setting `cancelled: true` short-circuits the remaining handlers and
+ * surfaces on the final payload — for `beforeAttack` this means the
+ * attack resolves as a miss without rolling.
+ */
+export type HookHandler = (payload: Record<string, unknown>) =>
+  Record<string, unknown> | void;
+
+/** Registry exposed on `engine.hooks`. Read-only — handler
+ *  registration happens via `createEngine({ hooks })`. */
+export interface HookRegistry {
+  readonly EVENTS: readonly HookEvent[];
+  count(event: HookEvent): number;
+  fire(event: HookEvent, payload: Record<string, unknown>): Record<string, unknown>;
+}
+
+/**
+ * Map of `event → handler` (or `event → handler[]` for multiple
+ * handlers). Handlers fire in registration order; later handlers
+ * see the merged payload from earlier ones.
+ */
+export type HooksOption = Partial<Record<HookEvent, HookHandler | HookHandler[]>>;
+
 export interface EngineOptions {
   extraSpecies?: Record<string, Species>;
   extraClasses?: Record<string, ClassDef>;
@@ -642,6 +684,8 @@ export interface EngineOptions {
   rollLogCap?: number;
   /** Plugin Phase B rule modifications. See `EngineRules`. */
   rules?: EngineRules;
+  /** Plugin Phase C behavioural hooks. See `HooksOption`. */
+  hooks?: HooksOption;
 }
 
 export interface Engine {
@@ -673,6 +717,9 @@ export interface Engine {
    *  so hosts can introspect "which pack is loaded?" (UI badge,
    *  debug overlay, telemetry). */
   rules: ResolvedRules;
+  /** Hook registry. Read-only; register handlers at engine
+   *  construction via `createEngine({ hooks })`. */
+  hooks: HookRegistry;
 }
 
 export function createEngine(opts?: EngineOptions): Engine;

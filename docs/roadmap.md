@@ -5,13 +5,14 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-20: `0.2.0`, pre-release. Tier 1 (levels 1–5)
-> SRD 5.2 surface with Phase A (content) **and** Phase B (rule
-> modifications) plugin systems shipped; forensically inspectable
-> randomness (seedable RNG, roll log, context tags, replay verifier)
-> from 0.1.0; character-sheet derivation; hand-maintained TypeScript
-> declarations; 230 tests at 100 / 100 / 100 coverage. GitHub-tagged
-> through `v0.2.0`. npm publish pending.
+> Status as of 2026-05-19: `0.3.0`, pre-release. Tier 1 (levels 1–5)
+> SRD 5.2 surface with Phase A (content), Phase B (rule
+> modifications), **and** Phase C (behavioural hooks) plugin systems
+> shipped; forensically inspectable randomness (seedable RNG, roll
+> log, context tags, replay verifier) from 0.1.0; character-sheet
+> derivation; hand-maintained TypeScript declarations; 253 tests at
+> 100 / 100 / 100 coverage. GitHub-tagged through `v0.3.0`. npm
+> publish pending.
 
 ## Vision
 
@@ -38,7 +39,7 @@ Three properties we won't trade away:
 | SRD 5.2 surface, levels 1–5 | 4 classes, 9 species, 4 backgrounds, 3 origin feats, weapon mastery, numeric exhaustion, 14 boolean conditions |
 | Core math | `Dice` (incl. `seededRng`, `rollExplosive`), `Checks`, `Combat.{attackRoll, damageRoll, rollInitiative, applyMastery}`, `XP`, `Movesets` (placeholder) |
 | Beat runtime | Linear walking (v1); branching schema accepted but ignored |
-| Plugins | **Phase A** (content registries) + **Phase B** (rule knobs: critOn/fumbleOn, damageFloor, explodingDamageDice, xpThresholds, proficiencyByLevel) shipped via `createEngine(opts)` |
+| Plugins | **Phase A** (content) + **Phase B** (rule knobs: critOn/fumbleOn, damageFloor, explodingDamageDice, xpThresholds, proficiencyByLevel) + **Phase C** (hooks: beforeAttack/afterDamage/onLevelUp/onConditionApplied/onDeath) shipped via `createEngine(opts)` |
 | Character sheets | `Character.deriveSheet(record, engine)` — host owns the persistent record, engine derives the sheet |
 | Determinism | Seedable RNG, append-only `engine.rollLog`, context tags, `verifyLog` replay verifier — all 0.1.0+ |
 | Types | Hand-maintained `index.d.ts`, strict-mode typecheck gate |
@@ -157,7 +158,7 @@ weapon-specific crit ranges, exploding dice, "saves crit on 20" all
 hit the math. Without Phase B, themed packs are limited to
 re-skinning content.
 
-### `0.3.0` — Behavioural hooks (plugin Phase C)
+### `0.3.0` — Behavioural hooks (plugin Phase C) ✅ shipped
 
 Closes the plugin trifecta: content (A), rules (B), behaviour (C).
 
@@ -168,11 +169,6 @@ Closes the plugin trifecta: content (A), rules (B), behaviour (C).
 - **Hook registration via the engine factory.** No global event bus;
   hooks live on the engine instance and don't leak across instances.
 - **Tests for hook ordering and isolation** between engines.
-
-*Why deferred until 0.3:* We don't yet know which hooks consumers
-will actually reach for. Better to ship 0.1 and 0.2, get usage
-feedback, and pick the right five than to ship fifteen speculative
-ones.
 
 ## Mid-term: combat and spellcasting depth
 

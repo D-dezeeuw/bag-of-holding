@@ -210,13 +210,50 @@ silently at first roll.
 produced under custom rules will diverge when replayed against
 the defaults; that's correct behaviour, not a bug.
 
-## Plugins (Phase C: behavioural hooks — deferred)
+## Plugins (Phase C: behavioural hooks)
 
-A small, deliberately-scoped hook surface (`beforeAttack`,
-`afterDamage`, `onLevelUp`, `onConditionApplied`, `onDeath`) lands
-when a real consumer demonstrates the need. Speculative API design
-here would lock in shapes that turn out wrong; the roadmap pins it
-to `0.3.0`.
+Since `0.3.0`. Plugins react to engine events by registering handlers
+on a small, closed set of hook names:
+
+- `beforeAttack` — fires before the d20 is rolled. Handlers receive
+  `{ attackBonus, ac, context }` and can return `{ ac, attackBonus }`
+  deltas (Shield spell adds 5 to AC, blur halves attack bonus) or
+  `{ cancelled: true }` to short-circuit (the attack resolves as a
+  miss without rolling).
+- `afterDamage` — fires once damage is rolled. Handlers receive the
+  `DamageRollResult` plus `context` and can return `{ total }` to
+  apply resistance (`Math.floor(total/2)`), vulnerability
+  (`total*2`), or any flat absorption (Heavy Armor Master).
+- `onLevelUp` — fires from `XP.awardMilestone` when the new XP total
+  crosses a threshold. Handlers receive `{ pc, fromLevel, toLevel,
+  xpDelta, newTotal }`. Read-only: the host owns the persistent PC
+  record and applies the level-up itself.
+- `onConditionApplied` — fires after `Conditions.apply` returns the
+  new actor. Handlers receive `{ actor, condition, previous }`.
+- `onDeath` — fires when `Conditions.exhaustion.gain`/`set` pushes
+  the actor to level 6 (the death threshold) for the first time.
+  Handlers receive `{ actor, cause, previous }`. The host can also
+  fire this hook directly (`engine.hooks.fire('onDeath', payload)`)
+  for non-exhaustion deaths it detects.
+
+Handlers run **in registration order**, and each return is
+`Object.assign`-merged into the payload before the next handler
+sees it. This makes hooks compose: a `beforeAttack` from one
+plugin can raise AC, and a second can read the raised AC and
+decide whether to add disadvantage on top.
+
+```js
+const engine = createEngine({
+  hooks: {
+    beforeAttack: ({ ac }) => ({ ac: ac + 5 }),   // Shield
+    afterDamage: ({ total }) => ({ total: Math.floor(total / 2) }) // resistance
+  }
+});
+```
+
+Handlers must be pure — no async, no mutation of other actors, no
+I/O — so the engine stays replay-deterministic. Throwing in a
+handler propagates to the caller (the engine doesn't swallow it).
 
 ## Types (`index.d.ts`)
 

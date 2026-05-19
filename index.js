@@ -27,10 +27,10 @@
 
 import * as Classes from './src/classes/index.js';
 import * as CharacterModule from './src/character.js';
-import { createEngine } from './src/engine.js';
+import { createEngine, HOOK_EVENTS } from './src/engine.js';
 import { verifyLog } from './src/replay.js';
 
-export { createEngine, verifyLog };
+export { createEngine, verifyLog, HOOK_EVENTS };
 
 const _default = createEngine();
 export default _default;
