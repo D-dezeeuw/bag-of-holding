@@ -112,6 +112,56 @@ function mergeRegistry(registry, defaults, extras = {}) {
   return { ...defaults, ...extras };
 }
 
+// Defaults for the senses + light-levels registries. Plugins append
+// through opts.extraSenses / opts.extraLightLevels (since 1.24.0).
+const DEFAULT_SENSES = Object.freeze(['darkvision', 'blindsight', 'truesight']);
+const DEFAULT_LIGHT_LEVELS = Object.freeze(['bright', 'dim', 'darkness']);
+
+/**
+ * Graft `extraMechanics` and `extraResources` onto existing class
+ * defs (since 1.24.0). Each is a `Record<classId, Record<key, value>>`.
+ * Last-write-wins on key collision, matching the rest of the plugin
+ * merge convention. Unknown classIds throw with a pointer to the
+ * offending entry rather than silently dropping the contribution.
+ */
+function mergeClassExtensions(classes, extraMechanics = {}, extraResources = {}) {
+  for (const classId of Object.keys(extraMechanics)) {
+    if (!classes[classId]) {
+      throw new Error(`Plugin contribution extraMechanics: unknown classId '${classId}'`);
+    }
+    const handlers = extraMechanics[classId];
+    for (const [mechId, handler] of Object.entries(handlers)) {
+      if (typeof handler !== 'function') {
+        throw new Error(`Plugin contribution extraMechanics.${classId}.${mechId} must be a function`);
+      }
+    }
+  }
+  for (const classId of Object.keys(extraResources)) {
+    if (!classes[classId]) {
+      throw new Error(`Plugin contribution extraResources: unknown classId '${classId}'`);
+    }
+    const resources = extraResources[classId];
+    for (const [resId, spec] of Object.entries(resources)) {
+      if (!spec || typeof spec !== 'object' || !('refreshes' in spec)) {
+        throw new Error(`Plugin contribution extraResources.${classId}.${resId} must declare 'refreshes'`);
+      }
+    }
+  }
+  if (Object.keys(extraMechanics).length === 0 && Object.keys(extraResources).length === 0) {
+    return classes;
+  }
+  const out = { ...classes };
+  for (const [classId, handlers] of Object.entries(extraMechanics)) {
+    const base = out[classId];
+    out[classId] = { ...base, mechanics: { ...(base.mechanics ?? {}), ...handlers } };
+  }
+  for (const [classId, resources] of Object.entries(extraResources)) {
+    const base = out[classId];
+    out[classId] = { ...base, resources: { ...(base.resources ?? {}), ...resources } };
+  }
+  return out;
+}
+
 /**
  * Build a per-engine `XP` namespace whose progression tables can be
  * overridden via `rules.xpThresholds` / `rules.proficiencyByLevel`
@@ -227,12 +277,23 @@ function buildConditions(extraConditions = []) {
  */
 export function createEngine(opts = {}) {
   const species     = mergeRegistry('species',     defaultSpecies,     opts.extraSpecies);
-  const classes     = mergeRegistry('classes',     Classes,            opts.extraClasses);
+  const baseClasses = mergeRegistry('classes',     Classes,            opts.extraClasses);
   const backgrounds = mergeRegistry('backgrounds', defaultBackgrounds, opts.extraBackgrounds);
   const feats       = mergeRegistry('feats',       defaultFeats,       opts.extraFeats);
   const spells      = mergeRegistry('spells',      defaultSpells,      opts.extraSpells);
   const items       = mergeRegistry('items',       defaultItems,       opts.extraItems);
   const monsters    = mergeRegistry('monsters',    defaultMonsters,    opts.extraMonsters);
+
+  // Phase A.2 plugin contributions: extraMechanics and extraResources
+  // graft onto an existing class without forking its record. Last-write
+  // -wins on id collision per the same plugin merge convention.
+  const classes = mergeClassExtensions(baseClasses, opts.extraMechanics, opts.extraResources);
+
+  // Extra senses and light levels live as small registries the host
+  // can iterate when surfacing affordances. The default sets remain
+  // the SRD canon; plugins extend without losing the defaults.
+  const senses = Object.freeze([...DEFAULT_SENSES, ...(opts.extraSenses ?? [])]);
+  const lightLevels = Object.freeze([...DEFAULT_LIGHT_LEVELS, ...(opts.extraLightLevels ?? [])]);
 
   const ConditionsBoundBase = buildConditions(opts.extraConditions);
 
@@ -705,6 +766,10 @@ export function createEngine(opts = {}) {
   return {
     // Data registries — plain objects, mutate at your own risk.
     species, classes, backgrounds, feats, spells, items, monsters,
+    // Plugin-extensible vocabularies (since 1.24.0). Each is a
+    // frozen, deduplicated list combining the SRD defaults with any
+    // `opts.extraSenses` / `opts.extraLightLevels` contributions.
+    senses, lightLevels,
     // Math + helpers (bound to this engine's data + rng + rules).
     Dice: DiceBound,
     Checks: ChecksBound,

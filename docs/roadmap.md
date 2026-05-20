@@ -1018,21 +1018,22 @@ when the subclass doesn't override it.
 Closes the subclass-handlers row of
 [§ 14](srd-coverage.md#14-classes--subclasses-and-tier-34).
 
-### `1.22.0`: Plugin surface expansion
+### `1.22.0`: Plugin surface expansion ✅ shipped in v1.24.0
 
-The Phase A/B/C plugin contract grows to match the engine surface
+The Phase A/B/C plugin contract grew to match the engine surface
 accrued through 1.21.
 
-- **`extraResources`** plugin contribution: custom resource shapes
-  for homebrew classes.
-- **`extraMechanics`**: class mechanics contributable without
-  forking a class def.
-- **`extraSenses`** / **`extraLightLevels`** for homebrew vision
-  systems.
-- **Standardised Phase D hook events.** The new events from 1.6
-  (`onTurnStart`, `onTurnEnd`, `onLongRest`, `onShortRest`,
-  `onCast`, `onDamageApplied`, `onHpChanged`) become first-class
-  in the plugin contract docs.
+- **`extraResources`**: graft new resource specs onto any class
+  (including homebrew classes added through `extraClasses`).
+- **`extraMechanics`**: graft new mechanic handlers onto any class
+  without forking the class def. Subclass mechanic dispatch still
+  consults the subclass map first.
+- **`extraSenses`** and **`extraLightLevels`**: appendable
+  vocabularies exposed as frozen lists on `engine.senses` and
+  `engine.lightLevels`.
+- All four contributions validate at construction time with the
+  same pointer-quality errors as the registry validators (unknown
+  classId, non-function handler, missing `refreshes`).
 
 Closes [§ 24 Plugin system](srd-coverage.md#24-plugin-system).
 
