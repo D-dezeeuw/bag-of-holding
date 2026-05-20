@@ -198,6 +198,11 @@ export function attackStance({ attacker = {}, target = {}, attackerDistanceFt = 
     else dis = true;
   }
 
+  // SRD § Combat — Dodge (since 1.7.0): attacks against a dodging
+  // target have disadvantage. Read directly off the target record —
+  // `dodging` is set by `Encounter.dodge`.
+  if (target.dodging === true) dis = true;
+
   if (adv && dis) return 'normal';
   if (adv) return 'advantage';
   if (dis) return 'disadvantage';

@@ -71,25 +71,23 @@ boxes are always the live worklist.
 
 *(SRD § Playing the Game — Combat — Actions)*
 
-**Planned:** [v1.7.0](roadmap.md#170--combat-actions-menu).
+**Planned:** action verbs shipped in [v1.7.0](roadmap.md#170--combat-actions-menu); Mounted Combat + object-interaction-per-turn tracking deferred until a real consumer surfaces.
 
 - [x] Attack (resolves via `attackRoll`) *(v0.0.0)*
 - [x] Cast a Spell (resolves via `Spellcasting` — slot consumption side) *(v0.5.0)*
-- [ ] Dash *(SRD § Combat — Actions)*
-- [ ] Disengage *(SRD § Combat — Actions)* — `opportunityAttack` accepts a `disengaged` flag but no action helper sets it
-- [ ] Dodge *(SRD § Combat — Actions)* — should grant DEX-save advantage + impose disadvantage on incoming attacks
-- [ ] Help *(SRD § Combat — Actions)* — advantage on next ally check / attack within 5 ft
-- [ ] Hide *(SRD § Combat — Actions)*
-- [ ] Ready *(SRD § Combat — Actions)*
-- [ ] Search *(SRD § Combat — Actions)*
-- [ ] Study *(SRD § Combat — Actions)* — 2024 action
-- [ ] Influence *(SRD § Combat — Actions)* — 2024 action
-- [ ] Grapple — fixed-DC `8 + STR + prof`, applies the `grappled` condition *(SRD § Combat — Actions; 2024 single-DC change)*
-- [ ] Shove — fixed-DC `8 + STR + prof`, applies `prone` or push 5 ft *(SRD § Combat — Actions)*
-- [ ] Two-Weapon Fighting — bonus-action off-hand attack, no ability mod on damage; interacts with Nick mastery *(SRD § Equipment — Light, Nick)*
-- [ ] Improvised attacks (d4 default) *(SRD § Equipment — Improvised Weapons)*
-- [ ] Mounted Combat *(SRD § Combat — Mounted Combat)*
-- [ ] Object interaction (free, one per turn) *(SRD § Combat — Other Activity on Your Turn)*
+- [x] Dash — extends movement by base speed *(v1.7.0)*
+- [x] Disengage — sets `actor.disengaged`, short-circuits opportunity attacks *(v1.7.0)*
+- [x] Dodge — sets `actor.dodging`; `attackStance` returns disadvantage to attackers *(v1.7.0)*
+- [x] Help — binds `actor.helping = { targetId }` *(v1.7.0)*
+- [x] Hide — spends action, reports Stealth check needed *(v1.7.0)*
+- [x] Ready — spends action + reaction, stores `{ trigger, action }` *(v1.7.0)*
+- [x] Search / Study / Influence — bundled `ability({ kind })`; spends action, reports check needed *(v1.7.0)*
+- [x] Grapple — fixed DC `8 + STR + prof`, reports save + on-fail `grappled` *(v1.7.0)*
+- [x] Shove — fixed DC, choice between prone or push 5 ft *(v1.7.0)*
+- [x] Two-Weapon Fighting — `offHandAttack` consumes bonus action, signals damage-mod suppression *(v1.7.0)*
+- [x] Improvised attacks — `improvisedAttack` helper with d4 default *(v1.7.0)*
+- [ ] Mounted Combat *(SRD § Combat — Mounted Combat)* — actor.mountedOn linkage deferred
+- [ ] Object interaction (free, one per turn) *(SRD § Combat — Other Activity on Your Turn)* — budget tracking deferred
 
 ## 4. Conditions
 

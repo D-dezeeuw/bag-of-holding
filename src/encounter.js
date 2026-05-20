@@ -319,3 +319,267 @@ export function rangeBand({ distance, normalRange, longRange }) {
   if (distance <= longRange) return 'in-range-long';
   return 'out-of-range';
 }
+
+// === Combat action verbs (since 1.7.0) ===
+//
+// Each verb consumes the appropriate action-budget slot via `spend`
+// and returns `{ allowed, state, actor }` (or `{ allowed: false,
+// reason }` on refusal). Some verbs also return a `result` payload
+// the host applies (the target of Help, the readied trigger).
+//
+// State flags placed on the actor by these verbs:
+//   - `dodging: true` — Attacks against this actor have
+//     disadvantage; the actor has advantage on DEX saves. Cleared
+//     at the start of the actor's next turn (host owns the clear).
+//   - `disengaged: true` — Movement does not provoke OAs this turn;
+//     read by `opportunityAttack`. Cleared at turn end.
+//   - `hidden: true` — Set when a Hide check succeeds; host owns
+//     the reveal logic. Cleared on attack / forced reveal.
+//   - `helping: { targetId, until }` — The actor is granting
+//     advantage to `targetId`'s next check / attack (within 5 ft).
+//   - `readied: { trigger, action }` — The actor is holding an
+//     action that will fire when the trigger predicate matches.
+//
+// The flags live on the actor record (host-owned); the encounter
+// state stays focused on order + budgets.
+
+/** Common helper: spend a budget slot and pass the new state through. */
+function spendAndReturn(state, actorId, cost, amount, fields) {
+  const r = spend(state, actorId, cost, amount);
+  if (!r.allowed) return r;
+  return { allowed: true, state: r.state, ...fields };
+}
+
+/**
+ * SRD § Combat — Dash: spend an action; the actor's movement
+ * budget gains an extra `speed` (its base speed). Returns the new
+ * state with the inflated movement budget — no actor delta needed
+ * because the budget already lives in `state`.
+ */
+export function dash(state, actorId) {
+  const r = spend(state, actorId, 'action');
+  if (!r.allowed) return r;
+  const participant = state.order.find((p) => p.id === actorId);
+  const extra = participant?.speed ?? 0;
+  const budget = r.state.budgets[actorId];
+  const newBudgets = {
+    ...r.state.budgets,
+    [actorId]: { ...budget, movement: (budget.movement ?? 0) + extra }
+  };
+  return {
+    allowed: true,
+    state: {
+      ...r.state,
+      budgets: newBudgets,
+      log: [...r.state.log, { kind: 'dash', actorId, extra }]
+    }
+  };
+}
+
+/**
+ * SRD § Combat — Disengage: spend an action; the actor's movement
+ * doesn't provoke opportunity attacks for the rest of the turn.
+ * Sets `actor.disengaged: true`; `opportunityAttack` already
+ * short-circuits on this flag.
+ */
+export function disengage(state, actor) {
+  return spendAndReturn(state, actor.id, 'action', 1, {
+    actor: { ...actor, disengaged: true }
+  });
+}
+
+/**
+ * SRD § Combat — Dodge: spend an action; attacks against the actor
+ * have disadvantage and the actor has advantage on Dexterity saves
+ * until the start of its next turn. Sets `actor.dodging: true`;
+ * `attackStance` reads it for incoming attacks.
+ */
+export function dodge(state, actor) {
+  return spendAndReturn(state, actor.id, 'action', 1, {
+    actor: { ...actor, dodging: true }
+  });
+}
+
+/**
+ * SRD § Combat — Help: spend an action; an ally within 5 ft gains
+ * advantage on its next ability check or attack roll (the latter
+ * within 5 ft of the target). Stores the binding on the actor
+ * record as `actor.helping = { targetId }`; the host applies the
+ * advantage on the target's next roll and clears the flag.
+ */
+export function help(state, actor, args = {}) {
+  const targetId = args.targetId;
+  if (typeof targetId !== 'string' || targetId.length === 0) {
+    return { allowed: false, reason: 'args.targetId required' };
+  }
+  return spendAndReturn(state, actor.id, 'action', 1, {
+    actor: { ...actor, helping: { targetId } }
+  });
+}
+
+/**
+ * SRD § Combat — Hide: spend an action; the host rolls Stealth
+ * against the relevant Passive Perceptions. Sets
+ * `actor.hidden: true` on success; the host is responsible for
+ * running the check and applying the flag conditionally. This
+ * helper just consumes the action and reports that a Stealth check
+ * is owed.
+ */
+export function hide(state, actor) {
+  return spendAndReturn(state, actor.id, 'action', 1, {
+    actor,    // unchanged — host applies `hidden: true` on a successful check
+    result: { needsStealthCheck: true }
+  });
+}
+
+/**
+ * SRD § Combat — Ready: spend an action AND a reaction now; the
+ * reaction fires later when the trigger matches. Stores
+ * `actor.readied: { trigger, action }`; host listens for the
+ * trigger and resolves the action.
+ */
+export function ready(state, actor, args = {}) {
+  const { trigger, action } = args;
+  if (typeof trigger !== 'string' || trigger.length === 0) {
+    return { allowed: false, reason: 'args.trigger required' };
+  }
+  if (typeof action !== 'string' || action.length === 0) {
+    return { allowed: false, reason: 'args.action required' };
+  }
+  const a = spend(state, actor.id, 'action');
+  if (!a.allowed) return a;
+  const b = spend(a.state, actor.id, 'reaction');
+  if (!b.allowed) return b;
+  return {
+    allowed: true,
+    state: b.state,
+    actor: { ...actor, readied: { trigger, action } }
+  };
+}
+
+/**
+ * SRD § Combat — Search / Study / Influence: spend an action; host
+ * runs the ability check. We bundle the three into one helper
+ * because they all share the same engine surface (consume action,
+ * host owns the check) — the `kind` arg disambiguates for the log.
+ */
+export function ability(state, actor, args = {}) {
+  const kind = args.kind;
+  if (!['search', 'study', 'influence'].includes(kind)) {
+    return { allowed: false, reason: 'args.kind must be search / study / influence' };
+  }
+  const r = spend(state, actor.id, 'action');
+  if (!r.allowed) return r;
+  return {
+    allowed: true,
+    state: {
+      ...r.state,
+      log: [...r.state.log, { kind, actorId: actor.id }]
+    },
+    actor,
+    result: { needsCheck: true, kind }
+  };
+}
+
+/**
+ * SRD § Combat — Grapple. Spend an Attack action against a target
+ * no more than one size larger. The target makes a STR or DEX
+ * save against `DC = 8 + attacker's STR mod + proficiency bonus`.
+ * On fail, the target gets the grappled condition.
+ *
+ * Returns `{ allowed, state, actor, result }` where `result`
+ * carries the DC + the save instruction the host runs against the
+ * target. The host applies the `grappled` condition if the save
+ * fails.
+ */
+export function grapple(state, actor, args = {}) {
+  const proficiencyBonus = actor.proficiencyBonus ?? 2;
+  const strMod = modFromScore(actor.abilityScores?.str ?? 10);
+  const dc = 8 + strMod + proficiencyBonus;
+  const r = spend(state, actor.id, 'action');
+  if (!r.allowed) return r;
+  return {
+    allowed: true,
+    state: r.state,
+    actor,
+    result: {
+      save: { dc, abilities: ['str', 'dex'] },
+      onFail: { condition: 'grappled' },
+      targetId: args.targetId
+    }
+  };
+}
+
+/**
+ * SRD § Combat — Shove. Same DC structure as Grapple; on fail, the
+ * attacker chooses to knock the target prone OR push them 5 ft
+ * straight away. `args.choice` declares which.
+ */
+export function shove(state, actor, args = {}) {
+  const choice = args.choice ?? 'prone';
+  if (!['prone', 'push'].includes(choice)) {
+    return { allowed: false, reason: "args.choice must be 'prone' or 'push'" };
+  }
+  const proficiencyBonus = actor.proficiencyBonus ?? 2;
+  const strMod = modFromScore(actor.abilityScores?.str ?? 10);
+  const dc = 8 + strMod + proficiencyBonus;
+  const r = spend(state, actor.id, 'action');
+  if (!r.allowed) return r;
+  const onFail = choice === 'prone'
+    ? { condition: 'prone' }
+    : { pushFt: 5 };
+  return {
+    allowed: true,
+    state: r.state,
+    actor,
+    result: {
+      save: { dc, abilities: ['str', 'dex'] },
+      onFail,
+      choice,
+      targetId: args.targetId
+    }
+  };
+}
+
+/**
+ * SRD § Equipment — Two-Weapon Fighting + § Combat — Bonus Action.
+ * Make a Light melee weapon attack as a Bonus Action with a
+ * different weapon than the one used for the Attack action. No
+ * ability modifier on damage unless the modifier is negative.
+ *
+ * The engine spends the bonus action and reports the attack
+ * configuration to use; the host calls `Combat.attackRoll` with
+ * the relevant attack bonus / damage spec, then suppresses the
+ * positive ability mod on damage per the rule.
+ *
+ * `args.weapon` and any attack-bonus / damage args are passed
+ * through transparently — this verb is the budget gate, not the
+ * resolution.
+ */
+export function offHandAttack(state, actor, args = {}) {
+  if (!args.weapon) return { allowed: false, reason: 'args.weapon required' };
+  return spendAndReturn(state, actor.id, 'bonus', 1, {
+    actor,
+    result: { suppressPositiveAbilityMod: true, weapon: args.weapon }
+  });
+}
+
+/**
+ * Improvised weapon attack helper (pure). Per SRD § Equipment —
+ * Improvised Weapons, an attack with an object not designed as a
+ * weapon deals `1d4` damage (the GM may set a different die for
+ * close-analogue objects). Proficiency is suppressed unless the
+ * object resembles a weapon the actor is proficient with.
+ *
+ * Returns the attack-args shape the host feeds to `attackRoll` /
+ * `damageRoll` — the caller does the budget spend themselves
+ * (improvised attacks aren't a distinct action; they're an Attack
+ * action with a weird weapon).
+ */
+export function improvisedAttack({ damageDie = 'd4', damageType = 'bludgeoning', proficient = false } = {}) {
+  return {
+    damageDice: `1${damageDie}`,
+    damageType,
+    proficient
+  };
+}

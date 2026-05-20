@@ -149,12 +149,14 @@ test('advanceTime by hours rolls past Dusk', () => {
   assert.deepEqual(result.events, ['dusk']);
 });
 
-test('advanceTime by full day fires both Dawn and Dusk', () => {
+test('advanceTime by 24h from 05:00 crosses dawn then dusk', () => {
   const scene = freshScene({ startMinute: 300 });    // 05:00 (before dawn)
   const result = advanceTime(scene, { hours: 24 });
-  // 05:00 → 05:00 next day: crosses dawn (06:00), dusk (18:00), then
-  // dawn again the next morning.
-  assert.deepEqual(result.events, ['dawn', 'dusk', 'dawn']);
+  // 05:00 → 05:00 next day. Crosses dawn (06:00 same day, +1h)
+  // and dusk (18:00 same day, +13h). The next dawn at 06:00 day 2
+  // is +25h away — beyond the 24h window. A 24h window always
+  // crosses each boundary exactly once.
+  assert.deepEqual(result.events, ['dawn', 'dusk']);
 });
 
 test('advanceTime by rounds converts 10 rounds → 1 minute', () => {
