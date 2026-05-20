@@ -800,10 +800,12 @@ Closes the movement + vision halves of
 [§ 8 Movement, vision, exploration](srd-coverage.md#8-movement-vision-exploration);
 travel pace is 1.18.
 
-### `1.12.0` — Character creation pipeline
+### `1.12.0` — Character creation pipeline ✅ shipped
 
-`deriveSheet` works on a hand-built record; this release supplies
-the path to *build* the record.
+Adds the multiclass record shape, prereq validation, multiclass
+caster-level formula, language + tool proficiency helpers. The
+existing `deriveSheet` continues to honour the single-class shape;
+consumers needing multiclass features call `Multiclass.*` helpers.
 
 - **Multiclass record shape** — `record.classes: { fighter: 3,
   rogue: 2 }`. Single-class shorthand still works as a single-key map.
