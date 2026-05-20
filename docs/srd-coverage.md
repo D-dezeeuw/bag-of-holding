@@ -319,14 +319,14 @@ boxes are always the live worklist.
 
 **Planned:** mechanics in [v1.9.0](roadmap.md#190--magic-items-system); item A–Z catalogue depth in [v1.x.y](roadmap.md#1xy--content-registry-expansion-parallel).
 
-- [ ] **Rarity bands** field on item records *(SRD § Magic Items — Rarity)*
-- [ ] **Attunement** field + 3-slot cap on actors *(SRD § Magic Items — Attunement)*
-- [ ] **Attunement Short Rest gate** *(SRD § Magic Items — Attunement)*
-- [ ] **Attunement prerequisites** — class, spellcaster, ability *(SRD § Magic Items — Attunement)*
-- [ ] **Charges** + `chargesUsed` + `recharges` ("regains 1d6+4 at dawn") *(SRD § Magic Items — Activating an Item)*
-- [ ] **Cursed items** flag + Remove Curse interaction *(SRD § Magic Items — Cursed Items)*
-- [ ] **Identify / Detect Magic** — known-properties tracking *(SRD § Spells — Identify / Detect Magic)*
-- [ ] **Magic item resilience** — saving-throw DC against destruction *(SRD § Magic Items — Magic Item Resilience)*
+- [x] **Rarity bands** — `RARITY_BANDS` constant; `item.rarity` field is host-readable *(v1.9.0)*
+- [x] **Attunement** — `MagicItems.attune` / `unattune` with 3-slot cap and `actor.attunedItems[]` *(v1.9.0)*
+- [~] **Attunement Short Rest gate** — engine accepts the host has gated the call behind a Short Rest; no engine-side rest tracking yet
+- [x] **Attunement prerequisites** — `requiresAttunement: { classId?, spellcaster?, abilityMin? }` validated by `canAttune` *(v1.9.0)*
+- [x] **Charges** — `item.charges = { max, recovers, rechargesOn }`; `actor.itemCharges[id]` state; `spendCharge` + `rechargeItem` (numeric, dice spec, or full refill) *(v1.9.0)*
+- [x] **Cursed items** — `item.cursed: true`; `unattune` refuses without `removeCurseApplied: true` *(v1.9.0)*
+- [x] **Identify** — `actor.identifiedItems[]` + `identifyItem` / `isIdentified` *(v1.9.0)*
+- [x] **Magic item resilience** — `MagicItems.itemSavingThrow(item, dc)` vs `item.savingThrow.bonus` *(v1.9.0)*
 - [ ] **Sentient magic items** — alignment + conflict resolution *(SRD § Magic Items — Sentient Magic Items)*
 - [ ] **Magic item A–Z** registry — *currently a handful; SRD lists hundreds*
 
