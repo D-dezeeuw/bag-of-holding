@@ -1,13 +1,13 @@
 # Beat schema & runtime
 
-A **beat** is one abstract story node — "a confrontation with an authority
-figure exposes the conspiracy" — not a concrete scene. The runtime walks an
+A **beat** is one abstract story node, "a confrontation with an authority
+figure exposes the conspiracy", not a concrete scene. The runtime walks an
 ordered list of beats; the *app* (or its AI) realises each beat into a
 concrete scene at the moment the player reaches it, using whoever's still
 alive that matches the beat's archetype slots.
 
 This shape supports a **linear v1** and a **branching v2** from the same
-schema — only `successors[]` and a new `pickNext` function flip on later.
+schema: only `successors[]` and a new `pickNext` function flip on later.
 
 ## Shape
 
@@ -45,7 +45,7 @@ fill in only what they care about.
 - `targetPlaytimeMinutes` is a number.
 - Every array-shaped field that's present is actually an array.
 
-The validator is deliberately permissive about contents — it checks shape,
+The validator is deliberately permissive about contents; it checks shape,
 not semantics. The generator agent (in the app) is responsible for
 sensible values.
 
@@ -86,7 +86,7 @@ The callback signature is:
 entityProvider(slot) → entity | null
 ```
 
-The engine doesn't know what an entity *is* — a `{ id, name }` is fine for
+The engine doesn't know what an entity *is*. A `{ id, name }` is fine for
 v1; the app can attach whatever fields its narrator needs.
 
 If any slot can't be filled, `cast` is `null` and `missing` carries the
@@ -99,8 +99,8 @@ At v1 the runtime walks `beats` by integer index. The schema's
 `successors[]` is parsed and stored but ignored. At v2 a `pickNext(beat,
 state)` function will:
 
-1. If `successors[]` is empty → linear fall-through (current behaviour).
-2. Otherwise → return the first successor whose conditions hold.
+1. If `successors[]` is empty, linear fall-through (current behaviour).
+2. Otherwise, return the first successor whose conditions hold.
 
 No data migration needed. Existing linear threads will keep walking
 linearly.

@@ -3,7 +3,7 @@
 Pragmatic patterns for building clients on top of `@zeeuw/bag-of-holding`.
 Each recipe is a self-contained working example: copy, adapt, ship.
 
-[`spec.md`](spec.md) is the reference — *what exists*. This file is
+[`spec.md`](spec.md) is the reference for *what exists*. This file is
 *how to actually do the thing*. When a recipe describes a pattern
 that's improving in a future release, a note at the bottom of the
 recipe points to the milestone where it gets a first-class helper.
@@ -42,7 +42,7 @@ recipe points to the milestone where it gets a first-class helper.
 
 ### Custom rules (Phase B knobs)
 
-- [16. Pathfinder-style crit range (19–20)](#16-pathfinder-style-crit-range-1920)
+- [16. Pathfinder-style crit range (19-20)](#16-pathfinder-style-crit-range-1920)
 - [17. Exploding damage dice (savage flavour)](#17-exploding-damage-dice-savage-flavour)
 - [18. Gritty XP curve (slower progression)](#18-gritty-xp-curve-slower-progression)
 - [19. No-damage-floor mode](#19-no-damage-floor-mode)
@@ -80,7 +80,7 @@ recipe points to the milestone where it gets a first-class helper.
 
 ## 1. Roll dice from a static HTML page
 
-**Use case:** You want a one-file dice roller — no build step, no
+**Use case:** You want a one-file dice roller: no build step, no
 bundler, no package manager.
 
 ```html
@@ -130,7 +130,7 @@ Dice.rollDie(20);
 ```
 
 **Gotcha:** if you import `default` (`import boh from '@zeeuw/bag-of-holding'`),
-the bundler can't tree-shake the engine — the default singleton
+the bundler can't tree-shake the engine, since the default singleton
 instantiates everything. Stick to named imports for the smallest
 output.
 
@@ -161,7 +161,7 @@ passing DC 1000."
 
 ## 5. Single attack → damage flow
 
-**Use case:** The bread and butter combat sequence — one attack,
+**Use case:** The bread and butter combat sequence: one attack,
 damage on hit.
 
 ```js
@@ -185,13 +185,13 @@ if (attack.hit) {
 }
 ```
 
-Every value the engine produces is structured — the UI can show
+Every value the engine produces is structured, so the UI can show
 the d20 face, the damage dice, the mastery rider, all without
 re-deriving anything.
 
 ## 6. Critical hit handling
 
-**Use case:** Nat 20 logic — extra damage dice, narration cue,
+**Use case:** Nat 20 logic: extra damage dice, narration cue,
 optional house rules (max damage on crit, double damage dice).
 
 ```js
@@ -211,13 +211,13 @@ if (attack.critical) {
 }
 ```
 
-For house rules (Pathfinder-style 19–20 crit ranges, exploding
-crit dice, "max damage on crit" packs), see recipes 16–20 — the
+For house rules (Pathfinder-style 19-20 crit ranges, exploding
+crit dice, "max damage on crit" packs), see recipes 16-20. The
 Phase B `rules` knob system shipped in `0.2.0`.
 
 ## 7. Attack from stealth (compound action with context tags)
 
-**Use case:** A Rogue uses Stealth, then attacks — three rolls,
+**Use case:** A Rogue uses Stealth, then attacks: three rolls,
 each conditional on the last. The engine doesn't orchestrate
 compound actions; the host loop does, tagging every roll with a
 shared `context` so the audit log reconstructs the sequence.
@@ -235,12 +235,12 @@ const stealth = engine.Checks.abilityCheck(
   { ...ctx, step: 'stealth' }
 );
 
-// 2. Attack — advantage if stealth succeeded
+// 2. Attack, advantage if stealth succeeded
 const attack = stealth.success
   ? engine.Dice.rollAdvantage('1d20+5', { ...ctx, step: 'attack' })
   : engine.Dice.roll('1d20+5', { ...ctx, step: 'attack' });
 
-// 3. If it hits, damage — plus Sneak Attack dice if we had advantage
+// 3. If it hits, damage, plus Sneak Attack dice if we had advantage
 if (attack.total >= 14) {
   const baseDmg = engine.Combat.damageRoll(
     { damageDice: '1d6', damageMod: 3 },
@@ -253,7 +253,7 @@ if (attack.total >= 14) {
 }
 
 // All four log entries carry the same { action, turn, target }
-// context — postmortem trivially reconstructs the sequence.
+// context, postmortem trivially reconstructs the sequence.
 ```
 
 **Coming in `0.4.0`:** an `engine.Actions.stealthAttack({ … })`
@@ -273,7 +273,7 @@ const engine = createEngine();
 const ctx = { contest: 'shove', attacker: 'pc.fighter', defender: 'orc' };
 
 // Both sides roll an Athletics check. DC is irrelevant for a contest
-// — we compare totals — but the function requires one. Pass 5 (the
+// (we compare totals) but the function requires one. Pass 5 (the
 // MIN_DC clamp value) as a sentinel.
 const attacker = engine.Checks.abilityCheck(
   { abilityScore: 16, proficient: true, proficiencyBonus: 2, dc: 5 },
@@ -342,7 +342,7 @@ engine.Conditions.has(actor, 'blinded');         // true
 actor = engine.Conditions.remove(actor, 'blinded');
 engine.Conditions.has(actor, 'blinded');         // false
 
-// Apply throws on unknown conditions — the vocabulary is closed.
+// Apply throws on unknown conditions, the vocabulary is closed.
 engine.Conditions.apply(actor, 'phlegmatic');    // Error
 ```
 
@@ -374,7 +374,7 @@ engine.Conditions.exhaustion.isDead(actor);                    // false (death a
 actor = engine.Conditions.exhaustion.reduce(actor);            // level 2
 ```
 
-Combat math doesn't auto-apply the −2/level penalty yet —
+Combat math doesn't auto-apply the −2/level penalty yet;
 that's `0.7.0` (Condition effects). For now, the loop reads the
 modifier and adds it to relevant rolls.
 
@@ -405,7 +405,7 @@ engine.species.elf;           // SRD entry still present
 Last-write-wins on id collision, so you can also *replace* an SRD
 species (a "grimdark" pack might ship a tougher Dwarf).
 
-**Gotcha:** species records in SRD 5.2 carry no ability bonuses —
+**Gotcha:** species records in SRD 5.2 carry no ability bonuses;
 those moved to backgrounds. Don't add `abilityBonuses` thinking
 it'll be picked up; it won't be read.
 
@@ -465,16 +465,16 @@ actor = engine.Conditions.apply(actor, 'cursed');
 engine.Conditions.has(actor, 'cursed');   // true
 ```
 
-The condition is just a string in the vocabulary — the *effects*
+The condition is just a string in the vocabulary; the *effects*
 are the host's responsibility. To bake mechanical effects in
-(e.g., disadvantage on saving throws while cursed), you'd compose
+(e.g., disadvantage on saving throws while cursed), compose
 that yourself today; `0.7.0` adds engine-enforced condition
 effects.
 
 ## 15. Themed pack as a plugin bundle
 
-**Use case:** Ship a coherent thematic pack — species, classes,
-items, monsters — as a single object a host can opt into.
+**Use case:** Ship a coherent thematic pack (species, classes,
+items, monsters) as a single object a host can opt into.
 
 ```js
 // pirates-of-the-sundered-sea.js
@@ -498,12 +498,12 @@ const engine = createEngine(piratesPack);
 ```
 
 A pack is just an `EngineOptions` object. Distribute as an npm
-package, a JSON file, a literal — any shape the host can pass
+package, a JSON file, or a literal: any shape the host can pass
 straight into `createEngine`.
 
-## 16. Pathfinder-style crit range (19–20)
+## 16. Pathfinder-style crit range (19-20)
 
-**Use case:** Wider crit range — common in Pathfinder, in "this
+**Use case:** Wider crit range, common in Pathfinder, in "this
 weapon scores criticals on a 19 or 20" house rules, and as the
 mechanical effect of a Champion Fighter's L3 Improved Critical.
 
@@ -524,9 +524,10 @@ dice, SRD XP curve) stays at its default. Opt in per-knob.
 
 ## 17. Exploding damage dice (savage flavour)
 
-**Use case:** Every damage die that rolls max rolls again — chains
-can compound, producing rare but spectacular damage. Borrowed from
-Savage Worlds; popular in over-the-top action campaigns.
+**Use case:** Every damage die that rolls max rolls again, and
+chains can compound, producing rare but spectacular damage.
+Borrowed from Savage Worlds; popular in over-the-top action
+campaigns.
 
 ```js
 import { createEngine, Dice } from '@zeeuw/bag-of-holding';
@@ -581,13 +582,13 @@ result.willLevelUp;                    // → true (1400 + 300 ≥ 1500)
 ```
 
 Set `proficiencyByLevel` alongside if the bonus curve should also
-stretch — otherwise PCs gain proficiency bumps faster than levels.
+stretch; otherwise PCs gain proficiency bumps faster than levels.
 
 ## 19. No-damage-floor mode
 
 **Use case:** A heavy debuff (Bane, Bestow Curse, Bardic Vicious
 Mockery on a weak target) reduces damage below zero. SRD says
-"floor at 1." Some packs want "the modifier fully cancels — the
+"floor at 1." Some packs want "the modifier fully cancels, so the
 hit deals 0."
 
 ```js
@@ -610,8 +611,8 @@ swingier" packs.
 
 ## 20. Themed pack combining content and rules
 
-**Use case:** Ship a coherent pack — homebrew species, items,
-conditions, AND rule modifications — as one object a host can
+**Use case:** Ship a coherent pack (homebrew species, items,
+conditions, AND rule modifications) as one object a host can
 opt into wholesale.
 
 ```js
@@ -641,19 +642,19 @@ import { createEngine } from '@zeeuw/bag-of-holding';
 import piratesPack from './pirates-of-the-sundered-sea.js';
 
 const engine = createEngine(piratesPack);
-engine.rules.critOn;     // → [19, 20]  — host can introspect what's loaded
+engine.rules.critOn;     // → [19, 20]  (host can introspect what's loaded)
 ```
 
 Phase A content options (`extraSpecies`, `extraItems`, etc.) and
-Phase B `rules` overrides live in the same `EngineOptions`
+Phase B `rules` overrides live happily in the same `EngineOptions`
 object, so a "pack" is just a literal. No registration ceremony,
-no plugin lifecycle — the host hands the object to `createEngine`
+no plugin lifecycle: the host hands the object to `createEngine`
 and gets a pre-configured engine back.
 
 ## 21. Seeded session
 
-**Use case:** Reproducible play — same seed produces the same
-sequence of rolls for any consumer running this exact engine
+**Use case:** Reproducible play, so the same seed produces the
+same sequence of rolls for any consumer running this exact engine
 version.
 
 ```js
@@ -674,7 +675,7 @@ deterministic AI-loop test harness.
 ## 22. Live debug overlay via onRoll
 
 **Use case:** Stream every roll to a developer-mode panel as it
-happens — the Nerd-mode sidebar of an AI-DM client.
+happens; perfect for the Nerd-mode sidebar of an AI-DM client.
 
 ```js
 import { createEngine, Dice } from '@zeeuw/bag-of-holding';
@@ -693,7 +694,7 @@ engine.Combat.attackRoll({ attackBonus: 5, ac: 14 });
 ```
 
 The callback is synchronous and runs after the entry is appended
-to `rollLog` — readers see the same shape either way.
+to `rollLog`, so readers see the same shape either way.
 
 ## 23. Save and restore a session
 
@@ -763,8 +764,8 @@ context object with at least `{ action, actor, target }`.
 
 ## 25. Tutorial sandbox alongside the live game
 
-**Use case:** Run a tutorial / preview engine that doesn't
-contaminate the live campaign — different rules, different
+**Use case:** Run a tutorial or preview engine that won't
+contaminate the live campaign: different rules, different
 seed, fully isolated registries.
 
 ```js
@@ -776,7 +777,7 @@ const liveGame = createEngine({
 });
 
 const tutorialSandbox = createEngine({
-  // Math.random — non-deterministic, just for vibes
+  // Math.random, non-deterministic, just for vibes
   extraSpecies: tutorialOnlySpecies   // homebrew species the live game doesn't have
 });
 
@@ -824,8 +825,8 @@ themselves are reproducible. Both use the same seed.
 ## 27. Minimal AI-loop shape
 
 **Use case:** An LLM proposes an action; the engine resolves the
-mechanics; the LLM narrates the outcome. Engine never talks to
-the LLM directly — see [boundary.md](boundary.md).
+mechanics; the LLM narrates the outcome. The engine never talks
+to the LLM directly; see [boundary.md](boundary.md).
 
 ```js
 import { createEngine, Dice } from '@zeeuw/bag-of-holding';
@@ -867,12 +868,12 @@ Three boundaries, three responsibilities: classifier → engine →
 narrator. The engine is deterministic, replayable, never makes a
 network call. The AI calls happen on either side of it. The roll
 log is the auditable trail showing exactly what the engine produced
-given what the AI requested — *"the AI claims it rolled X, did it?"*
-becomes a verifiable question.
+given what the AI requested, so *"the AI claims it rolled X, did
+it?"* becomes a verifiable question.
 
 ## 28. One turn end-to-end (turn lifecycle)
 
-**Use case:** Walk one actor through a full combat turn — turn
+**Use case:** Walk one actor through a full combat turn. Turn
 start fires the lifecycle hook, the actor takes an action, the
 turn ends and round-scoped timers tick.
 
@@ -914,9 +915,9 @@ actor = next;
 ```
 
 A timer that hits 0 lands in the `expired` array of the
-`turnEnd` result and the `onTurnEnd` hook payload — the host
-removes any state the timer was shadowing (a Bless bonus, a Sap
-disadvantage).
+`turnEnd` result and the `onTurnEnd` hook payload, so the host
+can remove any state the timer was shadowing (a Bless bonus, a
+Sap disadvantage).
 
 ## 29. Combat actions menu (Dash + Disengage + Dodge)
 
@@ -951,7 +952,7 @@ r = engine.Combat.disengage(state, rogue);
 state = r.state; rogue = r.actor;
 // rogue.disengaged === true → opportunityAttack short-circuits
 
-// (Disengage consumed the action — Dash needs an action too, so a
+// (Disengage consumed the action; Dash needs an action too, so a
 //  realistic Rogue uses Cunning Action's bonus-action Dash via the
 //  monk-style helper. With the action available, regular Dash:)
 r = engine.Combat.dash(state, 'rogue');
@@ -960,8 +961,8 @@ state = r.state;
 ```
 
 Each verb returns `{ allowed, state, actor?, result? }`. A budget
-already spent makes the verb refuse with a debuggable reason — the
-host renders that as a disabled chip rather than crashing.
+already spent makes the verb refuse with a debuggable reason, so
+the host renders that as a disabled chip rather than crashing.
 
 ## 30. Grapple → grappled condition
 
@@ -1011,7 +1012,7 @@ same shape, with `onFail.pushFt = 5` instead of a condition.
 **Use case:** A character holds a Light + Nick weapon in the main
 hand (say a Scimitar) and another Light weapon in the off-hand
 (say a Dagger). Per the 2024 PHB, the **Nick** mastery folds the
-off-hand attack into the Attack action itself — so a second
+off-hand attack into the Attack action itself, so a second
 strike doesn't cost a bonus action.
 
 ```js
@@ -1075,11 +1076,11 @@ const result = engine.Combat.applyDamage(actor, {
 
 // `result.finalAmount` halved by resistance, then tempHp absorbed.
 // Outcome tags:
-//   'damaged' — HP went down but not to 0
-//   'absorbed' — tempHp ate it all
-//   'downed'   — HP just crossed to 0 (Unconscious applied)
-//   'dead'     — massive-damage instant death
-//   'immune'   — damageImmunities matched the type
+//   'damaged': HP went down but not to 0
+//   'absorbed': tempHp ate it all
+//   'downed':   HP just crossed to 0 (Unconscious applied)
+//   'dead':     massive-damage instant death
+//   'immune':   damageImmunities matched the type
 actor = result.actor;
 
 // Hooks fire automatically:
@@ -1090,7 +1091,7 @@ actor = result.actor;
 ```
 
 `engine.Combat.applyDamageModifiers(actor, { amount, type })` is
-the pure modifier layer — handy for previewing damage in a UI
+the pure modifier layer, handy for previewing damage in a UI
 without applying it.
 
 ## 33. Heal an Unconscious ally
@@ -1120,8 +1121,8 @@ const result = engine.Combat.heal(ally, healAmount);
 ```
 
 `engine.Combat.stabilize(actor)` is the Medicine-check / Spare-the-
-Dying path — clears the tracker without restoring HP (actor stays
-Unconscious at 0 HP, no longer rolling death saves).
+Dying path, which clears the tracker without restoring HP (actor
+stays Unconscious at 0 HP, no longer rolling death saves).
 
 ## 34. Class mechanic: Barbarian Rage
 
@@ -1204,7 +1205,7 @@ const attack = engine.Combat.attackRoll({
 });
 
 if (attack.hit) {
-  // 2. Sneak Attack rider — must meet finesse / ranged + advantage
+  // 2. Sneak Attack rider, must meet finesse / ranged + advantage
   //    OR adjacent ally; once per turn.
   const rider = engine.Mechanics.apply(actor, 'sneakAttack', {
     attackHadAdvantage: attack.stance === 'advantage',
@@ -1379,7 +1380,7 @@ const outcomes = engine.Spellcasting.castSpellSave(results,
 ```
 
 `AOE_SHAPES = ['sphere', 'cube', 'cone', 'line', 'cylinder',
-'emanation']` — cone and line require a `direction` vector; the
+'emanation']`. Cone and line require a `direction` vector; the
 others ignore it.
 
 ## 39. Monster legendary actions in a round

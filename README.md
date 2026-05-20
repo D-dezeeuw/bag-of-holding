@@ -10,8 +10,8 @@
 
 A tiny, AI-agnostic D&D 5e (**SRD 5.2**) rules kernel. **Zero runtime
 dependencies, single ESM file, CDN-loadable.** Designed to plug into
-any AI-driven RPG host — or any host — without locking you to a
-model, a framework, or a virtual tabletop.
+any AI-driven RPG host, or any host, without locking you to a model,
+a framework, or a virtual tabletop.
 
 > The math is the engine. The host owns the prose, the persistence,
 > and the AI loop. See [docs/why.md](docs/why.md) for the case behind
@@ -22,7 +22,7 @@ model, a framework, or a virtual tabletop.
 - **Zero runtime dependencies.** One ESM file, auditable line by line.
 - **AI-agnostic by construction.** No network calls, no DOM, never
   talks to a model. See [docs/boundary.md](docs/boundary.md).
-- **Pure functions, plain data.** Every result is serialisable;
+- **Pure functions, plain data.** Every result is serialisable,
   replay-deterministic when seeded with `Dice.seededRng(seed)`.
 - **Forensically inspectable randomness.** Append-only `rollLog`,
   optional `context` tags per roll, and a `verifyLog` replay
@@ -30,7 +30,7 @@ model, a framework, or a virtual tabletop.
   re-executed outcomes.
 - **Plugin-extensible at the kernel.** Phase A (content), Phase B
   (rule knobs), Phase C (behavioural hooks), and Phase D (turn-
-  lifecycle + scene events) all via `createEngine({ … })`. See
+  lifecycle and scene events) all via `createEngine({ ... })`. See
   [docs/spec.md § Plugins](docs/spec.md).
 - **Character sheets.** `Character.deriveSheet(record, engine)`
   turns a host-owned record into a frozen sheet (AC, HP, saves,
@@ -39,7 +39,8 @@ model, a framework, or a virtual tabletop.
 - **TypeScript types included.** Hand-maintained `index.d.ts` with a
   `tsc --noEmit` drift gate. No `@types/` install needed.
 - **SRD 5.2 (2025).** Weapon Mastery, numeric Exhaustion,
-  Backgrounds-as-ability-source — the current rules, not a 5.1 carry-over.
+  Backgrounds-as-ability-source, the current rules, not a 5.1
+  carry-over.
 - **100% line / branch / function coverage** as an ongoing contract.
 - **SRD-completeness tracked transparently.** See
   [docs/srd-coverage.md](docs/srd-coverage.md) for the live
@@ -51,7 +52,7 @@ model, a framework, or a virtual tabletop.
 npm install @zeeuw/bag-of-holding
 ```
 
-Or drop it straight into a static page from a CDN — no build step:
+Or drop it straight into a static page from a CDN, no build step:
 
 ```html
 <script type="module">
@@ -82,12 +83,12 @@ if (attack.hit) {
   Combat.applyDamage(target, { amount: dmg.total, type: dmg.damageType });
 }
 
-// SRD 5.2 Weapon Mastery — riders resolve declaratively.
+// SRD 5.2 Weapon Mastery, riders resolve declaratively.
 const longsword = SRD.items.longsword;       // mastery: 'sap'
 Combat.applyMastery(longsword, target, attack);
 // → { kind: 'sap', disadvantage: true }     (target's next attack)
 
-// Conditions are immutable — apply / remove returns a new actor.
+// Conditions are immutable, apply / remove returns a new actor.
 const blinded = Conditions.apply(actor, 'blinded');
 const tired   = Conditions.exhaustion.gain(actor);   // 0..6, SRD 5.2
 
@@ -96,7 +97,7 @@ XP.levelForXP(2700);          // → 4
 XP.nextLevelThreshold(2700);  // → 6500
 ```
 
-The engine ships ~20 namespaces — `Dice`, `Checks`, `Combat`,
+The engine ships ~20 namespaces: `Dice`, `Checks`, `Combat`,
 `Conditions`, `XP`, `Spellcasting`, `Rest`, `Mechanics`, `SceneClock`,
 `MagicItems`, `Monsters`, `Movement`, `Multiclass`, `Inspiration`,
 `EncounterDesign`, `Movesets`, `Beats`, `Character`, plus the `SRD`
@@ -105,8 +106,8 @@ examples of how they combine.
 
 ## Custom rules (plugins)
 
-For homebrew content — extra species, alternate conditions, custom
-weapon-mastery properties — instantiate a custom engine:
+For homebrew content, extra species, alternate conditions, custom
+weapon-mastery properties, instantiate a custom engine:
 
 ```js
 import { createEngine } from '@zeeuw/bag-of-holding';
@@ -132,35 +133,35 @@ engine.Conditions.apply(actor, 'cursed');
 engine.species['half-elf'];
 ```
 
-The default singleton (the `Combat`, `Conditions`, … you import directly)
-is just `createEngine()` with no opts. Two engines on the same page have
-fully independent registries; nothing leaks.
+The default singleton (the `Combat`, `Conditions`, ... you import
+directly) is just `createEngine()` with no opts. Two engines on the
+same page have fully independent registries; nothing leaks.
 
 See [docs/spec.md § Plugins](docs/spec.md) for the full contract,
 validation behaviour, and merge semantics.
 
 ## Documentation
 
-- [docs/recipes.md](docs/recipes.md) — pragmatic patterns and
+- [docs/recipes.md](docs/recipes.md), pragmatic patterns and
   compound flows (combat actions menu, damage pipeline, class
-  mechanics, magic-item lifecycle, ritual casting, AoE spells, …).
+  mechanics, magic-item lifecycle, ritual casting, AoE spells, ...).
   The "how do I actually do X?" reference.
-- [docs/why.md](docs/why.md) — the case for the library: market gap,
+- [docs/why.md](docs/why.md), the case for the library: market gap,
   niche, moat, the conditions under which this would be a waste of
   time. Read first.
-- [docs/spec.md](docs/spec.md) — what the engine implements (and what
+- [docs/spec.md](docs/spec.md), what the engine implements (and what
   it doesn't); plugin contract; types.
-- [docs/srd-coverage.md](docs/srd-coverage.md) — line-by-line
+- [docs/srd-coverage.md](docs/srd-coverage.md), line-by-line
   checklist against the SRD 5.2. The live SRD-compliance worklist.
-- [docs/character-sheet.md](docs/character-sheet.md) — the
+- [docs/character-sheet.md](docs/character-sheet.md), the
   `CharacterRecord` (host-owned) ↔ `DerivedSheet` (engine-derived)
   contract with a worked example.
-- [docs/roadmap.md](docs/roadmap.md) — versioned milestones and the
+- [docs/roadmap.md](docs/roadmap.md), versioned milestones and the
   vision behind them.
-- [docs/boundary.md](docs/boundary.md) — what the engine **won't** do.
-- [docs/beat-schema.md](docs/beat-schema.md) — the story-beat shape
+- [docs/boundary.md](docs/boundary.md), what the engine **won't** do.
+- [docs/beat-schema.md](docs/beat-schema.md), the story-beat shape
   and runtime.
-- [docs/legal.md](docs/legal.md) — what we can and can't reference
+- [docs/legal.md](docs/legal.md), what we can and can't reference
   from D&D / Wizards of the Coast; SRD 5.2 vs Product Identity.
 
 ## Requirements
@@ -185,7 +186,7 @@ achievement.
 
 ## License
 
-[MPL 2.0](LICENSE) — file-level copyleft. Use the engine in any
+[MPL 2.0](LICENSE), file-level copyleft. Use the engine in any
 application, closed or open. If you modify any of the engine's
 **files**, those modifications stay under MPL 2.0 and remain
 available in source form; everything *around* the engine in your

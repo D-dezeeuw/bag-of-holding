@@ -58,4 +58,4 @@ checklist:
 grep -rE "fetch\(|XMLHttpRequest|document\.|window\." src/   # must return nothing
 ```
 
-Treat any future hit as a regression — find another design.
+Treat any future hit as a regression, find another design.
