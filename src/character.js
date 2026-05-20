@@ -274,6 +274,28 @@ function deriveInitiative(allFeats, profBonus, dexMod) {
 }
 
 /**
+ * SRD 5.2 § Character Origins: each background grants its named
+ * Origin Feat with full mechanical effects (cantrips, +5 ft
+ * initiative, weapon reroll, etc.). Folding the feats' `grants`
+ * blocks into a flat `featGrants` map on the sheet lets the host
+ * read every active grant without re-walking the feats list.
+ *
+ * Conflict policy: last-write-wins (the player's chosen feats can
+ * override an origin feat's defaults). Repeatable feats with
+ * `variant` selectors collect under the feat id with `_<variant>`.
+ */
+function deriveFeatGrants(allFeats, feats) {
+  const merged = {};
+  for (const featRef of allFeats) {
+    const def = feats[featRef.id];
+    if (!def || !def.grants) continue;
+    const key = featRef.variant ? `${featRef.id}_${featRef.variant}` : featRef.id;
+    merged[key] = def.grants;
+  }
+  return merged;
+}
+
+/**
  * Walking speed after exhaustion and movement-cancelling conditions.
  * Per SRD 5.2, Exhaustion subtracts 5 ft per level (handled by
  * `Conditions.exhaustion.speedPenalty`). Grappled / Paralyzed /
@@ -504,6 +526,7 @@ export function deriveSheet(record, registries) {
   const classDef = registries.classes[record.classId];
   const background = registries.backgrounds[record.backgroundId];
   const items = registries.items;
+  const feats = registries.feats ?? {};
 
   const profBonus = registries.XP.PROFICIENCY_BY_LEVEL[record.level]
     ?? Math.ceil(record.level / 4) + 1;   // graceful fallback past tier 1
@@ -516,6 +539,7 @@ export function deriveSheet(record, registries) {
   const hp = { max: deriveMaxHp(record, classDef, abilityMods.con) };
   const ac = deriveAc(record, items, abilityMods.dex);
   const initiative = deriveInitiative(allFeats, profBonus, abilityMods.dex);
+  const featGrants = deriveFeatGrants(allFeats, feats);
   // Armor metadata governs both stealth disadvantage (per SRD § Armor)
   // and a 10 ft speed penalty when a heavy armor's strRequired isn't
   // met. The host can also stamp `record.encumbrance` for the variant
@@ -581,6 +605,7 @@ export function deriveSheet(record, registries) {
     attacks,
     spellcasting,
     passives,
+    featGrants,
     carryingCapacity,
     activeEffects: {
       conditions: [...conditions],
