@@ -19,7 +19,7 @@ export default {
   weaponMasterySlots: 3,
   // Extra Attack at L5 / L11: one then two additional attacks per
   // Attack action. Encounter system reads via attacksPerAction.
-  extraAttacks: { 5: 1, 11: 2 },
+  extraAttacks: { 5: 1, 11: 2, 20: 3 },
   features: {
     1: ['Fighting Style', 'Second Wind', 'Weapon Mastery'],
     2: ['Action Surge', 'Tactical Mind'],
@@ -36,7 +36,11 @@ export default {
     13: ['Indomitable (two uses)', 'Studied Attacks'],
     14: ['Subclass Feature'],
     15: ['Improved Critical (19-20)'],
-    16: ['Ability Score Improvement']
+    16: ['Ability Score Improvement'],
+    17: ['Action Surge (two uses)', 'Indomitable (three uses)'],
+    18: ['Subclass Feature'],
+    19: ['Epic Boon'],
+    20: ['Three Extra Attacks']
   },
   // Resource-bearing features (since 1.3.0). Indomitable arrives at
   // L9 with one use, and bumps to two uses at L13 per the SRD table;

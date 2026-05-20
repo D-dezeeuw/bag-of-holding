@@ -92,7 +92,11 @@ export default {
     13: [],
     14: ['Subclass Feature'],
     15: [],
-    16: ['Ability Score Improvement']
+    16: ['Ability Score Improvement'],
+    17: ['Subclass Feature'],
+    18: ['Sorcerous Body'],
+    19: ['Epic Boon'],
+    20: ['Arcane Apotheosis']
   },
   // Resource-bearing features (since 1.3.8). Sorcery Points refresh
   // on Long Rest only.

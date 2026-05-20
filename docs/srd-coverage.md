@@ -259,7 +259,8 @@ boxes are always the live worklist.
   - [ ] Oath of Devotion (Paladin), Hunter (Ranger), Thief (Rogue)
   - [ ] Draconic Sorcery (Sorcerer), Fiend Patron (Warlock), Evoker (Wizard)
 - [x] **Tier 3 features** L11-L16 per class *(v1.21.0)*. Feature strings + key signature mechanics (Fighter Indomitable + 3rd attack at L11, Rogue Reliable Talent, Barbarian Relentless Rage).
-- [ ] **Tier 4 features** L17-L20 per class *(SRD per class)*
+- [x] **Tier 4 features** L17-L20 per class *(v1.22.0)*. Feature strings + Fighter 4th attack + Epic Boon row.
+- [x] **Epic Boon feats** *(v1.22.0)*. 11 SRD Epic Boons registered with `category: 'epic-boon'`.
 
 ## 15. Character creation pipeline
 
