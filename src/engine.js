@@ -47,6 +47,7 @@ import * as MulticlassBase from './multiclass.js';
 import * as InspirationBase from './inspiration.js';
 import * as EncounterDesignBase from './encounter-design.js';
 import * as HazardsBase from './hazards.js';
+import * as EquipmentBase from './equipment.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -774,6 +775,22 @@ export function createEngine(opts = {}) {
       starvationTick: (actor, opts) => HazardsBase.starvationTick(actor, opts, rng, hazardSaver),
       extremeTemperatureTick: (actor, opts) => HazardsBase.extremeTemperatureTick(actor, opts, rng, hazardSaver),
       classifyUnderwaterAttack: HazardsBase.classifyUnderwaterAttack
+    }),
+    // Equipment depth (since 1.19.0; closes 1.17.0 milestone).
+    // Encumbrance + armor mechanics + tool proficiency.
+    Equipment: Object.freeze({
+      ENCUMBRANCE_MULT: EquipmentBase.ENCUMBRANCE_MULT,
+      ADVENTURING_GEAR: EquipmentBase.ADVENTURING_GEAR,
+      TOOLS: EquipmentBase.TOOLS,
+      LIFESTYLES: EquipmentBase.LIFESTYLES,
+      SERVICES: EquipmentBase.SERVICES,
+      encumbranceLevel: EquipmentBase.encumbranceLevel,
+      encumbranceSpeedPenalty: EquipmentBase.encumbranceSpeedPenalty,
+      armorStrengthPenalty: EquipmentBase.armorStrengthPenalty,
+      carriedWeight: (itemIds) => EquipmentBase.carriedWeight(itemIds, items),
+      donTime: (armorId) => EquipmentBase.donTime(armorId, items),
+      doffTime: (armorId) => EquipmentBase.doffTime(armorId, items),
+      toolCheck: (args) => EquipmentBase.toolCheck(args, rng)
     }),
     Inspiration: Object.freeze({
       hasInspiration: InspirationBase.hasInspiration,

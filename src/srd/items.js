@@ -51,20 +51,21 @@ export default {
   'longbow':        { id: 'longbow',        name: 'Longbow',         type: 'weapon', damage: '1d8',  damageType: 'piercing',    properties: ['heavy', 'ranged', 'two-handed'], mastery: 'slow' },
   'crossbow-heavy': { id: 'crossbow-heavy', name: 'Heavy Crossbow',  type: 'weapon', damage: '1d10', damageType: 'piercing',    properties: ['heavy', 'ranged', 'two-handed'], mastery: 'push' },
 
-  // Armor
-  'padded':           { id: 'padded',           name: 'Padded Armor',     type: 'armor', ac: 11, addsDex: true },
-  'leather-armor':    { id: 'leather-armor',    name: 'Leather Armor',    type: 'armor', ac: 11, addsDex: true },
-  'studded-leather':  { id: 'studded-leather',  name: 'Studded Leather',  type: 'armor', ac: 12, addsDex: true },
-  'hide':             { id: 'hide',             name: 'Hide',             type: 'armor', ac: 12, addsDex: true, maxDex: 2 },
-  'chain-shirt':      { id: 'chain-shirt',      name: 'Chain Shirt',      type: 'armor', ac: 13, addsDex: true, maxDex: 2 },
-  'scale-mail':       { id: 'scale-mail',       name: 'Scale Mail',       type: 'armor', ac: 14, addsDex: true, maxDex: 2 },
-  'breastplate':      { id: 'breastplate',      name: 'Breastplate',      type: 'armor', ac: 14, addsDex: true, maxDex: 2 },
-  'half-plate':       { id: 'half-plate',       name: 'Half Plate',       type: 'armor', ac: 15, addsDex: true, maxDex: 2 },
-  'ring-mail':        { id: 'ring-mail',        name: 'Ring Mail',        type: 'armor', ac: 14, addsDex: false },
-  'chain-mail':       { id: 'chain-mail',       name: 'Chain Mail',       type: 'armor', ac: 16, addsDex: false },
-  'splint':           { id: 'splint',           name: 'Splint',           type: 'armor', ac: 17, addsDex: false },
-  'plate':            { id: 'plate',            name: 'Plate Armor',      type: 'armor', ac: 18, addsDex: false },
-  'shield':           { id: 'shield',           name: 'Shield',           type: 'armor', acBonus: 2 },
+  // Armor. category = light / medium / heavy / shield; donTime + doffTime
+  // in minutes; strRequired + stealthDisadvantage per SRD 5.2 Armor table.
+  'padded':           { id: 'padded',           name: 'Padded Armor',     type: 'armor', category: 'light',  ac: 11, addsDex: true,  weight: 8,  donTime: 1, doffTime: 1, stealthDisadvantage: true },
+  'leather-armor':    { id: 'leather-armor',    name: 'Leather Armor',    type: 'armor', category: 'light',  ac: 11, addsDex: true,  weight: 10, donTime: 1, doffTime: 1 },
+  'studded-leather':  { id: 'studded-leather',  name: 'Studded Leather',  type: 'armor', category: 'light',  ac: 12, addsDex: true,  weight: 13, donTime: 1, doffTime: 1 },
+  'hide':             { id: 'hide',             name: 'Hide',             type: 'armor', category: 'medium', ac: 12, addsDex: true,  maxDex: 2, weight: 12, donTime: 1, doffTime: 1 },
+  'chain-shirt':      { id: 'chain-shirt',      name: 'Chain Shirt',      type: 'armor', category: 'medium', ac: 13, addsDex: true,  maxDex: 2, weight: 20, donTime: 1, doffTime: 1 },
+  'scale-mail':       { id: 'scale-mail',       name: 'Scale Mail',       type: 'armor', category: 'medium', ac: 14, addsDex: true,  maxDex: 2, weight: 45, donTime: 5, doffTime: 1, stealthDisadvantage: true },
+  'breastplate':      { id: 'breastplate',      name: 'Breastplate',      type: 'armor', category: 'medium', ac: 14, addsDex: true,  maxDex: 2, weight: 20, donTime: 5, doffTime: 1 },
+  'half-plate':       { id: 'half-plate',       name: 'Half Plate',       type: 'armor', category: 'medium', ac: 15, addsDex: true,  maxDex: 2, weight: 40, donTime: 5, doffTime: 1, stealthDisadvantage: true },
+  'ring-mail':        { id: 'ring-mail',        name: 'Ring Mail',        type: 'armor', category: 'heavy',  ac: 14, addsDex: false, weight: 40, donTime: 5, doffTime: 5, stealthDisadvantage: true },
+  'chain-mail':       { id: 'chain-mail',       name: 'Chain Mail',       type: 'armor', category: 'heavy',  ac: 16, addsDex: false, weight: 55, donTime: 5, doffTime: 5, stealthDisadvantage: true, strRequired: 13 },
+  'splint':           { id: 'splint',           name: 'Splint',           type: 'armor', category: 'heavy',  ac: 17, addsDex: false, weight: 60, donTime: 10, doffTime: 5, stealthDisadvantage: true, strRequired: 15 },
+  'plate':            { id: 'plate',            name: 'Plate Armor',      type: 'armor', category: 'heavy',  ac: 18, addsDex: false, weight: 65, donTime: 10, doffTime: 5, stealthDisadvantage: true, strRequired: 15 },
+  'shield':           { id: 'shield',           name: 'Shield',           type: 'armor', category: 'shield', acBonus: 2, weight: 6, donTime: 0, doffTime: 0 },
 
   // Consumables
   'potion-healing':         { id: 'potion-healing',         name: 'Potion of Healing',         type: 'consumable', heals: '2d4+2' },
