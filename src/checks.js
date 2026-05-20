@@ -78,3 +78,24 @@ export function savingThrow(args, rng = Math.random) {
   }
   return abilityCheck(args, rng);
 }
+
+/**
+ * SRD 5.2 § Ability Checks — Passive Checks: a passive check is an
+ * ability check that doesn't involve any die rolls. The total is
+ * `10 + ability mod + proficiency + bonuses`. Advantage grants +5;
+ * disadvantage grants -5.
+ *
+ * The derived sheet computes passive Perception / Insight /
+ * Investigation already (since v0.1.5). This helper is the general-
+ * purpose form for the other 15 skills, plus arbitrary saves.
+ */
+export function passiveCheck({ abilityScore, proficient = false, proficiencyBonus = 2, advantage = false, disadvantage = false, bonus = 0 } = {}) {
+  if (!Number.isFinite(abilityScore)) {
+    throw new Error('passiveCheck: abilityScore must be a finite number');
+  }
+  let total = 10 + modFromScore(abilityScore) + bonus;
+  if (proficient) total += proficiencyBonus;
+  if (advantage && !disadvantage) total += 5;
+  if (disadvantage && !advantage) total -= 5;
+  return total;
+}

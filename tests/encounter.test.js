@@ -139,7 +139,7 @@ test('spend refuses when slot has no budget', () => {
 });
 
 test('ACTION_COSTS lists the public cost vocabulary', () => {
-  assert.deepEqual([...ACTION_COSTS], ['action', 'bonus', 'reaction', 'movement', 'free']);
+  assert.deepEqual([...ACTION_COSTS], ['action', 'bonus', 'reaction', 'movement', 'free', 'freeInteraction']);
 });
 
 test('freshBudget honours speed', () => {

@@ -439,6 +439,8 @@ export function createEngine(opts = {}) {
   const ChecksBound = {
     modFromScore: Checks.modFromScore,
     clampDC: Checks.clampDC,
+    // Passive checks don't roll dice; no logging needed. Pass-through.
+    passiveCheck: Checks.passiveCheck,
     abilityCheck: (args, context) => {
       const result = Checks.abilityCheck(args, rng);
       record('abilityCheck', {
@@ -636,6 +638,10 @@ export function createEngine(opts = {}) {
     },
     stabilize: CombatBase.stabilize,
     reviveTo: CombatBase.reviveTo,
+    // SRD 5.2 § Damage and Healing (Stabilizing): rolls the 1d4-hour
+    // timer for stable-creature regen through the engine rng so the
+    // tick is replay-deterministic.
+    rollStableRegenHours: () => CombatBase.rollStableRegenHours(rng),
 
     // === Damage pipeline (since 1.4.0) ===
     //
@@ -745,13 +751,15 @@ export function createEngine(opts = {}) {
       }
       return result;
     },
-    longRest: (actor) => {
-      const next = RestBase.longRest(actor, rules);
+    longRest: (actor, opts) => {
+      const next = RestBase.longRest(actor, rules, opts);
       // Phase D (since 1.6.0). onLongRest fires after all rest
       // recovery is applied so plugins observing it can inspect the
       // restored state; the `previous` field surfaces the actor as
-      // it stood when the rest began.
-      hooks.fire('onLongRest', { actor: next, previous: actor });
+      // it stood when the rest began. On an interrupted rest the
+      // hook still fires so plugins can react, but the actor is
+      // unchanged per SRD 5.2 § Long Rest.
+      hooks.fire('onLongRest', { actor: next, previous: actor, interrupted: opts?.interrupted === true });
       return next;
     },
     shortRest: (actor) => {

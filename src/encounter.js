@@ -30,12 +30,16 @@ const DEFAULT_ACTION_BUDGET = Object.freeze({
   action: 1,
   bonus: 1,
   reaction: 1,
-  movement: null   // overridden per-actor from speed
+  movement: null,  // overridden per-actor from speed
+  // SRD 5.2 § Other Activity on Your Turn: one free object
+  // interaction per turn (open a door, draw a weapon, retrieve a
+  // stowed item). Anything beyond uses the Utilize action.
+  freeInteraction: 1
 });
 
 /** Cost vocabulary the engine accepts. Mirrors the moveset chip
  *  costs so the same string moves end-to-end without re-mapping. */
-export const ACTION_COSTS = Object.freeze(['action', 'bonus', 'reaction', 'movement', 'free']);
+export const ACTION_COSTS = Object.freeze(['action', 'bonus', 'reaction', 'movement', 'free', 'freeInteraction']);
 
 /**
  * Compute a fresh action-budget snapshot for an actor. Movement is
@@ -62,7 +66,18 @@ export function freshBudget(speed) {
  */
 export function rollOrder(participants, rng = Math.random, onInitiativeRoll) {
   const rolled = participants.map((p) => {
-    const d20 = rollDie(20, rng);
+    // SRD 5.2 § Combat (Initiative): a combatant surprised by combat
+    // starting has Disadvantage on their initiative roll. The host
+    // sets `p.surprised = true` before calling startEncounter; the
+    // engine rolls 2d20 and keeps the lower.
+    let d20;
+    if (p.surprised === true) {
+      const a = rollDie(20, rng);
+      const b = rollDie(20, rng);
+      d20 = Math.min(a, b);
+    } else {
+      d20 = rollDie(20, rng);
+    }
     const initiative = d20 + modFromScore(p.dexterity);
     // Optional per-roll callback — engine wrapper passes one that
     // appends a `rollInitiative` entry to the engine's roll log so
