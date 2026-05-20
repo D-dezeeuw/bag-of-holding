@@ -521,8 +521,11 @@ in the typecheck file:
   slots tagged `temporary` for 1.6.0 long-rest stripping);
   `applyMetamagic` with a 10-option `METAMAGIC_OPTIONS` registry
   (each declaring cost + effect schema). ✅ shipped
-- **`1.3.9`** Warlock § *Eldritch Invocations* selection and
-  validation (pact magic itself already ships).
+- **`1.3.9`** Warlock § *Eldritch Invocations* — registry of 10
+  canonical SRD invocations with prerequisite metadata (warlock
+  level, required cantrip, repeatable flag), per-level count table,
+  `validateInvocations` checker + `setInvocations` mechanic +
+  `agonizingBlastBonus` lookup. ✅ shipped
 - **`1.3.10`** Wizard § *Arcane Recovery* — recover spell-slot
   levels equal to ⌈½ wizard level⌉, once per long rest, on a short
   rest.
