@@ -5,12 +5,12 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-19: `0.5.0`, pre-release. SRD 5.2 surface
-> with Phase A/B/C plugin systems; forensically inspectable
-> randomness from 0.1.0; character-sheet derivation; encounter
-> system from 0.4.0; **spellcasting mechanics** (slots, rests,
-> concentration, cantrip scaling, prep lists) from 0.5.0; 346
-> tests at 100 / 100 / 100 coverage. GitHub-tagged through `v0.5.0`.
+> Status as of 2026-05-20: `0.6.0`, pre-release. **All 12 SRD 5.2
+> base classes** at levels 1–5 with one subclass each; full
+> Phase A/B/C plugin systems; forensically inspectable randomness;
+> character-sheet derivation; encounter system; spellcasting
+> mechanics; class-aware movesets; 384 tests at 100 / 100 / 100
+> coverage. GitHub-tagged through `v0.6.0`.
 
 ## Vision
 
@@ -211,17 +211,18 @@ Spell *records* ship at `0.0`; spell *mechanics* land here.
   `beforeAttack` handler that returns `{ ac: ac + 5 }` for the
   Shield spell pattern.
 
-### `0.6.0` — Class breadth
+### `0.6.0` — Class breadth ✅ shipped
 
-Fill in the eight classes currently missing.
+All 12 SRD 5.2 base classes at levels 1–5 with one subclass each.
 
-- **Add Barbarian, Bard, Druid, Monk, Paladin, Ranger, Sorcerer,
-  Warlock** at levels 1–5, with one subclass each per SRD 5.2
-  (Berserker, Lore, Land, Open Hand, Devotion, Hunter, Draconic,
-  Fiend).
-- **Class-specific moveset** providers: `Movesets.legal` becomes a
-  dispatch over per-class providers, each returning the chips the
-  class actually has at this level.
+- **Added**: Barbarian (Berserker), Bard (College of Lore), Druid
+  (Circle of the Land), Monk (Open Hand), Paladin (Oath of
+  Devotion), Ranger (Hunter), Sorcerer (Draconic Sorcery), Warlock
+  (The Fiend).
+- **Movesets** dispatch over per-class chip providers with `minLevel`
+  gates and an optional `combatOnly` predicate. Each class declares
+  its signature chips (Rage, Bardic Inspiration, Cunning Action,
+  Wild Shape, Eldritch Blast, etc.).
 
 ### `0.7.0` — Condition effects
 
