@@ -46,6 +46,7 @@ import * as MovementBase from './movement.js';
 import * as MulticlassBase from './multiclass.js';
 import * as InspirationBase from './inspiration.js';
 import * as EncounterDesignBase from './encounter-design.js';
+import * as HazardsBase from './hazards.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -369,6 +370,13 @@ export function createEngine(opts = {}) {
       return result;
     }
   };
+
+  // Adapter that lets sub-systems (Hazards) reuse the bound
+  // savingThrow so their save rolls flow into the same rollLog. The
+  // sub-system passes only the structured save args (abilityScore,
+  // dc, ...) plus its own rng; the wrapper drops the rng argument
+  // because the engine binding always uses the engine's seeded rng.
+  const hazardSaver = (args) => ChecksBound.savingThrow(args, 'hazard');
 
   // Combat — bind both the mastery handler table (plugin contracts)
   // AND the rolling wrappers (logging contracts). `applyMastery`
@@ -748,6 +756,24 @@ export function createEngine(opts = {}) {
       ENCOUNTER_BUDGETS: EncounterDesignBase.ENCOUNTER_BUDGETS,
       budgetFor: EncounterDesignBase.budgetFor,
       classifyEncounter: EncounterDesignBase.classifyEncounter
+    }),
+    // Hazards & environment (since 1.18.0; closes the 1.15.0
+    // milestone). Saves route through the engine's rng so a seeded
+    // session reproduces every disease, poison, and exposure roll.
+    Hazards: Object.freeze({
+      DISEASES: HazardsBase.DISEASES,
+      POISONS: HazardsBase.POISONS,
+      POISON_VECTORS: HazardsBase.POISON_VECTORS,
+      UNDERWATER_OK_MELEE: HazardsBase.UNDERWATER_OK_MELEE,
+      UNDERWATER_OK_RANGED: HazardsBase.UNDERWATER_OK_RANGED,
+      UNDERWATER_RESISTED_DAMAGE: HazardsBase.UNDERWATER_RESISTED_DAMAGE,
+      exposure: (args) => HazardsBase.exposure(args, rng, hazardSaver),
+      tickPoison: HazardsBase.tickPoison,
+      tickSuffocation: HazardsBase.tickSuffocation,
+      holdBreathRounds: HazardsBase.holdBreathRounds,
+      starvationTick: (actor, opts) => HazardsBase.starvationTick(actor, opts, rng, hazardSaver),
+      extremeTemperatureTick: (actor, opts) => HazardsBase.extremeTemperatureTick(actor, opts, rng, hazardSaver),
+      classifyUnderwaterAttack: HazardsBase.classifyUnderwaterAttack
     }),
     Inspiration: Object.freeze({
       hasInspiration: InspirationBase.hasInspiration,

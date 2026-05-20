@@ -868,18 +868,25 @@ Reroll-on-save patterns and group/help skill semantics.
 Closes [§ 21 Saves & edge
 mechanics](srd-coverage.md#21-saves--edge-mechanics).
 
-### `1.15.0`: Hazards & environment
+### `1.15.0`: Hazards & environment ✅ shipped in v1.18.0
 
-Disease, poison, environmental damage.
+Disease, poison, suffocation, starvation, extreme temperature, and
+underwater combat: all the SRD § Hazards material in one focused
+namespace.
 
-- **Disease registry.** Onset save + per-stage save DC progression.
-- **Poison registry.** Contact / ingested / inhaled / injury
-  vectors; matching DC + duration.
-- **Suffocation.** CON-mod-rounds breath-hold; HP=0 + can't recover
-  until breathing.
-- **Starvation / Thirst.** Exhaustion accrual past the daily cap.
-- **Extreme heat / cold.** Saves + exhaustion.
-- **Underwater combat.** Disadvantage / immunity table.
+- **`Hazards.DISEASES`** with onset save + per-stage progression.
+- **`Hazards.POISONS`** keyed by contact / ingested / inhaled /
+  injury vector.
+- **`Hazards.exposure`** rolls the onset / poison save through the
+  engine rng and returns the structured save + effect.
+- **`Hazards.tickSuffocation`** + `holdBreathRounds` for breath-hold
+  bookkeeping.
+- **`Hazards.starvationTick`** accrues exhaustion past the food
+  grace window and on failed thirst saves.
+- **`Hazards.extremeTemperatureTick`** handles heat / cold with
+  per-hour DC ramps and a gear-acclimatised proxy.
+- **`Hazards.classifyUnderwaterAttack`** returns stance + auto-miss
+  for melee / ranged underwater combat per SRD.
 
 Closes [§ 22 Diseases, poisons, environmental
 hazards](srd-coverage.md#22-diseases-poisons-environmental-hazards).
