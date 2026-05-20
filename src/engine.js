@@ -40,6 +40,7 @@ import * as Spellcasting from './spellcasting.js';
 import * as RestBase from './rest.js';
 import * as MechanicsBase from './mechanics.js';
 import * as SceneClock from './scene-clock.js';
+import * as MagicItemsBase from './magic-items.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -733,6 +734,22 @@ export function createEngine(opts = {}) {
       DEFAULT_DAWN_MINUTE: SceneClock.DEFAULT_DAWN_MINUTE,
       DEFAULT_DUSK_MINUTE: SceneClock.DEFAULT_DUSK_MINUTE,
       MINUTES_PER_DAY: SceneClock.MINUTES_PER_DAY
+    }),
+    // Magic items lifecycle (since 1.9.0). rechargeItem accepts the
+    // engine's rng via the binding so dice-based recoveries (e.g.
+    // 1d6+4 at dawn) flow into the same replay-deterministic chain.
+    MagicItems: Object.freeze({
+      RARITY_BANDS: MagicItemsBase.RARITY_BANDS,
+      ATTUNEMENT_CAP: MagicItemsBase.ATTUNEMENT_CAP,
+      RECHARGE_KINDS: MagicItemsBase.RECHARGE_KINDS,
+      canAttune: MagicItemsBase.canAttune,
+      attune: MagicItemsBase.attune,
+      unattune: MagicItemsBase.unattune,
+      spendCharge: MagicItemsBase.spendCharge,
+      rechargeItem: (actor, item) => MagicItemsBase.rechargeItem(actor, item, rng),
+      identifyItem: MagicItemsBase.identifyItem,
+      isIdentified: MagicItemsBase.isIdentified,
+      itemSavingThrow: (item, dc) => MagicItemsBase.itemSavingThrow(item, dc, rng)
     }),
     // Class mechanics (since 1.3.0). Foundation for resource-bearing
     // class features (Second Wind, Action Surge, Sneak Attack, etc.)

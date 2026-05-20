@@ -717,9 +717,9 @@ Closes
 and the unfinished rows of
 [§ 10](srd-coverage.md#10-spellcasting--slots--concentration).
 
-### `1.9.0` — Magic items system
+### `1.9.0` — Magic items system ✅ shipped
 
-Items are pure data today. This release gives them a lifecycle.
+Items were pure data before; this release adds the lifecycle.
 
 - **Rarity bands** — `item.rarity: 'common' | 'uncommon' | 'rare' |
   'veryRare' | 'legendary' | 'artifact'`.

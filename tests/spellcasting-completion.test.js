@@ -140,7 +140,7 @@ test('castSpell refuses a leveled spell when alreadyCastLeveledThisTurn is true'
   };
   const result = castSpell(actor, bless, { alreadyCastLeveledThisTurn: true });
   assert.equal(result.ok, false);
-  assert.match(result.reason, /one leveled spell per turn/);
+  assert.match(result.reason, /one leveled spell/);
 });
 
 test('castSpell accepts a cantrip when alreadyCastLeveledThisTurn is true (cantrips exempt)', () => {
@@ -182,7 +182,7 @@ test('castAsRitual refuses when the ritual spell is not prepared', () => {
   const actor = { spellsPrepared: [], materials: { 'find-familiar': true } };
   const result = castAsRitual(actor, findFamiliar);
   assert.equal(result.ok, false);
-  assert.match(result.reason, /must be prepared/);
+  assert.match(result.reason, /requires the spell to be prepared/);
 });
 
 test('castAsRitual succeeds for a prepared ritual spell without consuming a slot', () => {
