@@ -173,13 +173,13 @@ boxes are always the live worklist.
 
 *(cross-cutting; SRD § Adventuring — Time)*
 
-**Planned:** [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking).
+**Planned:** core round/scene-clock surfaces in [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking); save-end-of-turn + spell-duration auto-binding ride with 1.6.1 / 1.8.0.
 
-- [ ] **Round timer** — start-of-turn tick that expires `1 round` effects
-- [ ] **Save-at-end-of-turn** — applied effect carries `{ saveAbility, saveDC, endsOn: 'turnEnd' }`
-- [ ] **Minute / hour / day clocks** — scene clock the host can advance
-- [ ] **Spell-duration ticker** — `actor.activeSpells: [{ spellId, level, remainingRounds }]`
-- [ ] **Dawn / dusk event** — fires magic-item recharge handlers
+- [x] **Round timer** — `actor.timers[]` + `Combat.tickTimers` / `Combat.turnEnd` *(v1.6.0)*
+- [ ] **Save-at-end-of-turn** — applied condition record with `{ saveAbility, saveDC, endsOn: 'turnEnd' }`; deferred to 1.6.1
+- [x] **Minute / hour / day clocks** — `SceneClock.{freshScene,advanceTime,formatTimeOfDay}` *(v1.6.0)*
+- [ ] **Spell-duration ticker** — auto-register a timer from a spell's `duration` field on cast; rides with 1.8.0 spellcasting completion
+- [x] **Dawn / dusk event** — `SceneClock.advanceTime` enumerates `'dawn'` / `'dusk'` crossings chronologically *(v1.6.0)*
 
 ## 10. Spellcasting — slots & concentration
 

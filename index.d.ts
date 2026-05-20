@@ -499,6 +499,42 @@ export interface CombatNamespace {
    *  Unconscious + clears the death-save tracker if HP rises above
    *  0. Does NOT restore Temporary HP. */
   heal(actor: Actor, amount: number): { healed: number; hpBefore: number; hpAfter: number; actor: Actor };
+
+  // === Turn lifecycle + timers (since 1.6.0) ===
+  /** Add a round-scoped timer (spell duration, buff, debuff). */
+  addTimer(actor: Actor, timer: ActorTimer): Actor;
+  /** Decrement every timer; return new actor + expired list. */
+  tickTimers(actor: Actor): { actor: Actor; expired: ActorTimer[] };
+  /** Turn-start signal. Fires `onTurnStart`; returns the actor. */
+  turnStart(actor: Actor, context?: unknown): { actor: Actor };
+  /** Turn-end lifecycle. Ticks timers, fires `onTurnEnd` with the
+   *  expired list, returns the new actor. */
+  turnEnd(actor: Actor, context?: unknown): { actor: Actor; expired: ActorTimer[] };
+}
+
+export interface ActorTimer {
+  id: string;
+  kind?: string;
+  remainingRounds: number;
+  source?: unknown;
+}
+
+/** Scene clock (since 1.6.0). Pure functions; the host owns the
+ *  scene state and threads it through. */
+export interface SceneClockNamespace {
+  readonly DEFAULT_DAWN_MINUTE: number;
+  readonly DEFAULT_DUSK_MINUTE: number;
+  readonly MINUTES_PER_DAY: number;
+  freshScene(args?: { startMinute?: number; dawnMinute?: number; duskMinute?: number }): Scene;
+  advanceTime(scene: Scene, delta: { rounds?: number; minutes?: number; hours?: number; days?: number }):
+    { scene: Scene; events: ('dawn' | 'dusk')[] };
+  formatTimeOfDay(minutes?: number): string;
+}
+
+export interface Scene {
+  minutes: number;
+  dawnMinute?: number;
+  duskMinute?: number;
 }
 
 export type DamageOutcome = 'damaged' | 'downed' | 'dead' | 'absorbed' | 'immune';
@@ -947,7 +983,14 @@ export type HookEvent =
   | 'afterDamage'
   | 'onLevelUp'
   | 'onConditionApplied'
-  | 'onDeath';
+  | 'onDeath'
+  | 'onTurnStart'
+  | 'onTurnEnd'
+  | 'onLongRest'
+  | 'onShortRest'
+  | 'onCast'
+  | 'onDamageApplied'
+  | 'onHpChanged';
 
 /** Frozen canonical list of hook event names. */
 export const HOOK_EVENTS: readonly HookEvent[];
@@ -1120,6 +1163,7 @@ export interface Engine {
   Spellcasting: SpellcastingNamespace;
   Rest: RestNamespace;
   Mechanics: MechanicsNamespace;
+  SceneClock: SceneClockNamespace;
   /** Compute a frozen derived sheet from a host-owned character
    *  record. Pure — call as often as state changes. See
    *  docs/character-sheet.md. */
@@ -1159,6 +1203,7 @@ export const Beats: BeatsNamespace;
 export const Spellcasting: SpellcastingNamespace;
 export const Rest: RestNamespace;
 export const Mechanics: MechanicsNamespace;
+export const SceneClock: SceneClockNamespace;
 export const Character: CharacterNamespace;
 
 export const species: Record<string, Species>;

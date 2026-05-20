@@ -610,6 +610,89 @@ function wrapDamageResult({ actor, amount, finalAmount, tempHpAbsorbed, hpBefore
  * Returns `{ healed, hpBefore, hpAfter, actor }`. `healed` is the
  * applied delta (can be 0 if at full or hpMax is missing).
  */
+// === Turn lifecycle + timers (since 1.6.0) ===
+//
+// Round-scoped buffs / debuffs / spell durations live on
+// `actor.timers: [{ id, kind, remainingRounds, source? }]`. The
+// engine's `Combat.turnEnd` (and the host calling
+// `Combat.tickTimers` directly) decrements each entry, removes
+// expired ones, and returns the list of just-expired entries so the
+// host can run side effects (e.g. remove a condition the timer was
+// shadowing).
+//
+// Timers are deliberately a flat array rather than a map keyed by
+// id — multiple effects may share an id (two Bless spells stacking
+// in plugin packs that allow it; multiple stacks of a custom
+// condition). The host owns whether to deduplicate.
+
+/**
+ * Decrement every timer on the actor by one round. Returns
+ * `{ actor, expired }` — the new actor has only the non-expired
+ * timers, and `expired` lists the entries that just dropped to 0.
+ *
+ * Timers with `remainingRounds` of 0 or below are treated as
+ * already expired (defensive — host might queue a timer for
+ * immediate expiry); returning them in `expired` lets the host
+ * react to ad-hoc additions the same way.
+ */
+export function tickTimers(actor) {
+  if (!Array.isArray(actor.timers) || actor.timers.length === 0) {
+    return { actor, expired: [] };
+  }
+  const expired = [];
+  const remaining = [];
+  for (const t of actor.timers) {
+    const next = (t.remainingRounds ?? 0) - 1;
+    if (next <= 0) expired.push(t);
+    else remaining.push({ ...t, remainingRounds: next });
+  }
+  return {
+    actor: { ...actor, timers: remaining },
+    expired
+  };
+}
+
+/**
+ * Append a fresh timer onto the actor. Pure — returns a new actor.
+ * Validates the shape so a misconfigured timer fails at the
+ * boundary rather than at the next tick.
+ */
+export function addTimer(actor, timer) {
+  if (!timer || typeof timer !== 'object') {
+    throw new Error('addTimer: timer must be an object');
+  }
+  if (typeof timer.id !== 'string' || timer.id.length === 0) {
+    throw new Error('addTimer: timer.id must be a non-empty string');
+  }
+  if (!Number.isInteger(timer.remainingRounds) || timer.remainingRounds < 1) {
+    throw new Error('addTimer: timer.remainingRounds must be a positive integer');
+  }
+  const existing = Array.isArray(actor.timers) ? actor.timers : [];
+  return { ...actor, timers: [...existing, { ...timer }] };
+}
+
+/**
+ * Turn-start lifecycle hook. Pure on the actor — the engine binding
+ * wraps this to also fire the `onTurnStart` hook so plugins can
+ * react. The module-level function returns the unchanged actor
+ * because the turn start itself is a *signal*, not a state change;
+ * any tick-down logic lives at turn end.
+ */
+export function turnStart(actor) {
+  return { actor };
+}
+
+/**
+ * Turn-end lifecycle. Decrements timers and returns the resulting
+ * actor + expired timers. The engine binding wraps this to fire the
+ * `onTurnEnd` hook with the expired list as part of the payload.
+ */
+export function turnEnd(actor) {
+  return tickTimers(actor);
+}
+
+// === Healing helpers (since 1.4.0) ===
+
 export function heal(actor, amount) {
   if (!Number.isInteger(amount) || amount < 0) {
     throw new Error('heal: amount must be a non-negative integer');

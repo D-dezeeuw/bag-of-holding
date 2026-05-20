@@ -39,6 +39,7 @@ import * as EncounterBase from './encounter.js';
 import * as Spellcasting from './spellcasting.js';
 import * as RestBase from './rest.js';
 import * as MechanicsBase from './mechanics.js';
+import * as SceneClock from './scene-clock.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -513,11 +514,6 @@ export function createEngine(opts = {}) {
     applyDamageModifiers: CombatBase.applyDamageModifiers,
     grantTempHp: CombatBase.grantTempHp,
     applyDamage: (actor, args) => {
-      // Route through the base function but use the bound dropToZero
-      // / damage-while-down wrappers when the inner pipeline would
-      // call them. Easiest approach: call the base, then fire the
-      // hooks here based on the outcome. The state itself is identical
-      // to the bound path.
       const wasDead = actor.deathSaves?.dead ?? false;
       const wasUnconscious = (actor.conditions ?? []).includes('unconscious');
       const result = CombatBase.applyDamage(actor, args);
@@ -529,9 +525,59 @@ export function createEngine(opts = {}) {
           actor: result.actor, condition: 'unconscious', previous: actor
         });
       }
+      // Phase D (since 1.6.0). `onDamageApplied` fires for every
+      // applyDamage outcome (including 'immune' and 'absorbed') so
+      // plugins can react regardless of whether HP actually moved.
+      // `onHpChanged` fires only when hp differs — that's the
+      // narrower "the bar actually moved" signal.
+      hooks.fire('onDamageApplied', {
+        actor: result.actor, previous: actor,
+        amount: result.amount, finalAmount: result.finalAmount,
+        outcome: result.outcome, type: args?.type
+      });
+      if (result.hpAfter !== result.hpBefore) {
+        hooks.fire('onHpChanged', {
+          actor: result.actor, previous: actor,
+          hpBefore: result.hpBefore, hpAfter: result.hpAfter,
+          cause: 'damage'
+        });
+      }
       return result;
     },
-    heal: CombatBase.heal
+    heal: (actor, amount) => {
+      const result = CombatBase.heal(actor, amount);
+      if (result.hpAfter !== result.hpBefore) {
+        hooks.fire('onHpChanged', {
+          actor: result.actor, previous: actor,
+          hpBefore: result.hpBefore, hpAfter: result.hpAfter,
+          cause: 'heal'
+        });
+      }
+      return result;
+    },
+
+    // === Turn lifecycle (since 1.6.0) ===
+    //
+    // `turnStart` and `turnEnd` are *signal* helpers — they tick the
+    // actor's timers (turnEnd) and fire the matching hook with the
+    // resulting state. The host calls them at the natural moments
+    // in its turn loop; the engine's job is to provide the
+    // canonical dispatch point so plugins always see the same
+    // ordering.
+    addTimer: CombatBase.addTimer,
+    tickTimers: CombatBase.tickTimers,
+    turnStart: (actor, context) => {
+      hooks.fire('onTurnStart', { actor, context });
+      return { actor };
+    },
+    turnEnd: (actor, context) => {
+      const result = CombatBase.turnEnd(actor);
+      hooks.fire('onTurnEnd', {
+        actor: result.actor, previous: actor,
+        expired: result.expired, context
+      });
+      return result;
+    }
   };
 
   // Engine view passed to character derivation. Built once here so
@@ -559,8 +605,20 @@ export function createEngine(opts = {}) {
       }
       return result;
     },
-    longRest: (actor) => RestBase.longRest(actor, rules),
-    shortRest: RestBase.shortRest
+    longRest: (actor) => {
+      const next = RestBase.longRest(actor, rules);
+      // Phase D (since 1.6.0). onLongRest fires after all rest
+      // recovery is applied so plugins observing it can inspect the
+      // restored state; the `previous` field surfaces the actor as
+      // it stood when the rest began.
+      hooks.fire('onLongRest', { actor: next, previous: actor });
+      return next;
+    },
+    shortRest: (actor) => {
+      const next = RestBase.shortRest(actor);
+      hooks.fire('onShortRest', { actor: next, previous: actor });
+      return next;
+    }
   };
 
   // === Class mechanics (since 1.3.0) ===
@@ -626,6 +684,17 @@ export function createEngine(opts = {}) {
     // so its die roll flows into rollLog; `longRest` runs against
     // the engine's resolved rules so the recovery-mode knob applies.
     Rest: RestBound,
+    // Scene clock (since 1.6.0). Pure surface — the engine doesn't
+    // hold scene state; the host owns the clock and passes it in
+    // and out via `advanceTime(scene, delta)`.
+    SceneClock: Object.freeze({
+      freshScene: SceneClock.freshScene,
+      advanceTime: SceneClock.advanceTime,
+      formatTimeOfDay: SceneClock.formatTimeOfDay,
+      DEFAULT_DAWN_MINUTE: SceneClock.DEFAULT_DAWN_MINUTE,
+      DEFAULT_DUSK_MINUTE: SceneClock.DEFAULT_DUSK_MINUTE,
+      MINUTES_PER_DAY: SceneClock.MINUTES_PER_DAY
+    }),
     // Class mechanics (since 1.3.0). Foundation for resource-bearing
     // class features (Second Wind, Action Surge, Sneak Attack, etc.)
     // Per-class handlers live on the class def under `mechanics`.

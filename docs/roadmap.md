@@ -605,36 +605,51 @@ Closes [§ 4 Conditions](srd-coverage.md#4-conditions) and the
 concentration half of
 [§ 10](srd-coverage.md#10-spellcasting--slots--concentration).
 
-### `1.6.0` — Turn lifecycle hooks + time tracking
+### `1.6.0` — Turn lifecycle hooks + time tracking ✅ shipped
 
-Save-at-end-of-turn effects, spell durations, dawn timers, and the
-1.7+ reaction-cast wiring all need a turn clock and scene clock.
+Foundation for spell durations, end-of-turn saves, dawn timers,
+and the 1.7+ reaction-cast wiring. Big surface; some sub-pieces
+deferred to 1.6.1 where they couple to surfaces that don't exist
+yet.
 
-- **New hook events:** `onTurnStart`, `onTurnEnd`, `onLongRest`,
+**Shipped in 1.6.0:**
+- **7 new hook events:** `onTurnStart`, `onTurnEnd`, `onLongRest`,
   `onShortRest`, `onCast`, `onDamageApplied`, `onHpChanged`.
-- **Round-scoped timers** — `actor.timers: [{ spellId, kind,
-  remainingRounds }]`, decremented on `onTurnEnd`; expiry events
-  fire.
-- **Save-at-end-of-turn** — applied condition with `endsOn:
-  'turnEnd'` triggers an auto-save before the timer ticks; passing
-  removes the condition.
-- **Scene clock** — `engine.advanceTime({ minutes, hours })` emits
-  `dawn` / `dusk` events at boundary crossings.
-- **Spell-duration ticker** — spell records' `duration` field parses
-  into rounds / minutes / hours; self-applied buffs auto-register.
-- **Stable creatures regain 1 HP after 1d4 hours** — wired via the
-  scene clock.
+- **Round-scoped timers** — `actor.timers: [{ id, kind?,
+  remainingRounds, source? }]`; `Combat.addTimer` + `Combat.tickTimers`
+  for the read/write surface.
+- **Turn lifecycle** — `Combat.turnStart(actor, context?)` and
+  `Combat.turnEnd(actor, context?)` are the canonical dispatch
+  points; the bound `turnEnd` ticks timers, fires `onTurnEnd` with
+  the expired list, returns the new actor + expired entries.
+- **Scene clock** — `SceneClock.freshScene`, `SceneClock.advanceTime`,
+  `SceneClock.formatTimeOfDay`. Pure functions; the host owns the
+  scene state and threads it. `advanceTime` enumerates `'dawn'` /
+  `'dusk'` crossings in chronological order, even across multiple
+  day cycles.
+- **Engine bindings** — `Rest.longRest`/`shortRest` fire their
+  matching events; `Combat.applyDamage` fires `onDamageApplied`
+  (always) and `onHpChanged` (only when HP actually moved); same
+  for `Combat.heal`.
 
-*Why now:* every spell with a duration string is mute until this
-ships; the action menu in 1.7 needs `onTurnStart`/`onTurnEnd` for
-Dodge / Ready / Help expiry.
+**Deferred to 1.6.1:**
+- **Per-application condition metadata** — `{ name, source?, dc?,
+  saveAbility?, endsOn? }` shape on `actor.conditions[]`. Needed
+  for save-end-of-turn but is a non-trivial schema change; rides
+  with the related auto-save wiring.
+- **Save-at-end-of-turn** — auto-roll on `turnEnd` for conditions
+  with `endsOn: 'turnEnd'`. Depends on the metadata above.
+- **Spell-duration auto-binding** — `castSpell` adding a timer
+  automatically. Rides with the 1.8.0 spellcasting completion
+  release where casts have richer metadata anyway.
+- **Stable-creatures-regain-1-HP-after-1d4-hours** — small scene-
+  clock plugin handler; small enough to fold in once a consumer
+  needs it.
 
 Closes [§ 9 Time and duration
-tracking](srd-coverage.md#9-time-and-duration-tracking), the
-Concentration auto-drop dependency in
-[§ 10](srd-coverage.md#10-spellcasting--slots--concentration), and
-the "Stable creatures regain 1 HP" row of
-[§ 6](srd-coverage.md#6-healing--death).
+tracking](srd-coverage.md#9-time-and-duration-tracking) for the
+round-clock + scene-clock halves. The condition-metadata + save-
+end-of-turn rows there migrate to a planned 1.6.1.
 
 ### `1.7.0` — Combat actions menu
 
