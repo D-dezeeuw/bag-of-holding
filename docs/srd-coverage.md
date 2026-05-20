@@ -237,7 +237,7 @@ boxes are always the live worklist.
 - [x] **Foundation:** resource shape, `freshResources`, `spendResource`, `refreshResources`, `Mechanics.apply` *(v1.3.0)*
 - [x] **Fighter:** Second Wind, Action Surge *(v1.3.0)*
 - [x] **Rogue:** Sneak Attack + `endTurn` *(v1.3.0)*
-- [ ] **Barbarian:** Rage — per-day uses, advantage on STR checks/saves, +damage by level, BPS resistance *(SRD § Barbarian — Rage)* — *roadmap 1.3.1*
+- [x] **Barbarian:** Rage — per-Long-Rest uses (with 1 recovered on Short Rest), Rage Damage by level, BPS resistance flags, 100-round duration cap; STR check/save advantage left to host until `attackStance`-style helper for non-attack D20 Tests lands *(SRD § Barbarian — Rage)* *(v1.3.1)*
 - [ ] **Bard:** Bardic Inspiration — CHA-mod uses, long-rest refresh, short-rest from L5 *(SRD § Bard — Bardic Inspiration / Font of Inspiration)* — *roadmap 1.3.2*
 - [ ] **Cleric:** Channel Divinity — uses scale with level, short-rest refresh *(SRD § Cleric — Channel Divinity)* — *roadmap 1.3.3*
 - [ ] **Druid:** Wild Shape — uses per short rest, CR cap by level *(SRD § Druid — Wild Shape)* — *roadmap 1.3.4*
