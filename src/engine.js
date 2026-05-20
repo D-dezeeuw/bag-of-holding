@@ -118,6 +118,24 @@ const DEFAULT_SENSES = Object.freeze(['darkvision', 'blindsight', 'truesight']);
 const DEFAULT_LIGHT_LEVELS = Object.freeze(['bright', 'dim', 'darkness']);
 
 /**
+ * Cheap deterministic fingerprint of the resolved rules object.
+ * Not a security hash; a stable hex digest over JSON-canonical
+ * key order, used so a replay can fail loudly when the playback
+ * engine has different rule knobs than the recording engine.
+ */
+function computeRulesFingerprint(rules) {
+  const keys = Object.keys(rules).sort();
+  const canonical = keys.map((k) => `${k}=${JSON.stringify(rules[k])}`).join('|');
+  // 32-bit FNV-1a, hex-encoded.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < canonical.length; i++) {
+    hash ^= canonical.charCodeAt(i);
+    hash = (hash * 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+/**
  * Graft `extraMechanics` and `extraResources` onto existing class
  * defs (since 1.24.0). Each is a `Record<classId, Record<key, value>>`.
  * Last-write-wins on key collision, matching the rest of the plugin
@@ -301,7 +319,23 @@ export function createEngine(opts = {}) {
   const rules = buildRules(opts.rules);
 
   // === Phase C behavioural hooks ===
-  const hooks = buildHookRegistry(opts.hooks);
+  const baseHooks = buildHookRegistry(opts.hooks);
+  // When opts.logHooks is set, wrap `fire` so every hook event lands
+  // in the rollLog. Counts (handler count per event) stay zero for
+  // disabled events, so the wrapper short-circuits when nobody is
+  // listening to avoid dead log entries.
+  const hooks = opts.logHooks
+    ? {
+        ...baseHooks,
+        fire: (event, payload) => {
+          const merged = baseHooks.fire(event, payload);
+          if (baseHooks.count(event) > 0) {
+            record('hookFired', { event, handlerCount: baseHooks.count(event) });
+          }
+          return merged;
+        }
+      }
+    : baseHooks;
 
   // Conditions namespace bound to fire hooks on apply/exhaustion-death.
   // We wrap the base bound namespace rather than re-implementing it
@@ -354,6 +388,12 @@ export function createEngine(opts = {}) {
   const rollLogCap = opts.rollLogCap ?? Infinity;
   const rollLog = [];
   let rollCount = 0;
+
+  // Rules fingerprint (since 1.25.0): a stable hash of the resolved
+  // rule-knob bundle plus key engine identifiers, so a replay across
+  // mismatched rule packs diverges at the header entry instead of
+  // silently at the first crit / damage-floor-affected roll.
+  const rulesFingerprint = computeRulesFingerprint(rules);
 
   const record = (op, payload, context) => {
     const entry = { index: rollCount++, op, ...payload };
@@ -568,9 +608,19 @@ export function createEngine(opts = {}) {
       return { ...withUnconscious, hp: 0, deathSaves: CombatBase.freshDeathSaves() };
     },
     deathSave: (actor, context) => {
+      // Snapshot the pre-roll death-save tracker so the log entry
+      // is fully reconstructable without external state (since 1.25.0).
+      const prev = actor.deathSaves ?? {};
+      const previousSuccesses = prev.successes ?? 0;
+      const previousFailures = prev.failures ?? 0;
       const result = CombatBase.deathSave(actor, rng, rules);
       if (result.d20 !== 0) {
-        record('deathSave', { d20: result.d20, outcome: result.outcome }, context);
+        record('deathSave', {
+          d20: result.d20,
+          outcome: result.outcome,
+          previousSuccesses,
+          previousFailures
+        }, context);
       }
       if (result.outcome === 'dead') {
         hooks.fire('onDeath', { actor: result.actor, cause: 'deathSave', previous: actor });
@@ -759,7 +809,19 @@ export function createEngine(opts = {}) {
         modFromScore: Checks.modFromScore,
         saver: hazardSaver
       };
-      return handler(actor, args ?? {}, ctx);
+      const result = handler(actor, args ?? {}, ctx);
+      // Log a mechanicApplied entry so the audit trail captures the
+      // resource transition + result kind, not just the dice inside.
+      // The 'ok' field is the SRD convention: handlers that succeed
+      // return `{ ok: true, ... }`; some always succeed and omit it.
+      const ok = result && typeof result === 'object' && 'ok' in result ? result.ok : true;
+      record('mechanicApplied', {
+        classId: classDef.id,
+        subclassId: subclassDef?.id ?? null,
+        mechanic: id,
+        ok
+      }, context);
+      return result;
     }
   };
 
@@ -770,6 +832,10 @@ export function createEngine(opts = {}) {
     // frozen, deduplicated list combining the SRD defaults with any
     // `opts.extraSenses` / `opts.extraLightLevels` contributions.
     senses, lightLevels,
+    // Stable hex digest over the resolved rule knobs (since 1.25.0).
+    // Replay verifier compares this against the recorded fingerprint
+    // and surfaces a mismatched-pack divergence at the header entry.
+    rulesFingerprint,
     // Math + helpers (bound to this engine's data + rng + rules).
     Dice: DiceBound,
     Checks: ChecksBound,
