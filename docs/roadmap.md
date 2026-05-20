@@ -495,8 +495,10 @@ in the typecheck file:
   full refresh on Long Rest, 1 use on Short Rest (2024); plus two
   worked effect handlers (Divine Spark heal/damage modes; Turn
   Undead) and the `channelDivinityDC` helper (8 + prof + WIS). ✅ shipped
-- **`1.3.4`** Druid § *Wild Shape* (uses per short rest, CR cap by
-  level).
+- **`1.3.4`** Druid § *Wild Shape* — 2 uses with partial short-rest
+  recovery; CR cap (1/4 / 1/2 / 1 at L2/L4/L8) and movement-mode
+  unlocks (swim L4, fly L8) enforced; `actor.wildShape` form record
+  + revert mechanic + caps lookup. ✅ shipped
 - **`1.3.5`** Monk § *Martial Arts* + § *Focus Points* (replaces Ki
   in the 2024 SRD): point pool, spend handlers, short-rest refresh.
 - **`1.3.6`** Paladin § *Lay on Hands* (pool = 5 × level), § *Divine
