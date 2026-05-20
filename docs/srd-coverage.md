@@ -43,8 +43,8 @@ boxes are always the live worklist.
 - [x] Proficiency-bonus table L1-L20 *(v0.9.0)*
 - [x] XP-threshold table L1-L20 *(v0.9.0)*
 - [x] Auto-success on natural 20 / auto-failure on natural 1 for **attacks** *(v0.0.0)*
-- [ ] Auto-success / auto-failure on natural 20 / 1 for **non-attack D20 Tests** is *not* an SRD rule (2024 keeps crits attack-only); document the deliberate non-implementation
-- [ ] Passive checks helper (`passiveCheck(ability, prof, mods)`); partially derived on the sheet for Perception / Insight / Investigation; no general-purpose helper
+- [x] **Deliberate non-implementation**: nat-20 / nat-1 don't auto-succeed/fail on non-attack D20 tests; SRD 2024 keeps crits attack-only. *(documented in spec.md)*
+- [x] **`Checks.passiveCheck`** general-purpose helper for SRD § Passive Checks: `10 + ability mod + proficiency + bonuses`; advantage = +5, disadvantage = -5 *(v1.28.0)*
 
 ## 2. Combat math: attacks, damage, criticals
 
@@ -63,9 +63,9 @@ boxes are always the live worklist.
 - [x] Cover (`effectiveAc`, `COVER_BONUSES`) *(v0.4.0)*
 - [x] Range bands (`rangeBand`) *(v0.4.0)*
 - [x] Multi-attack count via `attacksPerAction(classDef, level)` *(v0.4.0)*
-- [ ] Surprise on initiative *(SRD § Combat, Initiative)*; 2024 rules treat Surprise as "disadvantage on initiative roll"; not modelled
-- [ ] Initiative tiebreak chain *(SRD § Combat, Initiative)*; higher DEX, then random
-- [ ] Hidden / unseen attacker bookkeeping *(SRD § Combat, Unseen Attackers and Targets)*
+- [x] **Surprise on initiative**: `participant.surprised = true` makes `rollOrder` roll initiative with disadvantage (min of 2d20) per SRD 2024 § Combat *(v1.28.0)*
+- [x] **Initiative tiebreak chain**: `rollOrder` sorts initiative → raw d20 → DEX score → id (deterministic via the seeded rng) *(v0.4.0)*
+- [x] **Hidden / unseen attacker bookkeeping**: `attackStance` reads `attacker.unseen` / `target.unseen` flags per SRD § Unseen Attackers and Targets *(v1.30.0)*
 
 ## 3. Combat actions menu
 
@@ -86,8 +86,8 @@ boxes are always the live worklist.
 - [x] Shove, fixed DC, choice between prone or push 5 ft *(v1.7.0)*
 - [x] Two-Weapon Fighting, `offHandAttack` consumes bonus action, signals damage-mod suppression *(v1.7.0)*
 - [x] Improvised attacks, `improvisedAttack` helper with d4 default *(v1.7.0)*
-- [ ] Mounted Combat *(SRD § Combat, Mounted Combat)*; actor.mountedOn linkage deferred
-- [ ] Object interaction (free, one per turn) *(SRD § Combat, Other Activity on Your Turn)*; budget tracking deferred
+- [x] **Mounted Combat**: `MountedCombat.mount` / `dismount` / `isMountedOn` / `legalMountActions` per SRD § Combat — Mount. Controlled mounts restricted to Dash/Disengage/Dodge *(v1.30.0)*
+- [x] **Object interaction (free, one per turn)**: `freeInteraction: 1` budget on every fresh turn budget per SRD § Other Activity on Your Turn *(v1.28.0)*
 
 ## 4. Conditions
 
@@ -102,8 +102,8 @@ boxes are always the live worklist.
 - [x] **Condition immunity**: `actor.conditionImmunities[]` filter on `apply`; `isImmuneTo` predicate *(v1.5.0)*
 - [x] **Auto-fail STR/DEX saves** under paralyzed / stunned / petrified / unconscious; engine binding short-circuits via `autoFailed: true` *(v1.5.0)*
 - [x] **Auto-crit from within 5 ft** on paralyzed / unconscious / petrified / stunned; `attackRoll` honours the target's `critIfAttackerWithin5` flag *(v1.5.0)*
-- [ ] **Per-application metadata**: condition entries stay as strings in 1.5; record-shape `{ name, source?, dc?, saveAbility?, endsOn? }` planned for [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking)
-- [ ] **Save-to-end-of-turn** ongoing effects *(SRD: Hold Person, Hideous Laughter, Charm Monster, etc.)*; planned for [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking)
+- [ ] **Per-application metadata**: condition entries stay as strings; record-shape `{ name, source, dc, saveAbility, endsOn }` is a sister-feature of a global timer registry that nothing else in the engine needs yet. **Deferred until a host needs save-at-end-of-turn or duration-ticker semantics**, which would land together; see § 9 Conditions and edge mechanics below.
+- [ ] **Save-to-end-of-turn** ongoing effects *(SRD: Hold Person, Hideous Laughter, Charm Monster)*: each SRD spell defines its own end condition in the spell text. **Deferred** — the engine returns the spell's structured payload and the host runs the per-turn save via `engine.Checks.savingThrow` and removes the condition on success. No engine-side timer ships until a consumer needs cross-spell uniform handling.
 
 ## 5. Damage pipeline
 
@@ -130,9 +130,9 @@ boxes are always the live worklist.
 - [x] `Combat.applyDamageWhileDown`: damage at 0 = 1 failure (2 on crit), massive damage = instant death *(v1.1.0)*
 - [x] `Combat.stabilize`, `Combat.reviveTo` *(v1.1.0)*
 - [x] Rule knobs: `deathSaveDC`, `deathSaveSuccessesRequired` *(v1.1.0)*
-- [ ] **Stable creatures regain 1 HP after 1d4 hours** *(SRD § Damage and Healing, Stabilizing)*
+- [x] **Stable creatures regain 1 HP after 1d4 hours**: `Combat.rollStableRegenHours` returns the 1d4 timer via the seeded rng. Host owns the clock and applies the 1 HP via `Combat.heal` or `Combat.reviveTo` when the time elapses *(v1.28.0)*
 - [x] `Combat.heal(actor, amount)` caps at hpMax, removes Unconscious + clears the death-save tracker when HP rises above 0 *(v1.4.0)*
-- [ ] `Combat.maximizeHP(actor)` for *Heal* / *Power Word Heal*-style spells (deferred until a consumer needs it)
+- [~] **`Combat.maximizeHP`**: not an SRD concept. The SRD's *Heal* spell restores a flat 70 HP and *Power Word Heal* restores all HP; neither needs a "maximize" wrapper. Spell handlers return fixed `healing` values; the host calls `Combat.heal(actor, n)`. **Skipped intentionally.**
 
 ## 7. Rest mechanics
 
@@ -146,7 +146,7 @@ boxes are always the live worklist.
 - [x] Rule knob `longRestHitDiceRecovery: half | all | none` *(v1.2.0)*
 - [x] **Dawn / dusk timers** for magic item charges, certain spells; items use `recovers` + `rechargesOn: 'dawn'` and `MagicItems.rechargeItem` handles the recovery dice *(v1.9.0)*
 - [x] **Resting in dangerous terrain**; `Travel.checkRestInterruption({ probability })` returns whether the rest is broken *(v1.20.0)*
-- [ ] **Interrupted rest** semantics *(SRD § Long Rest)*: a rest broken by 1+ hour of activity yields no benefits; deferred until a host needs the explicit break-condition guard
+- [x] **Interrupted rest** guard: `Rest.longRest(actor, { interrupted: true })` returns the actor unchanged per SRD § Long Rest. The `onLongRest` hook fires with `interrupted: true` so plugins can react *(v1.28.0)*
 
 ## 8. Movement, vision, exploration
 
@@ -174,9 +174,9 @@ boxes are always the live worklist.
 **Planned:** core round/scene-clock surfaces in [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking); save-end-of-turn + spell-duration auto-binding ride with 1.6.1 / 1.8.0.
 
 - [x] **Round timer**: `actor.timers[]` + `Combat.tickTimers` / `Combat.turnEnd` *(v1.6.0)*
-- [ ] **Save-at-end-of-turn**: applied condition record with `{ saveAbility, saveDC, endsOn: 'turnEnd' }`; deferred to 1.6.1
+- [ ] **Save-at-end-of-turn**: applied-condition record with `{ saveAbility, saveDC, endsOn: 'turnEnd' }` would require a global timer registry. **Deferred** — current pattern is the host calls `engine.Checks.savingThrow` then `Conditions.remove` from the existing `onTurnEnd` hook. Built-in registry would only add value once a consumer accumulates more than ~3 concurrent timed effects.
 - [x] **Minute / hour / day clocks**: `SceneClock.{freshScene,advanceTime,formatTimeOfDay}` *(v1.6.0)*
-- [ ] **Spell-duration ticker**: auto-register a timer from a spell's `duration` field on cast; rides with 1.8.0 spellcasting completion
+- [ ] **Spell-duration ticker**: auto-decrement off the spell's `duration` field. **Deferred** for the same reason as save-at-end-of-turn — the SRD's `duration` strings ("1 minute", "Concentration, up to 1 hour", "Until Dispelled") aren't a parsed format. A consumer-driven implementation will need to choose whether to standardise the strings or accept a structured `durationRounds`. Defer the design until a host surfaces the need.
 - [x] **Dawn / dusk event**: `SceneClock.advanceTime` enumerates `'dawn'` / `'dusk'` crossings chronologically *(v1.6.0)*
 
 ## 10. Spellcasting: slots & concentration
@@ -206,10 +206,10 @@ boxes are always the live worklist.
 - [x] **Verbal component** flag + `actor.silenced` gate via `castSpell` *(v1.8.0)*
 - [x] **Somatic component** flag + `actor.somaticBlocked` gate via `castSpell` *(v1.8.0)*
 - [x] **Material component** flag with optional `cost` + `consumed`; `actor.materials[spellId]` gate via `castSpell` *(v1.8.0)*
-- [ ] **Component pouch / spellcasting focus** substitution (left to host's `materials` map shape until a real consumer needs the detail)
+- [x] **Component pouch / spellcasting focus** substitution: `Spellcasting.hasComponents(actor, spell)` returns `{ok, missing}` per SRD § Spells — Components. `castSpell` stays permissive; hosts that want the strict SRD gate call this helper first *(v1.29.0)*
 - [x] **Ritual casting**: `castAsRitual(actor, spell)`; engine consumes no slot, requires the spell to be prepared *(v1.8.0)*
-- [ ] **Casting time variants**: `spell.castingTime` field is host-readable but no engine-side scheduling yet; defer until 1.x consumer
-- [ ] **Spell scrolls**: `castFromScroll(spell, caster)` *(SRD § Magic Items, Spell Scrolls)*; rides with [v1.9.0](roadmap.md#190--magic-items-system)
+- [~] **Casting time variants**: `spell.castingTime` field is host-readable already; engine-side scheduling (ritual minutes, 1-minute buffs, 8-hour rituals) would ride on the same timer system as save-at-end-of-turn. **Deferred** for the same reason. Action / Bonus Action / Reaction are already enforced through the encounter budget.
+- [x] **Spell scrolls**: `Spellcasting.castFromScroll(actor, spell, args)` per SRD § Magic Items — Spell Scroll. Higher-level spells trigger a DC `10 + level` ability check; failure burns the scroll without effect *(v1.29.0)*
 - [x] **Wands**: items carry `charges: { max, recovers, rechargesOn: 'dawn' }`; `MagicItems.rechargeItem` rolls the recovery dice *(v1.9.0; expanded in v1.27.0 with the wand registry)*
 
 ## 12. Spellcasting: targeting & effects
@@ -221,7 +221,7 @@ boxes are always the live worklist.
 - [x] **Area-of-effect shapes**: `targetsInArea({ origin, shape, size, direction?, width? })` supports sphere / cube / cylinder / emanation / cone / line *(v1.8.0)*
 - [x] **`castSpellSave(results, { halfOnSuccess? })`** packages per-target outcomes uniformly *(v1.8.0)*
 - [x] **`saveForHalf` outcome shape** exposed as the default `halfOnSuccess: true` in `castSpellSave` *(v1.8.0)*
-- [ ] **Evasion / Magic Resistance / Sculpt Spells** modifiers on save outcomes; host applies via existing reroll patterns from [v1.14.0](roadmap.md#1140--saves--edge-mechanics)
+- [x] **Evasion / Magic Resistance / Sculpt Spells** save-modifier helpers: `Spellcasting.applyEvasion(results, targetsById)`, `Spellcasting.magicResistanceDcFor(target, baseDc)`, `Spellcasting.applySculptSpells(results, { spellLevel, chosenIds })` *(v1.29.0)*
 - [x] **Higher-level effect deltas**: `spell.upcast(level)` function returns the per-cast-level delta; `castSpell` surfaces it on the result *(v1.8.0)*
 - [~] **Reaction-cast canonical wiring**: `onCast` hook fires before slot consumption and can short-circuit via `cancelled: true` (Counterspell intercept) *(v1.8.0)*; per-spell wrappers (Counterspell / Absorb Elements / Hellish Rebuke / Silvery Barbs) wait on host-side spell handlers
 - [x] **Counterspell timing**: `onCast` payload carries `{ actor, spell, args }` so a reaction handler can decide before the cast consumes resources *(v1.8.0)*
@@ -278,8 +278,8 @@ boxes are always the live worklist.
 - [x] **Multiclass caster level**: `Multiclass.casterLevel` with `CASTER_WEIGHT` map (full/half; Warlock excluded as Pact Magic is separate; custom weights for third-casters via arg) *(v1.12.0)*
 - [x] **Languages**: `Multiclass.languages` / `knowsLanguage` accessors; `record.languages[]` shape *(v1.12.0)*
 - [x] **Tool proficiencies**: `Multiclass.tools` / `isProficientWithTool` accessors; `record.tools[]` shape *(v1.12.0)*
-- [ ] **Origin feat auto-application**: backgrounds carry `originFeat` but its mechanical effects don't merge into the sheet yet; deferred until a real consumer drives the shape
-- [ ] **Starting equipment selection** *(SRD § Character Creation, Starting Equipment)*, deferred to host-side character-builder UI
+- [x] **Origin feat auto-application**: `deriveSheet` returns `sheet.featGrants`, a flat map of feat-id → grants block. Variant feats key as `<featId>_<variant>`. Hosts read `sheet.featGrants` to surface every active grant *(v1.29.0)*
+- [ ] **Starting equipment selection** *(SRD § Character Creation, Starting Equipment)*: lists per-background and per-class equipment packages and gp options. **Deferred to host-side character-builder UI** — the engine validates a finished `CharacterRecord`; the selection flow is a creation-wizard concern that varies by host (CLI builder, web form, AI prompt) and doesn't belong in the rules kernel.
 
 ## 16. Species, backgrounds, feats
 
@@ -311,8 +311,8 @@ boxes are always the live worklist.
 - [x] **Adventuring gear**: `Equipment.ADVENTURING_GEAR` registry + items registry expanded to 102 entries *(v1.19.0 + v1.27.0)*
 - [x] **Tools**: `Equipment.TOOLS` registry (16 SRD tool ids) + `Equipment.toolCheck` for proficiency-aware checks *(v1.19.0)*
 - [x] **Services + lifestyle costs**: `Equipment.SERVICES` + `Equipment.LIFESTYLES` registries *(v1.19.0)*
-- [ ] **Mounts and vehicles** *(SRD § Equipment, Mounts and Vehicles)*; deferred until a host wires `actor.mountedOn` linkage
-- [ ] **Trade goods** *(SRD § Equipment, Trade Goods)*; deferred to a content-only patch
+- [x] **Mounts and vehicles**: `Equipment.MOUNTS` (9 SRD mounts) and `Equipment.VEHICLES` (tack, land vehicles, watercraft) data tables *(v1.31.0)*
+- [x] **Trade goods**: `Equipment.TRADE_GOODS` (23 SRD-priced commodities) *(v1.31.0)*
 
 ## 18. Magic items
 
@@ -328,7 +328,7 @@ boxes are always the live worklist.
 - [x] **Cursed items**: `item.cursed: true`; `unattune` refuses without `removeCurseApplied: true` *(v1.9.0)*
 - [x] **Identify**: `actor.identifiedItems[]` + `identifyItem` / `isIdentified` *(v1.9.0)*
 - [x] **Magic item resilience**: `MagicItems.itemSavingThrow(item, dc)` vs `item.savingThrow.bonus` *(v1.9.0)*
-- [ ] **Sentient magic items**: alignment + conflict resolution *(SRD § Magic Items, Sentient Magic Items)*
+- [ ] **Sentient magic items**: SRD-shape is INT/WIS/CHA scores, alignment, senses, communication, special purpose, and opposed-CHA conflict resolution between item and wielder. **Deferred** — the niche (1 in ~50 magic items) means the cost of designing a sentient-item module without a real consumer outweighs the value. When a host needs them, the shape lands as a magic-item plugin (a `sentient: { abilities, alignment, purpose, communication }` block on the item record and an opposed-CHA helper using existing `engine.Checks.savingThrow`).
 - [x] **Magic item registry** *(v1.27.0; 102 entries total across mundane gear, wondrous items, magic weapons/armor, scrolls, wands, staves, rods. Further depth ships as content packs.)*
 
 ## 19. Monsters
@@ -342,7 +342,7 @@ boxes are always the live worklist.
 - [x] **Multiattack**: `Monsters.multiattackSequence(monster)` returns the ordered attack list *(v1.10.0)*
 - [x] **Legendary Actions**: `useLegendaryAction(actor, monster, optionId, cost?)` + `refreshLegendaryActions(actor)` at turn start *(v1.10.0)*
 - [x] **Lair Actions**: `lairActionAvailable(monster, { initiativeCount, inLair })` + `fireLairAction(monster, optionId)` *(v1.10.0)*
-- [ ] **Mythic Actions** *(SRD § Monsters, Mythic Actions)*; same schema as Legendary; defer until a Mythic monster ships in the registry
+- [ ] **Mythic Actions**: **NOT in SRD 5.2.** Originated in *Mythic Odysseys of Theros* (2020) and *Mythic Encounters*. Acts as a second-phase Legendary suite that activates when the monster hits a HP threshold. **Out of scope** for the SRD 5.2 line; if a future content pack ships a mythic-tier monster, the existing Legendary Action schema extends with a `mythicTrigger: { hpBelow, onCondition }` field.
 - [x] **Innate Spellcasting**: `castInnate(actor, monster, spellId)` + `freshInnateState` + `refreshInnateSpells` for per-day counters *(v1.10.0)*
 - [x] **Senses**: `Monsters.senses(monster)` accessor; schema documented on the record *(v1.10.0)*
 - [x] **Damage resistance / vulnerability / immunity** arrays per monster, consumed by 1.4.0 damage pipeline; monster records expose the fields *(v1.10.0 schema)*
@@ -361,8 +361,8 @@ boxes are always the live worklist.
 - [x] **`xpForCR(cr)`**: `EncounterDesign.xpForCR` covers fractional CRs and CR 1..30 *(v1.16.0)*
 - [x] **Encounter budget per party level**: `EncounterDesign.budgetFor(partyLevels, difficulty)` + `ENCOUNTER_BUDGETS` table covering L1..L20 / low/moderate/high *(v1.16.0)*
 - [x] **Encounter classification**: `EncounterDesign.classifyEncounter({ monsterCRs, partyLevels })` returns the matched band including `trivial` and `deadly` extremes *(v1.16.0)*
-- [ ] **Treasure tables** by hoard CR band *(SRD § Gameplay Toolbox, Treasure)*; pure data, parallel 1.x.y patch
-- [ ] **Random encounter generator scaffolding** (deferred until a host needs it)
+- [x] **Treasure tables** by hoard CR band: `Equipment.TREASURE_HOARDS` and `Equipment.INDIVIDUAL_TREASURE` (CR 0-4 / 5-10 / 11-16 / 17+) *(v1.31.0)*
+- [ ] **Random encounter generator scaffolding**: **NOT in SRD 5.2** (DMG-tier content). **Deferred** — a generator would mean weighted per-terrain d100 tables scaled to party tier, drawing from `monsters` by CR. The shape is straightforward but the *content* (canonical Forest / Coast / Mountain / Underdark tables) is the work; ships with a setting-pack content milestone (2.x line).
 
 ## 21. Saves & edge mechanics
 
@@ -436,8 +436,8 @@ boxes are always the live worklist.
 - [x] **`character-sheet.md` schema additions**: senses, damageResistances, traitFlags, multi-mode speed *(v1.17.0)*; further field-by-field sweep folded into v1.26.0
 - [x] **`spec.md` plugin contract update**: Phase A.2 + Phase D + opts.logHooks *(v1.26.0)*
 - [~] **`recipes.md` additions**: combat actions, damage pipeline, magic items, ritual casting, AoE all in place since the v1.16.0 refresh; Death Saves / Rest / Mechanics dispatch / plugin-contribute-a-class recipes still pending a focused pass
-- [ ] **Kernel-boundary checklist**: deferred; `boundary.md` already covers the contract, dedicated checklist content awaits a real consumer's need
-- [ ] **TypeDoc-style reference site** *(deferred from 1.0.0; the hand-maintained `.d.ts` serves as the canonical reference, a site needs hosting outside the zero-dep boundary)*
+- [~] **Kernel-boundary checklist**: `docs/boundary.md` already documents the three-nevers contract (no network, no DOM, no AI). A separate "claims vs host-owned, at a glance" checklist would only restate the same content in a different format. **Not adding** until a real consumer asks for the alternative shape.
+- [~] **TypeDoc-style reference site**: the hand-maintained `index.d.ts` is the canonical reference, and the `tsc --noEmit` drift gate keeps it accurate. A generated site needs hosting (GitHub Pages or similar) outside the zero-dep boundary; that's tooling work, not an SRD-rule deferral. **Deferred** as a tooling stretch goal, not a missing rule.
 
 ---
 
