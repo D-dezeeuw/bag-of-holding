@@ -196,8 +196,13 @@ The engine factory accepts content contributions through `EngineOptions`. Each c
 | `extraFeats` | `Record<id, Feat>` | The feat registry |
 | `extraSpells` | `Record<id, Spell>` | The spell registry |
 | `extraItems` | `Record<id, Item>` | The item registry |
+| `extraMonsters` | `Record<id, Monster>` | The monster registry |
 | `extraConditions` | `string[]` | The boolean condition vocabulary |
 | `extraMastery` | `Record<name, MasteryHandler>` | The weapon mastery handler table |
+| `extraMechanics` | `Record<classId, Record<mechId, handler>>` | Graft mechanic handlers onto an existing class (since 1.24.0) |
+| `extraResources` | `Record<classId, Record<resId, ResourceSpec>>` | Graft resource specs onto an existing class (since 1.24.0) |
+| `extraSenses` | `string[]` | Append sense ids to `engine.senses` (since 1.24.0) |
+| `extraLightLevels` | `string[]` | Append light levels to `engine.lightLevels` (since 1.24.0) |
 
 **Merge semantics.** Last-write-wins on id collision. A plugin that re-declares `species.elf` replaces the SRD entry, which is how "rebalanced" or "themed" packs work (e.g. a grimdark theme might ship harsher versions of the base species).
 
@@ -272,6 +277,26 @@ on a small, closed set of hook names:
   Handlers receive `{ actor, cause, previous }`. The host can also
   fire this hook directly (`engine.hooks.fire('onDeath', payload)`)
   for non-exhaustion deaths it detects.
+
+**Phase D (turn lifecycle + scene events, since 1.6.0):**
+
+- `onTurnStart`, fires at the beginning of each combatant's turn.
+  Handlers receive `{ actor, round, turn, context }`.
+- `onTurnEnd`, fires after the actor ends their turn. Same payload.
+- `onLongRest` / `onShortRest`, fire when the corresponding `Rest`
+  helpers run. Handlers receive `{ actor, recovered }` so they can
+  inspect what got refreshed.
+- `onCast`, fires after `Spellcasting.castSpell`. Handlers receive
+  `{ caster, spell, levelCast, target }`.
+- `onDamageApplied`, fires after the damage pipeline finishes.
+  Handlers receive `{ actor, amount, type, result }`.
+- `onHpChanged`, fires whenever HP changes from any source (damage,
+  heal, temp HP grant). Handlers receive `{ actor, before, after }`.
+
+**Logging Phase C/D fires.** Setting `opts.logHooks: true` on
+`createEngine` adds a `hookFired` entry to `rollLog` each time a
+hook fires that has at least one registered handler. Useful for
+debugging multi-plugin stacks.
 
 Handlers run **in registration order**, and each return is
 `Object.assign`-merged into the payload before the next handler
