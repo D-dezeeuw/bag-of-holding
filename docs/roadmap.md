@@ -1048,41 +1048,305 @@ Closes the registry-depth rows of
 [§ 18](srd-coverage.md#18-magic-items), and
 [§ 19](srd-coverage.md#19-monsters).
 
-### `2.0.0` — SRD-complete kernel (held in reserve)
+### `1.25.0` — SRD-complete maintenance release (held in reserve)
 
-Reserved for the breaking-change cleanup that may or may not be
-necessary once `1.4 → 1.24` SRD coverage closes:
+Reserved for any non-breaking cleanup needed after `1.24.0` lands
+the SRD-coverage close. If 1.4 → 1.24 lands cleanly, this is
+unnecessary and we skip straight to the 2.x line.
 
-- Any consolidation that requires breaking the frozen 1.0 contract
-  (e.g. CharacterRecord shape collapse after multiclassing lands;
-  `Actor` field reorganisation if `resources` / `timers` /
-  `deathSaves` / `concentration` warrant a sub-namespace).
-- Default-engine memory footprint review — anything that should
-  become lazy-loaded.
-- Doc-site v1 cut with migration notes from 1.x.
+## Post-SRD: playable foundation, content, settings
 
-If 1.4 → 1.24 lands non-breakingly, the SRD-complete badge is what
-ships *with* 1.24.0 and 2.0.0 is unnecessary.
+Closing SRD coverage at `1.24` leaves the kernel mechanically
+sound but the user still has no way to *play* without bringing
+their own characters, monsters, locations, and narrative. This
+section maps the path from "math kernel" to "play tonight from
+the package alone" — solo testing infrastructure first, then
+foundation content, then settings, then ecosystem.
+
+**Solo mode anchors `2.0.0`** because it doubles as our deepest
+end-to-end test: the engine drives a session through encounter →
+rest → travel → encounter cycles, every roll is logged, and a
+recorded session can be replayed to detect drift after every
+release.
+
+The `2.x` line follows additive semver — content packs, variant
+rules, and the orchestrator are layered on top of the 1.0 contract,
+not breaking changes. The major bump marks the *surface
+expansion* (a new top-level `Solo` namespace, `Session`
+orchestrator, CLI entry point), not an incompatibility.
+
+### `2.0.0` — Solo mode foundation
+
+The proof point for the boundary contract: "math kernel is enough,
+given a small orchestrator and an oracle." Drives our actual
+end-to-end test suite — every release ships with a recorded
+session JSON the CLI replays to catch drift.
+
+- **`Solo.oracle({ rng })`** — yes/no/and/but answers, twists,
+  weighted random tables, prompt-driven complications. Wraps the
+  seeded RNG so a solo session is fully replayable.
+- **`Session.create({ encounter?, scene?, party })`** — turn loop,
+  rest cycle, scene-clock advance, and save/load primitives
+  bundled in one orchestrator. The recipes already show the
+  pieces; this is the one-line wrapper that ties them.
+- **`Replay.share(session)`** — pin roll log + seed + character
+  records into a portable JSON. *"Here's how the boss died."*
+- **CLI runner** — `npx @zeeuw/bag-of-holding play` runs a session
+  in the terminal. No UI library, no AI; the engine + a minimal
+  `readline` loop. Counts as a *reference example*, not a UI
+  primitive — same scope rationale as the recipes.
+- **Pre-built starter party shipped inline** — 4 ready L3
+  characters (Fighter, Rogue, Cleric, Wizard) baked into
+  `solo/starter` so the CLI works out of the box with no
+  host-supplied content.
+
+*Why 2.0 and not 1.25:* the `Solo` namespace + `Session`
+orchestrator + CLI entry point is a meaningful API expansion. The
+1.0 contract stays intact (every 1.x export still works); the
+major bump signals "the engine ships its own playable surface
+now," not a break.
+
+### `2.1.0` — Starter adventure: *The Quiet Stair*
+
+The first complete adventure shipped *inside* the package.
+Designed to use only mechanics shipped through `1.24` and content
+from this release — about a 90-minute playthrough. Without an
+inline adventure the `2.0.0` CLI has nothing to drive; *The
+Quiet Stair* is both the demo and the smoke test.
+
+- **Adventure JSON** — scene graph, encounter compositions, NPC
+  cast, treasure rewards. Uses the existing `Beats` runtime.
+- **15 supporting monsters** — invented; CR 0 to 4 — populate the
+  encounter slots. Same legal hygiene as the Void Thrall test
+  fixture (see [docs/legal.md](legal.md)).
+- **8 supporting items** — keyed mundane-and-magical mix; one
+  charged, one cursed, one consumable. Exercises the 1.9
+  magic-item lifecycle end-to-end.
+- **3 named NPCs** with motives + voice tags — designed to
+  exercise the social action verbs (Help, Influence) and the
+  reaction-cast surface.
+
+### `2.2.0` — Bestiary I (CR 0–5)
+
+50 invented creatures across the common ecology niches — humanoid
+warbands, beasts, undead, fey, elementals, oozes, constructs.
+Each carries the full 1.10 stat-block surface (multiattack,
+senses, condition immunities, save bonuses). The first batch
+that meaningfully populates a homebrew sandbox.
+
+### `2.3.0` — Bestiary II (CR 6–15)
+
+30 boss-tier opponents with Legendary Actions, Lair Actions, and
+Innate Spellcasting wired through 1.10. Gives a real tier-2 /
+tier-3 climactic fight without falling back on Wizards'
+proprietary creatures.
+
+### `2.4.0` — Bestiary III (CR 16–20)
+
+10 capstone monsters for tier-4 play. Includes Legendary
+Resistance pools, Mythic Actions, and Innate Spellcasting at
+spell levels 6+. Unlocks meaningful end-of-campaign showdowns.
+
+### `2.5.0` — Grimoire I (cantrips through 5th)
+
+50 invented spells covering schools and tactical roles the SRD 33
+left thin: more reaction-cast options, more save-for-half AoE
+shapes (cylinder, line variants), more concentration buffs, more
+single-target debuffs. Each entry uses the 1.8 spell-record
+contract — components, ritual flag, upcast deltas.
+
+### `2.6.0` — Grimoire II (6th–9th)
+
+30 high-tier spells. City-sized AoEs, plane-shifting
+alternatives, complex multi-target control. Less common usage;
+included so tier-3/4 spellcasters have a real spell list.
+
+### `2.7.0` — Treasury
+
+40 magic items spread across all six rarity bands. Demonstrates
+every 1.9 mechanic: charged items (with dawn-recharge dice
+specs), attunement-with-prereqs (class / spellcaster / ability),
+cursed items with Remove Curse paths, sentient item conflict
+hooks, items with their own saving throws.
+
+### `2.8.0` — Origin pack
+
+5 invented species, 8 invented backgrounds, 12 invented feats.
+Distinct from the SRD baseline — not recolors. Each species
+exercises a species-trait mechanic (darkvision, resistance,
+movement mode, racial cantrip), back-filling the 1.13 deferral.
+
+### `2.9.0` — Variant rules: combat
+
+Flanking, called shots, lingering injuries, severity-table
+massive-damage, cleave-through, fumble crits. Each lands as
+either a `rules` knob (Phase B) or a hook bundle (Phase C) so
+host tables opt in per-game.
+
+### `2.10.0` — Variant rules: rest + downtime
+
+Gritty resting (8-hour short / week-long), slow natural healing,
+Healer's Kit dependency, sanity track, exhaustion-on-failure
+checks. Three more `longRestHitDiceRecovery`-style knobs on top
+of the rest-rule extension shipped at `1.2.0`.
+
+### `2.11.0` — Variant rules: encounter + skills
+
+Group / side initiative, honor / piety / renown stat tracking,
+background-as-proficiency, fewer-skills-more-options variant.
+
+### `2.12.0` — Hazards & environment (back-fill of 1.15)
+
+Closes the row deferred from the SRD-coverage track. Disease
+registry, poison vectors (contact / ingested / inhaled / injury),
+suffocation, starvation / thirst, extreme heat / cold,
+underwater combat. Each gets a starter content registry alongside
+the mechanic surface.
+
+### `2.13.0` — Travel & exploration (back-fill of 1.18)
+
+Closes the other deferred row. Travel pace (slow / normal / fast),
+forced-march exhaustion saves, foraging / navigation DC tables,
+resting in dangerous terrain. Surfaces a `Travel` namespace.
+
+### `3.0.0` — Setting: *Sundermark* (high fantasy)
+
+The first complete setting pack. Faerûn-grade scope (a continent,
+multiple kingdoms, classic adventuring vibe) with one defining
+twist: **the gods have died** — centuries ago. Clerics draw from
+preserved relics; paladins swear oaths to memories; divinations
+feel like séances. Less *gods walk among us*, more
+*Pillars of Eternity*-style "what's left after the divine left."
+
+- ~6 regions, ~15 factions, ~10 cities mapped with adventure hooks.
+- 1 setting-specific species (the Vesperin, echoes-of-the-dead-
+  gods bloodline), 3 background variants, 5 setting feats.
+- 2 starter adventures (*The Singing Tower*, *Halberd's Edge*).
+- 12 named NPCs with motives, voice tags, and faction ties.
+- **New plugin slots**: `extraRegions`, `extraNpcs`,
+  `extraStoryHooks`, `extraAdventures` contracts the engine
+  surfaces alongside existing content plugins.
+
+### `3.1.0` — Setting: *Brassgear* (magitech-noir)
+
+Eberron-grade scope with the twist: **the magic is dying**. The
+Last War (or its local equivalent) bled the world's arcane
+reserves; PCs are scavengers in the wreckage of a magical-
+industrial peak. Bankrupt dynasties, decaying constructs, black-
+market schematics. Closer to *Tales of Arcadia* / *Mortal Engines*
+than peak Eberron.
+
+- ~5 city-states, a dragonmark-equivalent inherited-talent system,
+  ~10 noir-adventure hooks.
+- 1 species (the Cogborn), 2 backgrounds, an Artificer-equivalent
+  shipped via the Mechanics plugin surface (no new top-level class).
+- 1 starter adventure (*The Greenmist Heist*).
+
+### `3.2.0` — Setting: *The Hollow Vale* (gothic horror)
+
+Ravenloft-grade scope with the twist: **the Darklords are people
+the PCs knew**. The Vale is small — a dozen villages, one valley.
+Darklords are a baker, a kindly priest, a former adventuring
+partner. Each domain has a moral arc, not a slay-the-vampire arc.
+Closer to *The Wicker Man* than *Dracula*.
+
+- 8 domains, 8 Darklord NPCs with motives and tragic backstories.
+- Gothic mechanics: dread track, light-as-resource, dream
+  sequences as engine-supported beats.
+- 1 starter adventure (*Bramblefell*).
+
+### `3.3.0` — Setting plugin contract
+
+Formalises the pack shape that 3.0–3.2 each shipped ad-hoc.
+`Setting.register({ regions, npcs, hooks, species, backgrounds,
+items, monsters, spells, adventures })` with validation. Settings
+become composable — a campaign can declare two settings active
+simultaneously for crossover play.
+
+### `4.0.0` — AI prompt scaffolding (sister package)
+
+Structured templates that take the engine's deterministic output
+and feed it to an LLM for narration. Provider-agnostic
+(Anthropic / OpenAI / local). Ships as
+`@zeeuw/bag-of-holding-ai` — **sister package, never imported by
+the kernel** — preserving the boundary contract.
+
+- Prompt templates per resolution kind (attack hit, miss, crit,
+  death-save fail, condition applied, scene transition).
+- Provider adapters for the three major API shapes.
+- Cache-key derivation so repeated identical resolutions hit the
+  same narration (cost saver).
+- Structured-output schemas so the AI's response is parseable
+  before it reaches the player.
+
+### `4.1.0` — Initiative-tracker reference UI
+
+A tiny web component that consumes encounter state and renders a
+turn UI. Reference example, not part of the engine. Ships as
+`@zeeuw/bag-of-holding-ui` — host-side, optional, lives outside
+the kernel per the boundary contract.
+
+### `4.2.0` — Localization layer
+
+`Strings.t(key, lang)` shim for non-English condition labels,
+class names, action verbs. Kernel stays English by default;
+locale packs ship as separate plugins. Covers the localizable-
+strings idea moved here from the old parking lot.
+
+### `4.3.0` — Reference card generator
+
+Generates printable PDFs from the engine's data — one-page combat
+cheat-sheet, per-spell cards from the spell registry, per-class
+feature cards. Pure data output (no rendering library bake-in);
+the host runs the layout pass.
+
+### `5.0.0` — Plugin manifest format
+
+`bag-of-holding.json` shape third-parties publish content packs
+against. Validation script gates against the plugin contract;
+versioned schema so pack authors can pin to a kernel API range.
+
+### `5.1.0` — Content index
+
+A static site listing community plugin packs by setting / class /
+theme. Search + categorise + screenshots. Built from the plugin
+manifests. Covers the community-content-channel idea from the
+old parking lot.
+
+### `5.2.0` — Conversion tools
+
+5.1 → 5.2 character migrations, third-party SRD-OGL-compatible
+content importers, save-format conversions across major kernel
+versions.
+
+### `5.3.0` — Documentation site
+
+Generated from `index.d.ts` doc comments + the recipes + a
+tutorial path. Replaces the deferred TypeDoc site from `1.0.0`'s
+"deferred to post-1.0" promise.
 
 ## Post-SRD ideas (no commitment)
 
-Out-of-scope-for-SRD-compliance work that may or may not be worth
-doing afterwards. Items that *were* on this list and have since
-moved into the SRD-completeness plan have been removed.
+Remaining ideas that aren't yet on the planned track. These move
+into a numbered milestone when a real consumer drives priority.
 
-- **Optional rules variants beyond rule knobs** — flanking, called
-  shots, lingering injuries, herbalism-as-mechanic — each as a
-  shippable plugin.
-- **Localizable strings** — class names, condition labels, etc.,
-  for hosts that target non-English campaigns.
-- **Code splitting** — separate entry points for `bag-of-holding/srd`
-  (data only) and `bag-of-holding/engine` (math only), so a tiny
-  app that only needs dice + checks can ship < 5 kB.
-- **Community content channel** — a vetted contribution path for
-  community-authored class/subclass plugins, validated against the
-  plugin surface.
+- **Code splitting** — separate entry points for
+  `bag-of-holding/srd` (data only) and `bag-of-holding/engine`
+  (math only), so a tiny app that only needs dice + checks can
+  ship < 5 kB.
+- **Optional rules variants beyond `2.9`/`2.10`/`2.11`** —
+  herbalism, alchemy-as-mechanic, plotting / web-of-influence
+  tracking, mass-combat rules.
+- **Procedural dungeon scaffolding** — room graphs, door / trap
+  data, encounter slot generator. Useful for both solo play and
+  AI-DM hosts; defer until the bestiary depth supports it.
 
 ## What we will deliberately *not* build
+
+These no-build constraints apply to the **engine kernel**. Sister
+packages (`@zeeuw/bag-of-holding-ai`, `@zeeuw/bag-of-holding-ui`,
+planned for `4.0.0` / `4.1.0`) carry their own scope; the kernel
+stays clean per the [boundary contract](boundary.md).
 
 - **Narration, prose, or AI calls.** That's the host's job. See
   [boundary.md](boundary.md).
