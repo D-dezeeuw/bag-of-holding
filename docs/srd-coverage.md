@@ -245,7 +245,7 @@ boxes are always the live worklist.
 - [x] **Paladin:** Lay on Hands (HP pool = 5 × level), Divine Smite (2024 spell — 2d8 radiant + 1d8/slot-above-1 + 1d8 vs Fiend/Undead, one free cast per Long Rest) *(SRD § Paladin — Lay on Hands / Divine Smite)* *(v1.3.6)*
 - [x] **Ranger:** Favored Enemy free-cast pool (scales with PB), Hunter's Mark cast with free-cast preference + slot fallback, target binding on `actor.huntersMark`, 1d6 force damage rider, status helper *(SRD § Ranger — Favored Enemy / Hunter's Mark)* *(v1.3.7)*
 - [x] **Sorcerer:** Sorcery Points pool, Font of Magic (slot ↔ points conversion + slot creation table), 10 Metamagic options with cost + effect schema *(SRD § Sorcerer — Font of Magic / Metamagic)* *(v1.3.8)*
-- [ ] **Warlock:** Eldritch Invocations registry + selection / validation *(SRD § Warlock — Eldritch Invocations)* — *roadmap 1.3.9*
+- [x] **Warlock:** Eldritch Invocations — 10 canonical invocations with prereq metadata (warlock level, required cantrip, repeatable), count-by-level table, validation + persistence + agonizing-blast bonus lookup *(SRD § Warlock — Eldritch Invocations)* *(v1.3.9)*
 - [ ] **Wizard:** Arcane Recovery — slot levels = ⌈½ wizard level⌉, once per long rest, on a short rest *(SRD § Wizard — Arcane Recovery)* — *roadmap 1.3.10*
 
 ## 14. Classes — subclasses and tier 3/4
