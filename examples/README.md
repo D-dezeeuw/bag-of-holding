@@ -11,18 +11,28 @@ goblins / orcs, an oracle for yes/no/maybe rulings, a scene clock,
 and one-click `Replay.share` + `Replay.verify` to prove the dice
 stream reproduces from the seed.
 
-### Run it
+### Live on GitHub Pages
+
+<https://d-dezeeuw.github.io/bag-of-holding/> serves the latest
+deploy from `main`. The `.github/workflows/pages.yml` action runs
+`npm run pages:build` (which assembles a static `public/` tree)
+and uploads it via `actions/deploy-pages`.
+
+One-time repo setup needed before the workflow can deploy:
+**Settings → Pages → Source: "GitHub Actions"**.
+
+### Run it locally
 
 From the repo root:
 
 ```sh
-# Node 22 ships an HTTP serve helper; any static server works.
-npx http-server -p 8765 .
-# or:
-python3 -m http.server 8765
-```
+# Same layout the Pages build produces:
+npm run pages:serve
 
-Then open <http://localhost:8765/examples/solo.html>.
+# Or serve the repo as-is and load via the examples/ path:
+npx http-server -p 8765 .
+# then open http://localhost:8765/examples/solo.html
+```
 
 ### What it shows
 

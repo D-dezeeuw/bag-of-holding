@@ -5,3 +5,7 @@ node_modules/
 # Reference material for development (SRD PDFs, internal IP notes).
 # Not for public distribution; keep local copies outside the repo.
 docs/references/
+
+# Pages build output (assembled by scripts/pages-build.mjs;
+# uploaded by .github/workflows/pages.yml).
+public/

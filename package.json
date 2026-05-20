@@ -61,6 +61,8 @@
     "typecheck": "tsc --noEmit",
     "bundle-size": "node scripts/measure-bundle.js",
     "examples:solo": "npx --yes http-server -p 8765 -o /examples/solo.html .",
+    "pages:build": "node scripts/pages-build.mjs",
+    "pages:serve": "npm run pages:build && npx --yes http-server -p 8765 -o / public",
     "prepublishOnly": "npm test && npm run typecheck && npm run bundle-size"
   },
   "dependencies": {},
