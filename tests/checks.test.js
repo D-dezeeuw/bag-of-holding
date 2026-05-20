@@ -28,14 +28,16 @@ test('clampDC raises DCs below 5 up to the floor', () => {
   assert.equal(clampDC(5),    5);
 });
 
-test('clampDC lowers DCs above 25 down to the ceiling', () => {
-  assert.equal(clampDC(25),  25);
-  assert.equal(clampDC(26),  25);
-  assert.equal(clampDC(999), 25);
+test('clampDC lowers DCs above 30 down to the ceiling', () => {
+  // SRD 5.2 § Ability Checks — Typical Difficulty Classes caps at
+  // Nearly Impossible = 30.
+  assert.equal(clampDC(30),  30);
+  assert.equal(clampDC(31),  30);
+  assert.equal(clampDC(999), 30);
 });
 
 test('clampDC passes ordinary DCs through untouched', () => {
-  for (const dc of [5, 8, 13, 17, 20, 25]) {
+  for (const dc of [5, 8, 13, 17, 20, 25, 30]) {
     assert.equal(clampDC(dc), dc);
   }
 });
@@ -65,8 +67,8 @@ test('abilityCheck defaults proficient to false', (t) => {
 test('abilityCheck respects the DC clamp', (t) => {
   t.mock.method(Math, 'random', () => 0.9999); // → d20 = 20
   const absurd = abilityCheck({ abilityScore: 10, dc: 100 });
-  assert.equal(absurd.dc, 25);                 // clamped down from 100
-  assert.equal(absurd.success, false);         // 20 + 0 < 25
+  assert.equal(absurd.dc, 30);                 // clamped down from 100
+  assert.equal(absurd.success, false);         // 20 + 0 < 30
 });
 
 // === savingThrow ===
