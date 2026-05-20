@@ -64,7 +64,13 @@ export default {
     7: [],
     8: ['Ability Score Improvement'],
     9: ['Expertise (2 more skills)'],
-    10: ['Magical Secrets']
+    10: ['Magical Secrets'],
+    11: ['Bardic Inspiration (d10)'],
+    12: ['Ability Score Improvement'],
+    13: ['Subclass Feature'],
+    14: ['Font of Inspiration'],
+    15: ['Improved Magical Secrets'],
+    16: ['Ability Score Improvement']
   },
   // Resource-bearing features (since 1.3.2). Uses = CHA mod (min 1);
   // refresh tag flips from 'long' to 'short' at L5 per Font of

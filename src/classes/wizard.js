@@ -46,7 +46,13 @@ export default {
     7: [],
     8: ['Ability Score Improvement'],
     9: [],
-    10: ['Subclass Feature']
+    10: ['Subclass Feature'],
+    11: ['Empowered Cantrips'],
+    12: ['Ability Score Improvement'],
+    13: [],
+    14: ['Subclass Feature'],
+    15: [],
+    16: ['Ability Score Improvement']
   },
   // Resource-bearing features (since 1.3.10). Arcane Recovery is one
   // use per Long Rest — the use itself refunds slot levels.

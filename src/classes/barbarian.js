@@ -80,7 +80,13 @@ export default {
     7: ['Feral Instinct', 'Instinctive Pounce'],
     8: ['Ability Score Improvement'],
     9: ['Brutal Strike'],
-    10: ['Subclass Feature']
+    10: ['Subclass Feature'],
+    11: ['Relentless Rage'],
+    12: ['Ability Score Improvement'],
+    13: ['Improved Brutal Strike'],
+    14: ['Subclass Feature'],
+    15: ['Persistent Rage'],
+    16: ['Ability Score Improvement']
   },
   // Resource-bearing features (since 1.3.1). Rage refreshes on Long
   // Rest with one use recovered on Short Rest per SRD 5.2 § Barbarian
@@ -153,6 +159,24 @@ export default {
      * Read-only: is the actor currently raging? Boolean result for
      * chip-state and UI affordances.
      */
-    isRaging: (actor) => ({ raging: Boolean(actor.rage?.active) })
+    isRaging: (actor) => ({ raging: Boolean(actor.rage?.active) }),
+    /**
+     * SRD 5.2 § Barbarian § Relentless Rage (L11): when reduced to 0
+     * HP and not killed outright, the Barbarian can drop to 1 HP
+     * instead on a DC 10 CON save. The DC increases by 5 each time
+     * it triggers between rests; the host tracks the count and resets
+     * on a long rest.
+     */
+    relentlessRage: (actor, args, ctx) => {
+      const useCount = actor.relentlessRageUses ?? 0;
+      const dc = 10 + useCount * 5;
+      const result = ctx.saver({ abilityScore: actor.abilityScores?.con ?? 10, dc });
+      if (!result.success) return { ok: false, save: result, actor };
+      return {
+        ok: true,
+        save: result,
+        actor: { ...actor, hp: 1, relentlessRageUses: useCount + 1 }
+      };
+    }
   }
 };

@@ -690,7 +690,8 @@ export function createEngine(opts = {}) {
           record('rollDie', { sides, value }, context);
           return value;
         },
-        modFromScore: Checks.modFromScore
+        modFromScore: Checks.modFromScore,
+        saver: hazardSaver
       };
       return handlers[id](actor, args ?? {}, ctx);
     }

@@ -65,7 +65,13 @@ export default {
     7: ['Blessed Strikes'],
     8: ['Ability Score Improvement'],
     9: [],
-    10: ['Divine Intervention']
+    10: ['Divine Intervention'],
+    11: ['Destroy Undead (CR 2)'],
+    12: ['Ability Score Improvement'],
+    13: [],
+    14: ['Improved Blessed Strikes'],
+    15: [],
+    16: ['Ability Score Improvement']
   },
   // Resource-bearing features (since 1.3.3). Channel Divinity in
   // 2024 SRD: full refresh on Long Rest, one use back on Short Rest.

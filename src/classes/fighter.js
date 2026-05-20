@@ -17,9 +17,9 @@ export default {
   primaryAbility: 'str',
   savingThrowProficiencies: ['str', 'con'],
   weaponMasterySlots: 3,
-  // Extra Attack at L5: one additional attack per Attack action.
-  // Encounter system reads this via `attacksPerAction(classDef, level)`.
-  extraAttacks: { 5: 1 },
+  // Extra Attack at L5 / L11: one then two additional attacks per
+  // Attack action. Encounter system reads via attacksPerAction.
+  extraAttacks: { 5: 1, 11: 2 },
   features: {
     1: ['Fighting Style', 'Second Wind', 'Weapon Mastery'],
     2: ['Action Surge', 'Tactical Mind'],
@@ -30,13 +30,22 @@ export default {
     7: ['Subclass Feature'],
     8: ['Ability Score Improvement'],
     9: ['Indomitable', 'Tactical Master'],
-    10: ['Subclass Feature']
+    10: ['Subclass Feature'],
+    11: ['Two Extra Attacks'],
+    12: ['Ability Score Improvement'],
+    13: ['Indomitable (two uses)', 'Studied Attacks'],
+    14: ['Subclass Feature'],
+    15: ['Improved Critical (19-20)'],
+    16: ['Ability Score Improvement']
   },
-  // Resource-bearing features (since 1.3.0). Both refresh on a
-  // Short Rest per SRD 5.2 § Fighter.
+  // Resource-bearing features (since 1.3.0). Indomitable arrives at
+  // L9 with one use, and bumps to two uses at L13 per the SRD table;
+  // the mechanic helper reads the current `max` from the actor's
+  // resources, so the level-up flow updates `indomitable.max`.
   resources: {
     secondWind: { max: 1, refreshes: 'short' },
-    actionSurge: { max: 1, refreshes: 'short' }
+    actionSurge: { max: 1, refreshes: 'short' },
+    indomitable: { max: 1, refreshes: 'long' }
   },
   mechanics: {
     /**
@@ -72,6 +81,17 @@ export default {
       const result = spendResource(actor, 'actionSurge');
       if (!result.ok) return result;
       return { ok: true, extraAction: true, actor: result.actor };
+    },
+    /**
+     * SRD 5.2 § Fighter § Indomitable: reroll a failed save. Host
+     * passes the original save result; if a reroll happens, the
+     * second roll replaces the first. Returns the spent resource
+     * status plus a `reroll: true` flag so the host re-runs the save.
+     */
+    indomitable: (actor) => {
+      const result = spendResource(actor, 'indomitable');
+      if (!result.ok) return result;
+      return { ok: true, reroll: true, actor: result.actor };
     }
   }
 };

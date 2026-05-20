@@ -194,7 +194,13 @@ export default {
     7: ['Eldritch Invocation (additional)'],
     8: ['Ability Score Improvement'],
     9: ['Eldritch Invocation (additional)'],
-    10: ['Subclass Feature']
+    10: ['Subclass Feature'],
+    11: ['Mystic Arcanum (6th level)'],
+    12: ['Ability Score Improvement'],
+    13: ['Mystic Arcanum (7th level)'],
+    14: ['Subclass Feature'],
+    15: ['Mystic Arcanum (8th level)'],
+    16: ['Ability Score Improvement']
   },
   mechanics: {
     /**

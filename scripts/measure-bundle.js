@@ -36,9 +36,11 @@ const ROOT = path.resolve(__dirname, '..');
 //   1.5.0  — 160 kB min / 40 kB gz (10 class mechanics, damage
 //            pipeline, condition completion)
 //   1.18.0 — 175 kB min / 42 kB gz (species effects, hazards module)
+//   1.21.0 — 200 kB min / 48 kB gz (tier 3 features, equipment depth,
+//            travel module, mechanic adapters)
 const BUDGETS = {
-  minBytes: 175 * 1024,    // 175 kB approx-minified
-  gzipBytes:  42 * 1024    //  42 kB gzipped
+  minBytes: 200 * 1024,    // 200 kB approx-minified
+  gzipBytes:  48 * 1024    //  48 kB gzipped
 };
 
 async function walk(dir) {

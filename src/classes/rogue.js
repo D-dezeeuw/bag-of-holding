@@ -16,7 +16,13 @@ export default {
     7: ['Evasion', 'Reliable Talent'],
     8: ['Ability Score Improvement'],
     9: ['Subclass Feature'],
-    10: ['Ability Score Improvement']
+    10: ['Ability Score Improvement'],
+    11: ['Reliable Talent'],
+    12: ['Ability Score Improvement'],
+    13: ['Subclass Feature'],
+    14: ['Devious Strikes'],
+    15: ['Slippery Mind'],
+    16: ['Ability Score Improvement']
   },
   mechanics: {
     /**
@@ -75,6 +81,18 @@ export default {
       if (!actor.sneakAttackUsedThisTurn) return { actor };
       const { sneakAttackUsedThisTurn: _, ...rest } = actor;
       return { actor: rest };
+    },
+    /**
+     * SRD 5.2 § Rogue § Reliable Talent (L11): on any proficient
+     * ability check, treat a d20 roll of 9 or lower as a 10.
+     * `args.d20` is the raw die face the host rolled; the helper
+     * returns `{ d20, adjusted }` so the host can re-add the mod
+     * and compare to the DC.
+     */
+    reliableTalent: (_actor, args) => {
+      const raw = args?.d20 ?? 1;
+      const adjusted = raw < 10 ? 10 : raw;
+      return { d20: raw, adjusted };
     }
   }
 };

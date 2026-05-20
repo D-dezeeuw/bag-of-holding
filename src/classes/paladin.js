@@ -56,7 +56,13 @@ export default {
     7: ['Subclass Feature'],
     8: ['Ability Score Improvement'],
     9: ['Abjure Foes'],
-    10: ['Aura of Courage']
+    10: ['Aura of Courage'],
+    11: ['Radiant Strikes'],
+    12: ['Ability Score Improvement'],
+    13: [],
+    14: ['Restoring Touch'],
+    15: ['Subclass Feature'],
+    16: ['Ability Score Improvement']
   },
   // Resource-bearing features (since 1.3.6). Lay on Hands is an HP
   // pool sized to 5 × level; Divine Smite Once gives one free Smite

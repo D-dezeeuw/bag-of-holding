@@ -68,7 +68,13 @@ export default {
     7: ['Evasion'],
     8: ['Ability Score Improvement'],
     9: ['Acrobatic Movement'],
-    10: ['Heightened Focus']
+    10: ['Heightened Focus'],
+    11: ['Subclass Feature'],
+    12: ['Ability Score Improvement'],
+    13: ['Deflect Energy'],
+    14: ['Disciplined Survivor'],
+    15: ['Perfect Focus'],
+    16: ['Ability Score Improvement']
   },
   // Resource-bearing features (since 1.3.5). Focus Points refresh
   // fully on a Short Rest — the canonical short-rest resource.

@@ -258,7 +258,7 @@ boxes are always the live worklist.
   - [ ] Circle of the Land (Druid), Champion (Fighter), Way of the Open Hand (Monk)
   - [ ] Oath of Devotion (Paladin), Hunter (Ranger), Thief (Rogue)
   - [ ] Draconic Sorcery (Sorcerer), Fiend Patron (Warlock), Evoker (Wizard)
-- [ ] **Tier 3 features** L11-L16 per class *(SRD per class)*
+- [x] **Tier 3 features** L11-L16 per class *(v1.21.0)*. Feature strings + key signature mechanics (Fighter Indomitable + 3rd attack at L11, Rogue Reliable Talent, Barbarian Relentless Rage).
 - [ ] **Tier 4 features** L17-L20 per class *(SRD per class)*
 
 ## 15. Character creation pipeline

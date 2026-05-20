@@ -92,7 +92,13 @@ export default {
     7: ['Elemental Fury'],
     8: ['Ability Score Improvement'],
     9: [],
-    10: ['Subclass Feature']
+    10: ['Subclass Feature'],
+    11: ['Improved Elemental Fury'],
+    12: ['Ability Score Improvement'],
+    13: [],
+    14: ['Subclass Feature'],
+    15: [],
+    16: ['Ability Score Improvement']
   },
   // Resource-bearing features (since 1.3.4). Wild Shape refreshes
   // fully on Long Rest with one use back on Short Rest per SRD 5.2.

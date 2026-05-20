@@ -58,7 +58,13 @@ export default {
     7: ['Subclass Feature'],
     8: ['Ability Score Improvement'],
     9: ['Expertise'],
-    10: ['Tireless']
+    10: ['Tireless'],
+    11: ['Subclass Feature'],
+    12: ['Ability Score Improvement'],
+    13: ['Relentless Hunter'],
+    14: ['Nature\'s Veil'],
+    15: ['Subclass Feature'],
+    16: ['Ability Score Improvement']
   },
   // Resource-bearing features (since 1.3.7). Free Hunter's Mark
   // casts refresh on Long Rest only.

@@ -86,7 +86,13 @@ export default {
     7: [],
     8: ['Ability Score Improvement'],
     9: [],
-    10: ['Metamagic (third option)']
+    10: ['Metamagic (third option)'],
+    11: ['Sorcery Incarnate'],
+    12: ['Ability Score Improvement'],
+    13: [],
+    14: ['Subclass Feature'],
+    15: [],
+    16: ['Ability Score Improvement']
   },
   // Resource-bearing features (since 1.3.8). Sorcery Points refresh
   // on Long Rest only.

@@ -954,16 +954,25 @@ seeded session reproduces travel days end to end.
 Closes the exploration half of
 [§ 8 Movement, vision, exploration](srd-coverage.md#8-movement-vision-exploration).
 
-### `1.19.0`: Tier 3 class features (L11-L16)
+### `1.19.0`: Tier 3 class features (L11-L16) ✅ shipped in v1.21.0
 
-Each base class's tier-3 mechanics implemented behind the existing
-`mechanics` contract.
+Every base class now lists features through L16 and the signature
+tier-3 mechanics dispatch through the existing `mechanics` contract.
 
-- Per class: the signature L11 feature (e.g. Barbarian Relentless
-  Rage, Fighter Indomitable, Sorcerer Sorcerous Restoration, Wizard
-  Empowered Evocation).
-- Ability Score Improvements at L12.
-- Per-subclass L11 / L14 features.
+- All 12 classes carry `features[11..16]` strings (ASIs at L12 and
+  L16; per-class signature names at L11/L13/L14/L15).
+- Fighter `extraAttacks[11] = 2`, surfacing a third attack through
+  `attacksPerAction`.
+- Fighter `mechanics.indomitable`: spends a long-rest resource and
+  flags `reroll: true` for the host to re-run the failed save.
+- Rogue `mechanics.reliableTalent`: treats a d20 of 9 or lower as
+  10 for proficient checks.
+- Barbarian `mechanics.relentlessRage`: CON save (DC 10, +5 per
+  prior use this rest) to drop to 1 HP instead of 0.
+
+Per-subclass L11/L14 features ride with the subclass handler maps
+in [v1.21.0](#1210--subclass-handler-maps); the base-class lines
+are complete.
 
 Closes the L11-L16 row of [§ 14 Classes, subclasses and tier 3/4](srd-coverage.md#14-classes--subclasses-and-tier-34).
 
