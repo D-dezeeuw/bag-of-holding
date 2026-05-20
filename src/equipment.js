@@ -129,6 +129,116 @@ export const LIFESTYLES = Object.freeze({
   aristocratic: 10
 });
 
+// Mounts and Other Animals per SRD 5.2 § Equipment. Cost in gp;
+// speed in ft; carryingCapacity in lb. Each is a single-line record;
+// hosts that want to wire a mount as an encounter actor build a
+// monster record alongside (see src/srd/monsters.js).
+export const MOUNTS = Object.freeze({
+  'camel':         Object.freeze({ name: 'Camel',         cost: 50, speed: 50, carryingCapacity: 480 }),
+  'donkey':        Object.freeze({ name: 'Donkey',        cost: 8,  speed: 40, carryingCapacity: 420 }),
+  'draft-horse':   Object.freeze({ name: 'Draft Horse',   cost: 50, speed: 40, carryingCapacity: 540 }),
+  'elephant':      Object.freeze({ name: 'Elephant',      cost: 200, speed: 40, carryingCapacity: 1320 }),
+  'mastiff':       Object.freeze({ name: 'Mastiff',       cost: 25, speed: 40, carryingCapacity: 195 }),
+  'mule':          Object.freeze({ name: 'Mule',          cost: 8,  speed: 40, carryingCapacity: 420 }),
+  'pony':          Object.freeze({ name: 'Pony',          cost: 30, speed: 40, carryingCapacity: 225 }),
+  'riding-horse':  Object.freeze({ name: 'Riding Horse',  cost: 75, speed: 60, carryingCapacity: 480 }),
+  'warhorse':      Object.freeze({ name: 'Warhorse',      cost: 400, speed: 60, carryingCapacity: 540 })
+});
+
+// Tack, Harness, and Drawn Vehicles per SRD 5.2 § Equipment.
+// Vehicles list cost + speed where applicable; tack is mundane gear.
+export const VEHICLES = Object.freeze({
+  'barding':       Object.freeze({ name: 'Barding',       cost: 'armor x4', weight: 'armor x2', notes: 'Armor for a mount; multiplies base armor cost/weight.' }),
+  'bit-bridle':    Object.freeze({ name: 'Bit and Bridle', cost: 2, weight: 1 }),
+  'saddle-exotic': Object.freeze({ name: 'Exotic Saddle', cost: 60, weight: 40 }),
+  'saddle-military': Object.freeze({ name: 'Military Saddle', cost: 20, weight: 30 }),
+  'saddle-pack':   Object.freeze({ name: 'Pack Saddle',   cost: 5,  weight: 15 }),
+  'saddle-riding': Object.freeze({ name: 'Riding Saddle', cost: 10, weight: 25 }),
+  'saddlebags':    Object.freeze({ name: 'Saddlebags',    cost: 4,  weight: 8 }),
+  'stabling-per-day': Object.freeze({ name: 'Stabling (per day)', cost: 0.5 }),
+  'carriage':      Object.freeze({ name: 'Carriage',      cost: 100, weight: 600 }),
+  'cart':          Object.freeze({ name: 'Cart',          cost: 15, weight: 200 }),
+  'chariot':       Object.freeze({ name: 'Chariot',       cost: 250, weight: 100 }),
+  'sled':          Object.freeze({ name: 'Sled',          cost: 20, weight: 300 }),
+  'wagon':         Object.freeze({ name: 'Wagon',         cost: 35, weight: 400 }),
+  'galley':        Object.freeze({ name: 'Galley',        cost: 30000, speed: 4,  notes: 'Waterborne; speed in mph.' }),
+  'keelboat':      Object.freeze({ name: 'Keelboat',      cost: 3000,  speed: 1,  notes: 'Waterborne; speed in mph.' }),
+  'longship':      Object.freeze({ name: 'Longship',      cost: 10000, speed: 3,  notes: 'Waterborne; speed in mph.' }),
+  'rowboat':       Object.freeze({ name: 'Rowboat',       cost: 50,    speed: 1.5, notes: 'Waterborne; speed in mph.' }),
+  'sailing-ship':  Object.freeze({ name: 'Sailing Ship',  cost: 10000, speed: 2,  notes: 'Waterborne; speed in mph.' }),
+  'warship':       Object.freeze({ name: 'Warship',       cost: 25000, speed: 2.5, notes: 'Waterborne; speed in mph.' })
+});
+
+// Trade Goods per SRD 5.2 § Equipment — Trade Goods.
+// Standardised prices for commodities (cost in gp per unit).
+export const TRADE_GOODS = Object.freeze({
+  'wheat-1lb':         Object.freeze({ name: 'Wheat',         unit: '1 lb', cost: 0.01 }),
+  'flour-1lb':         Object.freeze({ name: 'Flour',         unit: '1 lb', cost: 0.02 }),
+  'chicken':           Object.freeze({ name: 'Chicken',       unit: '1 head', cost: 0.02 }),
+  'salt-1lb':          Object.freeze({ name: 'Salt',          unit: '1 lb', cost: 0.05 }),
+  'iron-1lb':          Object.freeze({ name: 'Iron',          unit: '1 lb', cost: 0.1 }),
+  'canvas-1sq-yd':     Object.freeze({ name: 'Canvas',        unit: '1 sq yd', cost: 0.1 }),
+  'copper-1lb':        Object.freeze({ name: 'Copper',        unit: '1 lb', cost: 0.5 }),
+  'cotton-cloth-1sq-yd':Object.freeze({ name: 'Cotton Cloth',  unit: '1 sq yd', cost: 0.5 }),
+  'ginger-1lb':        Object.freeze({ name: 'Ginger',        unit: '1 lb', cost: 1 }),
+  'goat':              Object.freeze({ name: 'Goat',          unit: '1 head', cost: 1 }),
+  'cinnamon-1lb':      Object.freeze({ name: 'Cinnamon',      unit: '1 lb', cost: 2 }),
+  'pepper-1lb':        Object.freeze({ name: 'Pepper',        unit: '1 lb', cost: 2 }),
+  'sheep':             Object.freeze({ name: 'Sheep',         unit: '1 head', cost: 2 }),
+  'silver-1lb':        Object.freeze({ name: 'Silver',        unit: '1 lb', cost: 5 }),
+  'linen-1sq-yd':      Object.freeze({ name: 'Linen',         unit: '1 sq yd', cost: 5 }),
+  'pig':               Object.freeze({ name: 'Pig',           unit: '1 head', cost: 3 }),
+  'cloves-1lb':        Object.freeze({ name: 'Cloves',        unit: '1 lb', cost: 15 }),
+  'silk-1sq-yd':       Object.freeze({ name: 'Silk',          unit: '1 sq yd', cost: 10 }),
+  'cow':               Object.freeze({ name: 'Cow',           unit: '1 head', cost: 10 }),
+  'saffron-1lb':       Object.freeze({ name: 'Saffron',       unit: '1 lb', cost: 15 }),
+  'ox':                Object.freeze({ name: 'Ox',            unit: '1 head', cost: 15 }),
+  'gold-1lb':          Object.freeze({ name: 'Gold',          unit: '1 lb', cost: 50 }),
+  'platinum-1lb':      Object.freeze({ name: 'Platinum',      unit: '1 lb', cost: 500 })
+});
+
+// Treasure Hoard tables per SRD 5.2 § Treasure. Bucketed by CR band
+// (Challenge 0-4 / 5-10 / 11-16 / 17+). Each entry lists the rolled
+// coin dice and indicative magic-item table tier. The exact d100
+// breakdowns for art objects, gems, and per-item Tables A-I are
+// abbreviated here; hosts that want full SRD precision wire their
+// own d100 rolls against the canonical tables.
+export const TREASURE_HOARDS = Object.freeze({
+  'cr-0-4': Object.freeze({
+    band: '0-4',
+    coins: Object.freeze({ cp: '6d6 * 100', sp: '3d6 * 100', gp: '2d6 * 10' }),
+    gemsOrArt: Object.freeze({ rollDc: 'd100', typical: '2d6 gems @ 10 gp each OR 2d4 art objects @ 25 gp each' }),
+    magicItemTable: 'A or B'
+  }),
+  'cr-5-10': Object.freeze({
+    band: '5-10',
+    coins: Object.freeze({ cp: '2d6 * 100', sp: '2d6 * 1000', gp: '6d6 * 100', pp: '3d6 * 10' }),
+    gemsOrArt: Object.freeze({ rollDc: 'd100', typical: '3d6 gems @ 100 gp each OR 3d6 art objects @ 250 gp each' }),
+    magicItemTable: 'C / D / E (uncommon to rare)'
+  }),
+  'cr-11-16': Object.freeze({
+    band: '11-16',
+    coins: Object.freeze({ gp: '4d6 * 1000', pp: '5d6 * 100' }),
+    gemsOrArt: Object.freeze({ rollDc: 'd100', typical: '3d6 gems @ 500 gp each OR 2d4 art objects @ 750 gp each' }),
+    magicItemTable: 'F / G (rare to very rare)'
+  }),
+  'cr-17-plus': Object.freeze({
+    band: '17+',
+    coins: Object.freeze({ gp: '12d6 * 1000', pp: '8d6 * 1000' }),
+    gemsOrArt: Object.freeze({ rollDc: 'd100', typical: '1d8 gems @ 5000 gp each OR 1d10 art objects @ 7500 gp each' }),
+    magicItemTable: 'H / I (very rare to legendary)'
+  })
+});
+
+// Individual Treasure tables per SRD 5.2 § Treasure (carried coin
+// on a single creature; one row per CR band).
+export const INDIVIDUAL_TREASURE = Object.freeze({
+  'cr-0-4':     Object.freeze({ coins: Object.freeze({ cp: '5d6', sp: '4d6', gp: '3d6' }) }),
+  'cr-5-10':    Object.freeze({ coins: Object.freeze({ cp: '4d6*10', sp: '6d6*10', gp: '6d6*10', pp: '3d6' }) }),
+  'cr-11-16':   Object.freeze({ coins: Object.freeze({ gp: '4d6*100', pp: '2d6*10' }) }),
+  'cr-17-plus': Object.freeze({ coins: Object.freeze({ gp: '12d6*100', pp: '8d6*10' }) })
+});
+
 // Services per SRD § Services (gp).
 export const SERVICES = Object.freeze({
   'coach-cab':         Object.freeze({ name: 'Coach Cab (between towns)', cost: 0.03 }),
@@ -145,6 +255,11 @@ export const Equipment = Object.freeze({
   TOOLS,
   LIFESTYLES,
   SERVICES,
+  MOUNTS,
+  VEHICLES,
+  TRADE_GOODS,
+  TREASURE_HOARDS,
+  INDIVIDUAL_TREASURE,
   encumbranceLevel,
   encumbranceSpeedPenalty,
   armorStrengthPenalty,
