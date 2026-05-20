@@ -42,6 +42,7 @@ import * as MechanicsBase from './mechanics.js';
 import * as SceneClock from './scene-clock.js';
 import * as MagicItemsBase from './magic-items.js';
 import * as MonstersBase from './monsters.js';
+import * as MovementBase from './movement.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -739,6 +740,19 @@ export function createEngine(opts = {}) {
     // Magic items lifecycle (since 1.9.0). rechargeItem accepts the
     // engine's rng via the binding so dice-based recoveries (e.g.
     // 1d6+4 at dawn) flow into the same replay-deterministic chain.
+    Movement: Object.freeze({
+      MOVEMENT_MODES: MovementBase.MOVEMENT_MODES,
+      LIGHT_LEVELS: MovementBase.LIGHT_LEVELS,
+      speedFor: MovementBase.speedFor,
+      movementCost: MovementBase.movementCost,
+      fall: (distanceFt) => MovementBase.fall(distanceFt, rng),
+      longJump: MovementBase.longJump,
+      highJump: MovementBase.highJump,
+      effectiveLight: MovementBase.effectiveLight,
+      obscuredState: MovementBase.obscuredState,
+      hasLineOfSight: MovementBase.hasLineOfSight,
+      hasLineOfEffect: MovementBase.hasLineOfEffect
+    }),
     Monsters: Object.freeze({
       multiattackSequence: MonstersBase.multiattackSequence,
       freshLegendaryState: MonstersBase.freshLegendaryState,
