@@ -54,7 +54,13 @@ export const DEFAULT_RULES = Object.freeze({
 
   /** Number of successes / failures required to stabilise / die.
    *  SRD 5.2 uses three of each. */
-  deathSaveSuccessesRequired: 3
+  deathSaveSuccessesRequired: 3,
+
+  /** How many Hit Dice come back on a Long Rest.
+   *  - `'half'` (default) matches SRD 5.2 § Long Rest.
+   *  - `'all'`  — heroic packs restore them all.
+   *  - `'none'` — gritty packs (DMG Slow Natural Healing). */
+  longRestHitDiceRecovery: 'half'
 });
 
 const isIntegerInRange = (v, min, max) =>
@@ -122,6 +128,11 @@ export function buildRules(extras = {}) {
       throw new Error('rules.deathSaveSuccessesRequired must be a positive integer');
     }
   }
+  if (extras.longRestHitDiceRecovery !== undefined) {
+    if (!['half', 'all', 'none'].includes(extras.longRestHitDiceRecovery)) {
+      throw new Error("rules.longRestHitDiceRecovery must be 'half', 'all', or 'none'");
+    }
+  }
 
   return Object.freeze({
     critOn: Object.freeze([...(extras.critOn ?? DEFAULT_RULES.critOn)]),
@@ -131,6 +142,7 @@ export function buildRules(extras = {}) {
     xpThresholds: extras.xpThresholds == null ? DEFAULT_RULES.xpThresholds : Object.freeze({ ...extras.xpThresholds }),
     proficiencyByLevel: extras.proficiencyByLevel == null ? DEFAULT_RULES.proficiencyByLevel : Object.freeze({ ...extras.proficiencyByLevel }),
     deathSaveDC: extras.deathSaveDC ?? DEFAULT_RULES.deathSaveDC,
-    deathSaveSuccessesRequired: extras.deathSaveSuccessesRequired ?? DEFAULT_RULES.deathSaveSuccessesRequired
+    deathSaveSuccessesRequired: extras.deathSaveSuccessesRequired ?? DEFAULT_RULES.deathSaveSuccessesRequired,
+    longRestHitDiceRecovery: extras.longRestHitDiceRecovery ?? DEFAULT_RULES.longRestHitDiceRecovery
   });
 }

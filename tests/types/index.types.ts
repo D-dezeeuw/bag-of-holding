@@ -243,6 +243,27 @@ const _heroicEngine: Engine = createEngine({
 });
 void _heroicEngine;
 
+// === Rest mechanics (since 1.2.0) ===
+
+const restingActor: Actor = {
+  id: 'pc',
+  hitDie: 8, hitDiceTotal: 5, hitDiceUsed: 2,
+  abilityScores: { con: 14 }, hp: 12, hpMax: 35
+};
+const _shortRestResult = defaultEngine.Rest.spendHitDie(restingActor, 'short rest');
+const _hpAfter: number = _shortRestResult.hpAfter;
+const _restedActor: Actor = _shortRestResult.actor;
+void _hpAfter; void _restedActor;
+
+const _longRested: Actor = defaultEngine.Rest.longRest(restingActor);
+void _longRested;
+
+const _grittyEngine: Engine = createEngine({
+  rules: { longRestHitDiceRecovery: 'none' }
+});
+const _grittyMode: 'half' | 'all' | 'none' = _grittyEngine.rules.longRestHitDiceRecovery;
+void _grittyMode;
+
 // === Character sheet derivation ===
 
 const fighterRecord: CharacterRecord = {
