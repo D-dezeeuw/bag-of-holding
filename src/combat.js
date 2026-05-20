@@ -76,18 +76,22 @@ export function attackRoll({ attackBonus, ac, attacker, target, attackerDistance
  * max rolls again and adds — affects both the base roll and the
  * crit extra dice.
  */
-export function damageRoll({ damageDice, damageMod = 0, critical = false }, rng = Math.random, rules = DEFAULT_RULES) {
+export function damageRoll({ damageDice, damageMod = 0, critical = false, damageType }, rng = Math.random, rules = DEFAULT_RULES) {
   const rollFn = rules.explodingDamageDice ? rollExplosive : rollDice;
   const base = rollFn(damageDice, rng);
   const extra = critical ? rollFn(damageDice, rng) : { rolls: [], total: 0 };
   const total = Math.max(rules.damageFloor, base.total + extra.total + damageMod);
-  return {
+  const result = {
     damageDice,
     baseRolls: base.rolls,
     critRolls: extra.rolls,
     damageMod,
     total
   };
+  // `damageType` is optional on the result — preserves the existing
+  // empty-shape behaviour for callers that don't propagate types yet.
+  if (damageType !== undefined) result.damageType = damageType;
+  return result;
 }
 
 // === Weapon Mastery (SRD 5.2) ===
@@ -407,4 +411,209 @@ export function reviveTo(actor, hp) {
   }
   const withoutUnconscious = removeCondition(actor, 'unconscious');
   return { ...withoutUnconscious, hp, deathSaves: freshDeathSaves() };
+}
+
+// === Damage pipeline (SRD 5.2 § Damage and Healing) ===
+//
+// The pipeline turns a raw damage roll (`damageRoll`'s `total`) plus a
+// damage type into an *applied* HP change, threading through:
+//
+//   1. Immunity check — `actor.damageImmunities: string[]` ⇒ 0 damage.
+//   2. Adjustments — already applied by the caller (the SRD's
+//      "bonuses, penalties, or multipliers" land before this pipeline
+//      reads the amount).
+//   3. Resistance — `actor.damageResistances: string[]` ⇒ `floor(/2)`.
+//   4. Vulnerability — `actor.damageVulnerabilities: string[]` ⇒ ×2.
+//   5. Temporary HP absorbs first (non-stacking — replaced on grant).
+//   6. Remaining damage subtracts from `actor.hp`.
+//   7. Drop-to-zero (`dropToZero`) when HP crosses below 1.
+//   8. Massive damage instant death per SRD § Damage at 0 Hit Points
+//      when remaining damage past hpBefore ≥ hpMax.
+//   9. Subsequent hits at 0 HP route through `applyDamageWhileDown`.
+//
+// Per SRD: multiple Resistance / Vulnerability tags for the same
+// damage type count as one. We model that by union (an `Array.includes`
+// short-circuits at the first match).
+
+/**
+ * Apply the SRD damage modifiers (Immunity / Resistance / Vulnerability)
+ * to a raw amount. Pure — no actor mutation, returns the post-modifier
+ * integer.
+ *
+ * The `type`-less call returns `amount` unchanged: callers that omit
+ * a damage type bypass the modifier layer entirely, which is the
+ * pre-1.4 behaviour and keeps existing consumers compatible.
+ */
+export function applyDamageModifiers(actor, { amount, type } = {}) {
+  if (!Number.isInteger(amount) || amount < 0) {
+    throw new Error('applyDamageModifiers: amount must be a non-negative integer');
+  }
+  if (!type) return amount;
+  if ((actor.damageImmunities ?? []).includes(type)) return 0;
+  let result = amount;
+  if ((actor.damageResistances ?? []).includes(type)) {
+    result = Math.floor(result / 2);
+  }
+  if ((actor.damageVulnerabilities ?? []).includes(type)) {
+    result = result * 2;
+  }
+  return result;
+}
+
+/**
+ * Grant Temporary HP per SRD § Damage and Healing — Temporary Hit
+ * Points: "Temporary Hit Points can't be added together. If you have
+ * Temporary Hit Points and receive more of them, you decide whether
+ * to keep the ones you have or to gain the new ones."
+ *
+ * We model that as the *non-stacking max*: the new amount replaces
+ * the old one if and only if it's strictly larger. The host can
+ * surface the choice to the player by calling `grantTempHp` with
+ * the smaller amount explicitly (which returns the actor unchanged)
+ * — the engine's role is to encode the non-stacking invariant.
+ */
+export function grantTempHp(actor, amount) {
+  if (!Number.isInteger(amount) || amount < 0) {
+    throw new Error('grantTempHp: amount must be a non-negative integer');
+  }
+  const current = actor.tempHp ?? 0;
+  if (amount > current) return { ...actor, tempHp: amount };
+  return actor;
+}
+
+/**
+ * Canonical damage application. Combines `applyDamageModifiers`,
+ * temp-HP absorption, HP subtraction, drop-to-zero, massive-damage
+ * instant death, and damage-while-down dispatch in one pipeline.
+ *
+ * Inputs (object form for forward-compat with future tags):
+ *   - `amount` — pre-modifier integer (≥0).
+ *   - `type`   — damage type string (optional; omitted = bypass mods).
+ *   - `critical` — boolean (for damage-while-down: crit = 2 fails).
+ *   - `source`   — opaque tag attached to the return for logging.
+ *
+ * Returns:
+ *   `{ amount, finalAmount, tempHpAbsorbed, hpBefore, hpAfter,
+ *      outcome, actor, source? }`
+ * where `outcome` is one of:
+ *   - `'damaged'` — HP went down but didn't cross 0.
+ *   - `'downed'`  — HP just crossed to 0; actor is now Unconscious
+ *                   with a fresh death-save tracker.
+ *   - `'dead'`    — massive damage (instant death) or damage-while-
+ *                   down accumulated three failed saves.
+ *   - `'absorbed'` — all damage absorbed by temp HP; HP unchanged.
+ *   - `'immune'`   — type is in `damageImmunities`, no damage taken.
+ */
+export function applyDamage(actor, args = {}) {
+  const { amount = 0, type, critical = false, source } = args;
+  if (!Number.isInteger(amount) || amount < 0) {
+    throw new Error('applyDamage: amount must be a non-negative integer');
+  }
+  const finalAmount = applyDamageModifiers(actor, { amount, type });
+  if (finalAmount === 0 && (actor.damageImmunities ?? []).includes(type)) {
+    return wrapDamageResult({ actor, amount, finalAmount, tempHpAbsorbed: 0,
+      hpBefore: actor.hp ?? 0, hpAfter: actor.hp ?? 0,
+      outcome: 'immune', source });
+  }
+
+  // Damage at 0 HP routes through the death-save path.
+  const hpBefore = actor.hp ?? 0;
+  if (hpBefore === 0 && finalAmount > 0) {
+    const dwd = applyDamageWhileDown(actor, finalAmount,
+      { critical, hpMax: actor.hpMax });
+    return wrapDamageResult({
+      actor: dwd.actor,
+      amount, finalAmount, tempHpAbsorbed: 0,
+      hpBefore: 0, hpAfter: 0,
+      outcome: dwd.outcome === 'dead' ? 'dead' : 'downed',
+      source
+    });
+  }
+
+  // Temp HP absorbs first; the surplus carries through to HP.
+  const tempBefore = actor.tempHp ?? 0;
+  const tempAbsorbed = Math.min(tempBefore, finalAmount);
+  const remainingDamage = finalAmount - tempAbsorbed;
+  const tempAfter = tempBefore - tempAbsorbed;
+  let next = { ...actor, tempHp: tempAfter };
+
+  if (remainingDamage === 0) {
+    return wrapDamageResult({
+      actor: next, amount, finalAmount, tempHpAbsorbed: tempAbsorbed,
+      hpBefore, hpAfter: hpBefore,
+      outcome: 'absorbed', source
+    });
+  }
+
+  // Massive damage instant death per SRD § Damage at 0 Hit Points:
+  // damage that drops you to 0 with `damageTaken - hpBefore >= hpMax`
+  // is instant death.
+  const hpMax = actor.hpMax;
+  const overkill = remainingDamage - hpBefore;
+  if (hpBefore > 0 && remainingDamage >= hpBefore && hpMax !== undefined && overkill >= hpMax) {
+    return wrapDamageResult({
+      actor: {
+        ...next, hp: 0,
+        deathSaves: { successes: 0, failures: 3, stable: false, dead: true }
+      },
+      amount, finalAmount, tempHpAbsorbed: tempAbsorbed,
+      hpBefore, hpAfter: 0,
+      outcome: 'dead', source
+    });
+  }
+
+  const hpAfter = Math.max(0, hpBefore - remainingDamage);
+  if (hpAfter === 0 && hpBefore > 0) {
+    next = dropToZero({ ...next, hp: 0 });
+    return wrapDamageResult({
+      actor: next, amount, finalAmount, tempHpAbsorbed: tempAbsorbed,
+      hpBefore, hpAfter: 0,
+      outcome: 'downed', source
+    });
+  }
+  next = { ...next, hp: hpAfter };
+  return wrapDamageResult({
+    actor: next, amount, finalAmount, tempHpAbsorbed: tempAbsorbed,
+    hpBefore, hpAfter,
+    outcome: 'damaged', source
+  });
+}
+
+// Internal: build the standard damage result envelope, omitting
+// `source` when the caller didn't pass one (keeps shapes JSON-stable
+// for fixture comparisons).
+function wrapDamageResult({ actor, amount, finalAmount, tempHpAbsorbed, hpBefore, hpAfter, outcome, source }) {
+  const out = { amount, finalAmount, tempHpAbsorbed, hpBefore, hpAfter, outcome, actor };
+  if (source !== undefined) out.source = source;
+  return out;
+}
+
+/**
+ * Generic healing per SRD § Damage and Healing — Healing. Caps at
+ * `hpMax`, removes Unconscious + clears the death-save tracker when
+ * HP rises above 0. Does NOT restore Temporary HP — the SRD is
+ * explicit: "healing can't restore them".
+ *
+ * Returns `{ healed, hpBefore, hpAfter, actor }`. `healed` is the
+ * applied delta (can be 0 if at full or hpMax is missing).
+ */
+export function heal(actor, amount) {
+  if (!Number.isInteger(amount) || amount < 0) {
+    throw new Error('heal: amount must be a non-negative integer');
+  }
+  const hpBefore = actor.hp ?? 0;
+  if (amount === 0) {
+    return { healed: 0, hpBefore, hpAfter: hpBefore, actor };
+  }
+  const hpMax = actor.hpMax ?? Infinity;
+  const hpAfter = Math.min(hpMax, hpBefore + amount);
+  const healed = hpAfter - hpBefore;
+  let next = { ...actor, hp: hpAfter };
+  if (hpBefore <= 0 && hpAfter > 0) {
+    if ((actor.conditions ?? []).includes('unconscious')) {
+      next = removeCondition(next, 'unconscious');
+    }
+    if (next.deathSaves) next = { ...next, deathSaves: freshDeathSaves() };
+  }
+  return { healed, hpBefore, hpAfter, actor: next };
 }

@@ -465,7 +465,44 @@ export function createEngine(opts = {}) {
       return result;
     },
     stabilize: CombatBase.stabilize,
-    reviveTo: CombatBase.reviveTo
+    reviveTo: CombatBase.reviveTo,
+
+    // === Damage pipeline (since 1.4.0) ===
+    //
+    // Pure modifiers and tempHp helpers pass through unchanged.
+    // `applyDamage` and `heal` are bound so the outcomes that
+    // *create* an Unconscious actor (or kill one outright) fire the
+    // appropriate hooks — same contract as the existing death-save
+    // bindings. Specifically:
+    //   - 'downed' outcomes route through `dropToZero` internally,
+    //     which calls `ConditionsBound.apply('unconscious')`; the
+    //     `onConditionApplied` hook fires through that path.
+    //   - 'dead' outcomes (instant-death or damage-while-down)
+    //     synthesise an onDeath fire via the existing `applyDamage
+    //     WhileDown` binding's cause-tracking; for the massive-
+    //     damage instant-death path we fire it here explicitly.
+    applyDamageModifiers: CombatBase.applyDamageModifiers,
+    grantTempHp: CombatBase.grantTempHp,
+    applyDamage: (actor, args) => {
+      // Route through the base function but use the bound dropToZero
+      // / damage-while-down wrappers when the inner pipeline would
+      // call them. Easiest approach: call the base, then fire the
+      // hooks here based on the outcome. The state itself is identical
+      // to the bound path.
+      const wasDead = actor.deathSaves?.dead ?? false;
+      const wasUnconscious = (actor.conditions ?? []).includes('unconscious');
+      const result = CombatBase.applyDamage(actor, args);
+      if (result.outcome === 'dead' && !wasDead) {
+        hooks.fire('onDeath', { actor: result.actor, cause: 'damage', previous: actor });
+      }
+      if (result.outcome === 'downed' && !wasUnconscious) {
+        hooks.fire('onConditionApplied', {
+          actor: result.actor, condition: 'unconscious', previous: actor
+        });
+      }
+      return result;
+    },
+    heal: CombatBase.heal
   };
 
   // Engine view passed to character derivation. Built once here so

@@ -314,6 +314,9 @@ export interface DamageRollArgs {
   damageDice: string;
   damageMod?: number;
   critical?: boolean;
+  /** Optional damage type tag (since 1.4.0). Surfaces on the result
+   *  for consumption by `Combat.applyDamage`'s modifier pipeline. */
+  damageType?: string;
 }
 
 export interface DamageRollResult {
@@ -322,6 +325,7 @@ export interface DamageRollResult {
   critRolls: number[];
   damageMod: number;
   total: number;
+  damageType?: string;
 }
 
 export interface InitiativeArgs {
@@ -470,6 +474,44 @@ export interface CombatNamespace {
   /** Revive the actor to a positive HP. Clears the tracker and
    *  removes Unconscious. Throws if `hp < 1`. */
   reviveTo(actor: Actor, hp: number): Actor;
+
+  // === Damage pipeline (since 1.4.0) ===
+  /** Apply SRD damage modifiers (Immunity → Resistance →
+   *  Vulnerability) to a raw amount. Pure; returns the post-modifier
+   *  integer. */
+  applyDamageModifiers(actor: Actor, args: { amount: number; type?: string }): number;
+  /** Grant Temporary HP per SRD § Temporary HP — non-stacking; the
+   *  new amount only takes effect when strictly larger than the
+   *  current value. */
+  grantTempHp(actor: Actor, amount: number): Actor;
+  /** Canonical damage application: combines modifier pipeline, temp-
+   *  HP absorption, HP subtraction, drop-to-zero, massive-damage
+   *  instant death, and damage-while-down dispatch. Fires the
+   *  appropriate hooks (onConditionApplied for downed,
+   *  onDeath for instant death / cumulative-failure dead). */
+  applyDamage(actor: Actor, args: {
+    amount?: number;
+    type?: string;
+    critical?: boolean;
+    source?: unknown;
+  }): DamageResult;
+  /** Generic healing per SRD § Healing. Caps at hpMax; removes
+   *  Unconscious + clears the death-save tracker if HP rises above
+   *  0. Does NOT restore Temporary HP. */
+  heal(actor: Actor, amount: number): { healed: number; hpBefore: number; hpAfter: number; actor: Actor };
+}
+
+export type DamageOutcome = 'damaged' | 'downed' | 'dead' | 'absorbed' | 'immune';
+
+export interface DamageResult {
+  amount: number;
+  finalAmount: number;
+  tempHpAbsorbed: number;
+  hpBefore: number;
+  hpAfter: number;
+  outcome: DamageOutcome;
+  actor: Actor;
+  source?: unknown;
 }
 
 /** Tracker stored on the actor while at 0 HP. */
@@ -500,6 +542,14 @@ export interface Actor {
   /** Class-feature resource counters (since 1.3.0). Keyed by
    *  resource id (`secondWind`, `rage`, …). */
   resources?: Record<string, Resource>;
+  /** Damage type tags consumed by `Combat.applyDamageModifiers`
+   *  (since 1.4.0). */
+  damageImmunities?: string[];
+  damageResistances?: string[];
+  damageVulnerabilities?: string[];
+  /** Temporary HP (since 1.4.0). Non-stacking; replaced when a new
+   *  higher amount is granted. Absorbs damage before `hp`. */
+  tempHp?: number;
   [extra: string]: unknown;
 }
 

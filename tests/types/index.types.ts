@@ -53,6 +53,8 @@ import defaultEngine, {
   type DeathSaveOutcome,
   type Resource,
   type RefreshKind,
+  type DamageOutcome,
+  type DamageResult,
   Mechanics
 } from '../../index.js';
 
@@ -295,6 +297,35 @@ void _spendResult;
 
 const _refreshed: Actor = Mechanics.refreshResources(_classedActor, 'long');
 void _refreshed;
+
+// === Damage pipeline (since 1.4.0) ===
+
+const _resistedDamage: number = defaultEngine.Combat.applyDamageModifiers(
+  { damageResistances: ['fire'] },
+  { amount: 8, type: 'fire' }
+);
+void _resistedDamage;
+
+const _withTempHp: Actor = defaultEngine.Combat.grantTempHp({ id: 'pc' }, 5);
+void _withTempHp;
+
+const _appliedDamage: DamageResult = defaultEngine.Combat.applyDamage(
+  { id: 'pc', hp: 20, hpMax: 30, damageResistances: ['fire'] },
+  { amount: 10, type: 'fire', source: 'dragon-breath' }
+);
+const _damageOutcome: DamageOutcome = _appliedDamage.outcome;
+void _damageOutcome;
+
+const _healed = defaultEngine.Combat.heal({ id: 'pc', hp: 5, hpMax: 20 }, 8);
+const _healedDelta: number = _healed.healed;
+void _healedDelta;
+
+// Damage roll now optionally carries a damageType through.
+const _typedDamage = Combat.damageRoll({
+  damageDice: '1d6', damageMod: 2, damageType: 'cold'
+});
+const _maybeType: string | undefined = _typedDamage.damageType;
+void _maybeType;
 
 // === Character sheet derivation ===
 
