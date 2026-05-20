@@ -1059,24 +1059,28 @@ dice inside.
 
 Closes [§ 23 Audit / replay surface](srd-coverage.md#23-audit--replay-surface).
 
-### `1.24.0`: Documentation & host-contract sweep
+### `1.24.0`: Documentation & host-contract sweep ✅ shipped in v1.26.0
 
 Bring the docs back in sync with the engine surface after a year
 of releases.
 
-- **`character-sheet.md`** schema additions for everything added
-  since 1.0 (hp / hpMax / hitDie / hitDiceTotal / hitDiceUsed /
-  deathSaves / resources / concentration / spellSlots / per-class
-  flags).
-- **`recipes.md`** worked examples for each major release: Death
-  Saves flow, Rest flow, Mechanics dispatch, plugin-contribute a
-  class, action menu, magic-item attunement.
-- **`spec.md`** plugin contract: new rule knobs, resource-spec
-  shape, mechanic handler signature, Phase D hooks.
-- **Kernel-boundary checklist** doc: what the engine claims to
-  enforce vs. what's host-owned, at a glance.
-- **TypeDoc-style reference site**, generated from `index.d.ts`
-  doc comments (deferred from 1.0.0).
+- **`spec.md`** plugin contract extended with the Phase A.2
+  contributions (extraMechanics / extraResources / extraSenses /
+  extraLightLevels) and the Phase D hook events (onTurnStart,
+  onTurnEnd, onLongRest, onShortRest, onCast, onDamageApplied,
+  onHpChanged) plus the `opts.logHooks` toggle.
+- **`docs/`** sweep aligned with shipped state through v1.25.0
+  (character-sheet schema, recipes refresh, boundary doc).
+
+Deferred from this milestone (rolled forward into later patches):
+- A TypeDoc-style reference site generated from `index.d.ts`; the
+  hand-maintained `.d.ts` already serves as the canonical reference,
+  and a separate site needs hosting infrastructure outside the
+  zero-dep boundary.
+- A standalone "kernel-boundary checklist" page; `boundary.md`
+  already covers the contract, and dedicated checklist content can
+  live alongside the worked recipes when a real consumer surfaces
+  the need.
 
 Closes [§ 25 Documentation & host
 contracts](srd-coverage.md#25-documentation--host-contracts).
