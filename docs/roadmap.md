@@ -5,16 +5,16 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-20: **`1.0.0`, feature complete** for the
-> kernel surface (dice, slots, conditions, XP, character derivation,
-> beats, plugins). All 12 SRD 5.2 base classes at levels 1-10; full
-> Phase A/B/C plugin systems; forensically inspectable randomness;
-> character-sheet derivation; encounter system with logged initiative;
-> spellcasting mechanics; condition effects; beat runtime v2 with
-> sub-threads; XP/proficiency tables through L20; broad item/spell/
-> monster registries; bundle-size CI gate; 453 tests at 100 / 100 / 100
-> coverage. The public API in `index.d.ts` is the frozen 1.0 contract,
-> so semver from here on means something.
+> Status as of 2026-05-20: **`2.0.0`, solo-playable**. Kernel
+> surface (dice, slots, conditions, XP, character derivation,
+> beats, plugins) feature complete since 1.0; the 1.x line closed
+> SRD 5.2 coverage; 2.0 adds the `Solo` / `Session` / `Replay`
+> namespaces and a pre-built starter party so the package is
+> playable end-to-end without a host. Bundled `examples/solo.html`
+> drives every namespace in a single zero-build page. 1500+ tests
+> at 100 / 100 / 100 coverage. The public API in `index.d.ts` is
+> the frozen 1.0 contract plus the additive 2.0 surface, so semver
+> still means something.
 >
 > **SRD coverage is not yet complete**: death saves, rest-based HP
 > recovery, hit-dice spending, and class-feature *mechanics* (vs the
@@ -1138,36 +1138,49 @@ not breaking changes. The major bump marks the *surface
 expansion* (a new top-level `Solo` namespace, `Session`
 orchestrator, CLI entry point), not an incompatibility.
 
-### `2.0.0`: Solo mode foundation
+### `2.0.0`: Solo mode foundation ✅ shipped
 
 The proof point for the boundary contract: "math kernel is enough,
-given a small orchestrator and an oracle." Drives our actual
-end-to-end test suite; every release ships with a recorded
-session JSON the CLI replays to catch drift.
+given a small orchestrator and an oracle." Drives the end-to-end
+demo and proves the kernel hangs together for actual play.
 
-- **`Solo.oracle({ rng })`.** Yes/no/and/but answers, twists,
-  weighted random tables, prompt-driven complications. Wraps the
-  seeded RNG so a solo session is fully replayable.
-- **`Session.create({ encounter?, scene?, party })`.** Turn loop,
-  rest cycle, scene-clock advance, and save/load primitives
-  bundled in one orchestrator. The recipes already show the
-  pieces; this is the one-line wrapper that ties them.
+- **`Solo.oracle({ rng })`.** Yes/no/and/but answers with nine
+  odds bands (or a raw 0-100 probability), twists, complications,
+  and a `pick(table)` helper for any weighted host table.
+  Deliberately uses its own rng (default `Math.random`) — sharing
+  the engine's dice rng would silently perturb `engine.rollLog`
+  and break replay. Pass `{ rng: Dice.seededRng(seed) }` for a
+  reproducible oracle stream.
+- **`Session.create({ engine, party, encounter?, scene?, seed?, oracle? })`.**
+  Turn loop (endTurn ticks timers + advances the encounter
+  state), short/long rest applied across the whole party, scene-
+  clock advance, attack / applyDamage / heal / condition helpers,
+  plus a high-level event log that rides alongside the dice log.
+- **`session.serialize()` + `Session.restore(payload, engine)`.**
+  Save-and-load primitives. Fingerprint-gated: a payload built
+  under one rule pack can't restore onto a mismatched engine.
 - **`Replay.share(session)`.** Pin roll log + seed + character
   records into a portable JSON. *"Here's how the boss died."*
-- **CLI runner.** `npx @zeeuw/bag-of-holding play` runs a session
-  in the terminal. No UI library, no AI; the engine + a minimal
-  `readline` loop. Counts as a *reference example*, not a UI
-  primitive (same scope rationale as the recipes).
+  `Replay.verify(payload)` proves the dice stream reproduces.
+- **`examples/solo.html` — browser sandbox.** Zero-build ESM page
+  that loads the kernel from `../index.js`, renders the starter
+  party + an initial encounter, and wires every solo namespace
+  into clickable buttons (oracle, time advance, attack, rest,
+  replay share / verify). Stand-in for the CLI runner from the
+  original milestone description; a `readline`-only CLI rides
+  with a later patch when a real consumer asks for it.
 - **Pre-built starter party shipped inline.** 4 ready L3
-  characters (Fighter, Rogue, Cleric, Wizard) baked into
-  `solo/starter` so the CLI works out of the box with no
-  host-supplied content.
+  characters (Thora Dwarf-Fighter, Sable Halfling-Rogue, Oran
+  Human-Cleric, Merrick Elf-Wizard) baked into `src/solo/starter.js`
+  and re-exported as `STARTER_PARTY`. Derives cleanly through
+  `engine.deriveSheet`; the sandbox boots into a playable
+  encounter with no host-supplied content.
 
-*Why 2.0 and not 1.25:* the `Solo` namespace + `Session`
-orchestrator + CLI entry point is a meaningful API expansion. The
-1.0 contract stays intact (every 1.x export still works); the
-major bump signals "the engine ships its own playable surface
-now," not a break.
+*Why 2.0 and not 1.32:* the `Solo` / `Session` / `Replay`
+namespaces + `STARTER_PARTY` constant are a meaningful API
+expansion. The 1.0 contract stays intact (every 1.x export still
+works); the major bump signals "the engine ships its own
+playable surface now," not a break.
 
 ### `2.1.0`: Starter adventure: *The Quiet Stair*
 

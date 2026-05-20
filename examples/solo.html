@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>bag-of-holding — solo mode sandbox</title>
+  <style>
+    :root {
+      --bg: #14171a;
+      --fg: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #f1c40f;
+      --good: #27ae60;
+      --bad: #e74c3c;
+      --panel: #1d2125;
+      --border: #2a2f34;
+      --hover: #252a2f;
+      --code: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+    }
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--bg); color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    body { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
+    header {
+      grid-column: 1 / -1;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+    }
+    header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    header .meta { color: var(--muted); font-family: var(--code); font-size: 12px; }
+    .left, .right { padding: 16px 20px; overflow-y: auto; max-height: calc(100vh - 60px); }
+    .left { border-right: 1px solid var(--border); }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
+    .panel h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+    button {
+      background: var(--hover); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 5px 12px; font-size: 13px; cursor: pointer;
+      font-family: inherit;
+    }
+    button:hover { background: #2f3539; }
+    button:active { transform: translateY(1px); }
+    button.primary { background: var(--accent); color: #14171a; border-color: var(--accent); }
+    button.primary:hover { filter: brightness(1.1); }
+    select, input[type=text], input[type=number] {
+      background: #14171a; color: var(--fg);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 5px 8px; font-size: 13px; font-family: inherit;
+    }
+    select { min-width: 110px; }
+    input[type=text] { min-width: 200px; }
+    label { color: var(--muted); font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    tr.actor.down td { opacity: 0.55; }
+    tr.actor.current td { background: rgba(241, 196, 15, 0.08); }
+    .badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-right: 4px; background: var(--hover); }
+    .badge.cond { background: #2c3e50; color: var(--fg); }
+    .hp-good { color: var(--good); }
+    .hp-low { color: var(--accent); }
+    .hp-bad { color: var(--bad); }
+    .log { font-family: var(--code); font-size: 12px; line-height: 1.5; }
+    .log .entry { padding: 3px 6px; border-bottom: 1px dotted var(--border); }
+    .log .entry .kind { color: var(--muted); margin-right: 8px; }
+    .log .entry.hit .kind { color: var(--good); }
+    .log .entry.miss .kind { color: var(--muted); }
+    .log .entry.crit .kind { color: var(--accent); font-weight: bold; }
+    .log .entry.fumble .kind { color: var(--bad); }
+    .log .entry.death .kind { color: var(--bad); font-weight: bold; }
+    .oracle-out { font-family: var(--code); font-size: 13px; padding: 4px 0; }
+    .out-yes, .out-yes-but, .out-exceptional-yes { color: var(--good); }
+    .out-no, .out-no-but, .out-exceptional-no { color: var(--bad); }
+    .out-exceptional-yes, .out-exceptional-no { font-weight: bold; }
+    pre.share {
+      background: #0e1012; padding: 10px; border-radius: 4px;
+      font-family: var(--code); font-size: 11px; overflow-x: auto;
+      max-height: 200px; border: 1px solid var(--border); color: var(--muted);
+    }
+    .scene-time { font-family: var(--code); color: var(--accent); }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>bag-of-holding — solo mode sandbox</h1>
+    <div class="meta">
+      seed: <span id="meta-seed">—</span> &nbsp;|&nbsp;
+      rules: <span id="meta-fingerprint">—</span> &nbsp;|&nbsp;
+      round: <span id="meta-round">—</span> &nbsp;|&nbsp;
+      time: <span id="meta-time" class="scene-time">—</span>
+    </div>
+  </header>
+
+  <section class="left">
+    <div class="panel">
+      <h2>Session</h2>
+      <div class="row">
+        <label>seed</label>
+        <input type="number" id="seed-input" value="2026" />
+        <button id="new-session">Start new session</button>
+        <button id="export-share">Export share</button>
+        <button id="verify-share">Verify share</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Party</h2>
+      <table>
+        <thead><tr><th>Name</th><th>HP</th><th>AC</th><th>Conditions</th><th></th></tr></thead>
+        <tbody id="party-body"></tbody>
+      </table>
+      <div class="row">
+        <button id="short-rest">Short rest</button>
+        <button id="long-rest">Long rest</button>
+        <button id="heal-target">Heal +5</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Foes</h2>
+      <table>
+        <thead><tr><th>Name</th><th>HP</th><th>AC</th><th>Conditions</th></tr></thead>
+        <tbody id="foes-body"></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Combat</h2>
+      <div class="row">
+        <label>attacker</label>
+        <select id="attacker"></select>
+        <label>target</label>
+        <select id="target"></select>
+        <button class="primary" id="do-attack">Attack</button>
+        <button id="end-turn">End turn</button>
+      </div>
+      <div class="row">
+        <label>spawn foe</label>
+        <select id="spawn-monster"></select>
+        <button id="do-spawn">Add to encounter</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="right">
+    <div class="panel">
+      <h2>Oracle</h2>
+      <div class="row">
+        <input type="text" id="oracle-q" placeholder="Does the rope hold?" />
+        <select id="oracle-odds">
+          <option>certain</option>
+          <option>near-certain</option>
+          <option>very-likely</option>
+          <option>likely</option>
+          <option selected>fifty-fifty</option>
+          <option>unlikely</option>
+          <option>very-unlikely</option>
+          <option>near-impossible</option>
+          <option>impossible</option>
+        </select>
+        <button id="oracle-ask">Ask</button>
+        <button id="oracle-twist">Draw a twist</button>
+        <button id="oracle-comp">Complication</button>
+      </div>
+      <div id="oracle-history"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Time</h2>
+      <div class="row">
+        <button data-mins="10">+10 min</button>
+        <button data-mins="60">+1 hr</button>
+        <button data-mins="240">+4 hr</button>
+        <button data-mins="480">+8 hr</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Session log</h2>
+      <div class="log" id="log-list"></div>
+    </div>
+
+    <div class="panel" id="share-panel" style="display:none">
+      <h2>Share payload</h2>
+      <pre class="share" id="share-out"></pre>
+    </div>
+  </section>
+
+  <script type="module">
+    // The example loads the kernel as ESM from the package root.
+    // To run: from the repo root, start any static server (e.g.
+    // `npx http-server` or `python3 -m http.server`) and open
+    // `examples/solo.html` in the browser. ESM imports from file://
+    // are blocked by some browsers, so serving over HTTP is safer.
+    import { createEngine, Dice, STARTER_PARTY } from '../index.js';
+
+    const state = {
+      engine: null,
+      session: null,
+      oracle: null,
+      seed: 2026,
+      foeIds: new Set()
+    };
+
+    const $ = (sel) => document.querySelector(sel);
+
+    function classifyHp(actor) {
+      const ratio = actor.hp / (actor.hpMax || 1);
+      if (actor.hp <= 0) return 'hp-bad';
+      if (ratio < 0.33) return 'hp-low';
+      return 'hp-good';
+    }
+
+    function renderActorRow(actor, current) {
+      const tr = document.createElement('tr');
+      tr.className = 'actor';
+      if (actor.hp <= 0) tr.classList.add('down');
+      if (current && current.id === actor.id) tr.classList.add('current');
+      const conds = (actor.conditions || []).map(c => `<span class="badge cond">${c}</span>`).join('');
+      tr.innerHTML = `
+        <td>${actor.name || actor.id}</td>
+        <td class="${classifyHp(actor)}">${actor.hp}/${actor.hpMax ?? actor.hp}</td>
+        <td>${actor.ac ?? '—'}</td>
+        <td>${conds || '—'}</td>
+      `;
+      return tr;
+    }
+
+    function render() {
+      if (!state.session) return;
+      const session = state.session;
+
+      $('#meta-seed').textContent = session.seed ?? '—';
+      $('#meta-fingerprint').textContent = state.engine.rulesFingerprint;
+      $('#meta-round').textContent = session.encounter?.round ?? '—';
+      $('#meta-time').textContent = state.engine.SceneClock.formatTimeOfDay(session.scene.minutes);
+
+      const partyBody = $('#party-body');
+      partyBody.innerHTML = '';
+      const current = session.currentActor();
+      for (const record of STARTER_PARTY) {
+        const actor = session.actor(record.id);
+        partyBody.appendChild(renderActorRow({ ...actor, name: record.name }, current));
+      }
+
+      const foesBody = $('#foes-body');
+      foesBody.innerHTML = '';
+      for (const id of state.foeIds) {
+        try {
+          const actor = session.actor(id);
+          foesBody.appendChild(renderActorRow(actor, current));
+        } catch (_) { /* removed */ }
+      }
+      if (state.foeIds.size === 0) {
+        foesBody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">(no foes — spawn a monster to start)</td></tr>';
+      }
+
+      const attackerSel = $('#attacker');
+      const targetSel = $('#target');
+      const partyIds = STARTER_PARTY.map(r => ({ id: r.id, name: r.name }));
+      const foeOpts = [...state.foeIds].map(id => ({ id, name: session.actor(id).name || id }));
+      const allIds = [...partyIds, ...foeOpts];
+      attackerSel.innerHTML = allIds.map(({ id, name }) => `<option value="${id}">${name}</option>`).join('');
+      targetSel.innerHTML = allIds.map(({ id, name }) => `<option value="${id}">${name}</option>`).join('');
+      if (current && allIds.find(a => a.id === current.id)) attackerSel.value = current.id;
+
+      // Log
+      const logList = $('#log-list');
+      logList.innerHTML = '';
+      const tail = session.log.slice(-50);
+      for (const entry of tail) logList.appendChild(renderLogEntry(entry));
+      logList.scrollTop = logList.scrollHeight;
+    }
+
+    function renderLogEntry(entry) {
+      const div = document.createElement('div');
+      div.className = 'entry';
+      let summary = '';
+      switch (entry.kind) {
+        case 'attack':
+          if (entry.critical) div.classList.add('crit');
+          else if (entry.fumble) div.classList.add('fumble');
+          else if (entry.hit) div.classList.add('hit');
+          else div.classList.add('miss');
+          summary = `${entry.attackerId} → ${entry.targetId}: d20=${entry.d20} total=${entry.total} ${entry.critical ? 'CRIT' : entry.hit ? 'HIT' : 'miss'}${entry.damage ? ` (${entry.damage} dmg)` : ''}`;
+          break;
+        case 'applyDamage':
+          summary = `${entry.targetId} took ${entry.amount} ${entry.type ?? ''} → hp ${entry.hpAfter}${entry.outcome === 'downed' ? ' (DOWN)' : entry.outcome === 'dead' ? ' (DEAD)' : ''}`;
+          if (entry.outcome === 'dead') div.classList.add('death');
+          break;
+        case 'heal':
+          summary = `${entry.targetId} healed ${entry.healed} → hp ${entry.hpAfter}`;
+          div.classList.add('hit');
+          break;
+        case 'applyCondition':
+          summary = `${entry.targetId} gained ${entry.condition}`;
+          break;
+        case 'removeCondition':
+          summary = `${entry.targetId} cleared ${entry.condition}`;
+          break;
+        case 'endTurn':
+          summary = `end of turn (round ${entry.round})`;
+          break;
+        case 'startEncounter':
+          summary = `encounter starts (${entry.participants.join(', ')})`;
+          break;
+        case 'shortRest':
+          summary = `short rest`;
+          break;
+        case 'longRest':
+          summary = `long rest (8h elapsed)`;
+          break;
+        case 'sceneEvents':
+          summary = `scene events: ${entry.events.join(', ')}`;
+          break;
+        case 'oracle':
+          summary = `oracle "${entry.question}" (${entry.odds}) → ${entry.outcome} [d100=${entry.d100}]`;
+          if (entry.outcome.startsWith('yes')) div.classList.add('hit');
+          else div.classList.add('miss');
+          break;
+        case 'twist':
+          summary = `twist: ${entry.text}`;
+          break;
+        case 'complication':
+          summary = `complication: ${entry.text}`;
+          break;
+        case 'timersExpired':
+          summary = `${entry.actorId}: timers expired — ${entry.expired.map(t => t.id).join(', ')}`;
+          break;
+        default:
+          summary = JSON.stringify(entry);
+      }
+      div.innerHTML = `<span class="kind">${entry.kind}</span>${summary}`;
+      return div;
+    }
+
+    function newSession() {
+      state.seed = Number($('#seed-input').value) || Date.now();
+      const engine = createEngine({ rng: Dice.seededRng(state.seed) });
+      const oracle = engine.Solo.oracle();
+      const session = engine.Session.create({
+        seed: state.seed,
+        party: STARTER_PARTY,
+        oracle
+      });
+      state.engine = engine;
+      state.oracle = oracle;
+      state.session = session;
+      state.foeIds = new Set();
+      // Spawn an initial encounter so the demo is interactive on
+      // first load: the four party members vs. a goblin and an orc.
+      const initialFoes = [
+        { id: 'goblin-1', name: 'Goblin', dexterity: 14, speed: 30, hp: 7, hpMax: 7, ac: 13 },
+        { id: 'orc-1',    name: 'Orc',    dexterity: 12, speed: 30, hp: 15, hpMax: 15, ac: 13 }
+      ];
+      const participants = [
+        ...STARTER_PARTY.map(r => {
+          const sheet = engine.deriveSheet(r);
+          return { id: r.id, name: r.name, dexterity: sheet.abilityScores.final.dex, speed: sheet.speed.walk, hp: sheet.hp.max, hpMax: sheet.hp.max, ac: sheet.ac.value };
+        }),
+        ...initialFoes
+      ];
+      for (const f of initialFoes) state.foeIds.add(f.id);
+      session.startEncounter(participants);
+      session.record('welcome', { message: 'Solo session started. Try asking the oracle a question.' });
+      $('#share-panel').style.display = 'none';
+      render();
+      populateMonsterPicker();
+    }
+
+    function populateMonsterPicker() {
+      const sel = $('#spawn-monster');
+      const ids = Object.keys(state.engine.monsters)
+        .filter(id => (state.engine.monsters[id].cr ?? 1) <= 4)
+        .sort();
+      sel.innerHTML = ids.map(id => `<option value="${id}">${state.engine.monsters[id].name} (CR ${state.engine.monsters[id].cr})</option>`).join('');
+    }
+
+    function bindEvents() {
+      $('#new-session').addEventListener('click', newSession);
+
+      $('#oracle-ask').addEventListener('click', () => {
+        if (!state.session) return;
+        const q = $('#oracle-q').value || '(unspecified question)';
+        const odds = $('#oracle-odds').value;
+        const result = state.oracle.ask(q, odds);
+        state.session.record('oracle', result);
+        renderOracle(result);
+        render();
+      });
+      $('#oracle-twist').addEventListener('click', () => {
+        if (!state.session) return;
+        const t = state.oracle.twist();
+        state.session.record('twist', t);
+        render();
+      });
+      $('#oracle-comp').addEventListener('click', () => {
+        if (!state.session) return;
+        const c = state.oracle.complication();
+        state.session.record('complication', c);
+        render();
+      });
+
+      document.querySelectorAll('[data-mins]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (!state.session) return;
+          const mins = Number(btn.dataset.mins);
+          state.session.advanceTime({ minutes: mins });
+          render();
+        });
+      });
+
+      $('#do-attack').addEventListener('click', () => {
+        if (!state.session) return;
+        const attackerId = $('#attacker').value;
+        const targetId = $('#target').value;
+        // Best-effort attack args: read the actor's primary weapon
+        // from the derived sheet if it's a party member, otherwise
+        // fall back to a generic d6+2 attack at +4.
+        const attacker = state.session.actor(attackerId);
+        const target = state.session.actor(targetId);
+        const record = STARTER_PARTY.find(r => r.id === attackerId);
+        let attackBonus = 4, damageDice = '1d6', damageMod = 2;
+        if (record) {
+          const sheet = state.engine.deriveSheet(record);
+          const first = sheet.attacks[0];
+          if (first) { attackBonus = first.attackBonus; damageDice = first.damageDice; damageMod = first.damageMod; }
+        } else if (attacker.attacks?.[0]) {
+          const a = attacker.attacks[0];
+          attackBonus = a.attackBonus; damageDice = a.damage; damageMod = 0;
+        }
+        state.session.attack({ attackerId, targetId, attackBonus, damageDice, damageMod, ac: target.ac });
+        render();
+      });
+
+      $('#end-turn').addEventListener('click', () => {
+        if (!state.session) return;
+        try { state.session.endTurn(); } catch (e) { console.error(e); }
+        render();
+      });
+
+      $('#short-rest').addEventListener('click', () => {
+        if (!state.session) return;
+        state.session.shortRest();
+        render();
+      });
+      $('#long-rest').addEventListener('click', () => {
+        if (!state.session) return;
+        state.session.longRest();
+        render();
+      });
+      $('#heal-target').addEventListener('click', () => {
+        if (!state.session) return;
+        const targetId = $('#target').value;
+        state.session.heal(targetId, 5);
+        render();
+      });
+
+      $('#do-spawn').addEventListener('click', () => {
+        if (!state.session) return;
+        const baseId = $('#spawn-monster').value;
+        const monster = state.engine.monsters[baseId];
+        if (!monster) return;
+        // Unique id per spawn so multiples of the same monster are tracked.
+        let n = 1;
+        let spawnId = `${baseId}-${n}`;
+        while (state.foeIds.has(spawnId)) { n++; spawnId = `${baseId}-${n}`; }
+        const participant = {
+          id: spawnId, name: `${monster.name} ${n}`,
+          dexterity: monster.abilityScores.dex,
+          speed: monster.speed,
+          hp: monster.hp, hpMax: monster.hp, ac: monster.ac,
+          attacks: monster.attacks
+        };
+        state.foeIds.add(spawnId);
+        // Splice into the existing encounter: drop the encounter and
+        // restart with the new roster, preserving party HP.
+        const encounter = state.session.encounter;
+        const liveParticipants = encounter.order
+          .filter(p => {
+            try { return state.session.actor(p.id).hp > 0; } catch (_) { return false; }
+          })
+          .map(p => ({ ...p, hp: state.session.actor(p.id).hp, hpMax: state.session.actor(p.id).hpMax, ac: state.session.actor(p.id).ac }));
+        state.session.startEncounter([...liveParticipants, participant]);
+        render();
+      });
+
+      $('#export-share').addEventListener('click', () => {
+        if (!state.session) return;
+        const payload = state.engine.Replay.share(state.session, { includeLog: true });
+        $('#share-out').textContent = JSON.stringify(payload, null, 2);
+        $('#share-panel').style.display = 'block';
+      });
+      $('#verify-share').addEventListener('click', () => {
+        if (!state.session) return;
+        const payload = state.engine.Replay.share(state.session);
+        const result = state.engine.Replay.verify(payload);
+        const msg = result.ok ? `Replay verified clean: ${payload.rollLog.length} rolls.` : `Diverged at index ${result.divergedAt}`;
+        state.session.record('verify', { result: msg });
+        render();
+      });
+    }
+
+    function renderOracle(result) {
+      const div = document.createElement('div');
+      div.className = `oracle-out out-${result.outcome}`;
+      div.textContent = `"${result.question}" (${result.odds}) → ${result.outcome.replaceAll('-', ' ')} [d100=${result.d100}, threshold=${result.threshold}]`;
+      const h = $('#oracle-history');
+      h.insertBefore(div, h.firstChild);
+      while (h.children.length > 8) h.removeChild(h.lastChild);
+    }
+
+    bindEvents();
+    newSession();
+  </script>
+</body>
+</html>

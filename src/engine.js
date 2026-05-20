@@ -50,6 +50,9 @@ import * as HazardsBase from './hazards.js';
 import * as EquipmentBase from './equipment.js';
 import * as TravelBase from './travel.js';
 import * as MountedCombatBase from './mounted-combat.js';
+import { oracle as soloOracle, ODDS_BANDS, OUTCOMES } from './solo/oracle.js';
+import { create as createSession, restore as restoreSession } from './solo/session.js';
+import { share as shareReplay, verify as verifyReplay } from './solo/replay-share.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -834,7 +837,7 @@ export function createEngine(opts = {}) {
     }
   };
 
-  return {
+  const engineInstance = {
     // Data registries — plain objects, mutate at your own risk.
     species, classes, backgrounds, feats, spells, items, monsters,
     // Plugin-extensible vocabularies (since 1.24.0). Each is a
@@ -1047,8 +1050,31 @@ export function createEngine(opts = {}) {
     // Phase C: read-only hook registry. Hosts can inspect counts
     // and fire ad-hoc events (e.g. `onDeath` from non-exhaustion
     // causes the host detects, like dropping below 0 hp).
-    hooks
+    hooks,
+    // Solo-play oracle (since 2.0.0). Engine-bound surface; pass
+    // `{ rng: Dice.seededRng(seed) }` for replay-deterministic oracle
+    // answers. The oracle deliberately does NOT share the engine's
+    // dice rng — oracle pulls would silently perturb the dice
+    // stream and break replay of the rolls in `engine.rollLog`.
+    Solo: Object.freeze({
+      oracle: (opts = {}) => soloOracle(opts),
+      ODDS_BANDS,
+      OUTCOMES
+    })
   };
+
+  // Session.create + Replay.share need a back-reference to the
+  // engine they were built from. Stamp them on after the engine
+  // object is constructed so the closure captures the final shape.
+  engineInstance.Session = Object.freeze({
+    create: (opts) => createSession({ engine: engineInstance, ...(opts ?? {}) }),
+    restore: (payload) => restoreSession(payload, engineInstance)
+  });
+  engineInstance.Replay = Object.freeze({
+    share: shareReplay,
+    verify: (payload) => verifyReplay(payload, engineInstance)
+  });
+  return engineInstance;
 }
 
 export { HOOK_EVENTS };

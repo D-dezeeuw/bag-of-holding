@@ -1177,6 +1177,179 @@ export interface MechanicsNamespace {
   apply(actor: Actor, id: string, args?: Record<string, unknown>, context?: unknown): unknown;
 }
 
+// ============================================================
+// Solo mode (since 2.0.0)
+// ============================================================
+
+/** The six oracle outcome labels. */
+export type OracleOutcome =
+  | 'exceptional-no' | 'no' | 'no-but'
+  | 'yes-but' | 'yes' | 'exceptional-yes';
+
+/** Built-in odds bands. Numbers in [0, 100] are also accepted as
+ *  raw probabilities for one-off questions. */
+export type OracleOdds =
+  | 'certain' | 'near-certain' | 'very-likely' | 'likely'
+  | 'fifty-fifty' | 'unlikely' | 'very-unlikely'
+  | 'near-impossible' | 'impossible'
+  | number;
+
+export interface OracleAnswer {
+  question: string;
+  odds: OracleOdds;
+  threshold: number;
+  d100: number;
+  outcome: OracleOutcome;
+}
+
+export interface OracleEntry {
+  id: string;
+  text: string;
+  weight?: number;
+  [extra: string]: unknown;
+}
+
+export interface Oracle {
+  ask(question: string, odds?: OracleOdds): OracleAnswer;
+  twist(): { id: string; text: string };
+  complication(): { id: string; text: string };
+  pick<T extends { weight?: number }>(table: T[]): T;
+  readonly ODDS_BANDS: readonly string[];
+  readonly OUTCOMES: readonly OracleOutcome[];
+}
+
+export interface SoloNamespace {
+  /** Build a solo-play oracle. Without opts, binds to the engine's
+   *  rng (so oracle answers replay deterministically alongside dice). */
+  oracle(opts?: {
+    rng?: RNG;
+    twists?: OracleEntry[];
+    complications?: OracleEntry[];
+  }): Oracle;
+  readonly ODDS_BANDS: readonly string[];
+  readonly OUTCOMES: readonly OracleOutcome[];
+}
+
+export interface SessionParticipant extends Participant {
+  hp?: number;
+  hpMax?: number;
+  ac?: number;
+  name?: string;
+  conditions?: ConditionName[];
+}
+
+export interface SessionCreateOptions {
+  engine?: Engine;
+  party: CharacterRecord[];
+  encounter?: { participants: SessionParticipant[] } | EncounterState;
+  scene?: Scene;
+  seed?: number;
+  log?: SessionLogEntry[];
+  oracle?: Oracle;
+}
+
+export interface SessionLogEntry {
+  seq: number;
+  ts: number;
+  kind: string;
+  [extra: string]: unknown;
+}
+
+export interface SessionPartySnapshot {
+  id: string;
+  hp: number;
+  hpMax: number;
+  tempHp: number;
+  ac: number;
+  conditions: ConditionName[];
+  hitDiceUsed: number;
+  hitDiceTotal: number;
+  exhaustion: number;
+  resources?: Record<string, Resource>;
+  slots?: SpellSlot[];
+  deathSaves?: DeathSaveTracker;
+}
+
+export interface SessionSnapshot {
+  party: SessionPartySnapshot[];
+  scene: Scene;
+  encounter: EncounterState | null;
+  log: SessionLogEntry[];
+}
+
+export interface SerialisedSession {
+  version: 'bag-of-holding/session@1';
+  seed: number | null;
+  rulesFingerprint: string;
+  partyRecords: CharacterRecord[];
+  partyState: SessionPartySnapshot[];
+  scene: Scene;
+  encounter: EncounterState | null;
+  log: SessionLogEntry[];
+  rollLog: RollEntry[];
+}
+
+export interface SessionAttackArgs {
+  attackerId: string;
+  targetId?: string;
+  attackBonus: number;
+  damageDice?: string;
+  damageMod?: number;
+  damageType?: string;
+  ac?: number;
+}
+
+export interface Session {
+  readonly engine: Engine;
+  readonly seed: number | null;
+  readonly oracle: Oracle | null;
+  readonly scene: Scene;
+  readonly encounter: EncounterState | null;
+  readonly log: SessionLogEntry[];
+  party(): CharacterRecord[];
+  actor(id: string): Actor;
+  currentActor(): Actor | null;
+  startEncounter(participants: SessionParticipant[]): EncounterState;
+  endTurn(): { finished: boolean };
+  endEncounter(): void;
+  shortRest(): void;
+  longRest(): void;
+  advanceTime(delta: { rounds?: number; minutes?: number; hours?: number; days?: number }):
+    { scene: Scene; events: ('dawn' | 'dusk')[] };
+  attack(args: SessionAttackArgs): { attack: AttackRollResult; damage: DamageResult | null };
+  applyDamage(targetId: string, args: { amount: number; type?: string; critical?: boolean; source?: unknown }): DamageResult;
+  heal(targetId: string, amount: number): { healed: number; hpBefore: number; hpAfter: number; actor: Actor };
+  applyCondition(targetId: string, condition: ConditionName): Actor;
+  removeCondition(targetId: string, condition: ConditionName): Actor;
+  record(kind: string, payload?: Record<string, unknown>): SessionLogEntry;
+  snapshot(): SessionSnapshot;
+  serialize(): SerialisedSession;
+}
+
+export interface SessionNamespace {
+  create(opts: SessionCreateOptions): Session;
+  restore(payload: SerialisedSession, engine?: Engine): Session;
+}
+
+export interface SharedReplay {
+  version: 'bag-of-holding/replay@1';
+  seed: number | null;
+  rulesFingerprint: string;
+  partyRecords: CharacterRecord[];
+  rollLog: RollEntry[];
+  log?: SessionLogEntry[];
+}
+
+export interface ReplayNamespace {
+  share(session: Session, opts?: { includeLog?: boolean }): SharedReplay;
+  verify(payload: SharedReplay, engine?: Engine): VerifyLogResult;
+}
+
+/** Four pre-built L3 characters baked in for the solo CLI / browser
+ *  sandbox. Fighter (dwarf), Rogue (halfling), Cleric (human),
+ *  Wizard (elf). Shape matches `CharacterRecord`. */
+export const STARTER_PARTY: readonly CharacterRecord[];
+
 export interface Engine {
   species: Record<string, Species>;
   classes: Record<string, ClassDef>;
@@ -1214,6 +1387,15 @@ export interface Engine {
   /** Hook registry. Read-only; register handlers at engine
    *  construction via `createEngine({ hooks })`. */
   hooks: HookRegistry;
+  /** Solo-play oracle factory (since 2.0.0). Bound to the engine
+   *  rng so oracle answers are part of the seeded replay stream. */
+  Solo: SoloNamespace;
+  /** Session orchestrator (since 2.0.0). The `engine` arg defaults
+   *  to this engine on the bound version. */
+  Session: SessionNamespace;
+  /** Replay-sharing helpers (since 2.0.0). `verify` defaults to
+   *  this engine on the bound version. */
+  Replay: ReplayNamespace;
 }
 
 export function createEngine(opts?: EngineOptions): Engine;
@@ -1237,6 +1419,9 @@ export const Rest: RestNamespace;
 export const Mechanics: MechanicsNamespace;
 export const SceneClock: SceneClockNamespace;
 export const Character: CharacterNamespace;
+export const Solo: SoloNamespace;
+export const Session: SessionNamespace;
+export const Replay: ReplayNamespace;
 
 export const species: Record<string, Species>;
 export const classes: Record<string, ClassDef>;

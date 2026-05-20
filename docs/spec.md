@@ -101,6 +101,22 @@ freely available at [dndbeyond.com/srd](https://www.dndbeyond.com/srd).
   fire on attack, damage, condition apply, level up, death, turn
   start/end, rest, cast, hp change. See
   [§ Plugins (Phase C: behavioural hooks)](#plugins-phase-c-behavioural-hooks).
+- **Solo mode** (`Solo.oracle`, `Session.create`, `Replay.share`)
+  — since 2.0.0. `Solo.oracle({ rng })` answers yes/no/and/but
+  questions against nine odds bands (or a raw 0-100), plus twists,
+  complications, and a `pick(table)` helper. `Session.create({
+  engine, party, encounter?, scene?, seed?, oracle? })` is the
+  thin orchestrator that holds the party + scene clock + active
+  encounter and threads the engine's namespaces through one-line
+  `attack` / `applyDamage` / `heal` / `applyCondition` /
+  `shortRest` / `longRest` / `advanceTime` helpers. `session.
+  serialize()` + `Session.restore(payload, engine)` cover the
+  load-and-keep-playing path; `Replay.share(session)` +
+  `Replay.verify(payload)` cover the audit / replay path. A
+  pre-built `STARTER_PARTY` (4 L3 characters) ships inline so
+  the namespaces work out of the box. The browser sandbox at
+  `examples/solo.html` drives every namespace in one zero-build
+  page.
 
 ## Out of scope (deferred or host-side)
 
