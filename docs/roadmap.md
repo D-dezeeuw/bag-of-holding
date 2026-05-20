@@ -515,8 +515,12 @@ in the typecheck file:
   `actor.huntersMark = { targetId, castLevel }` binding, slot-spend
   fallback when free casts exhausted, 1d6 force damage rider vs the
   marked target. ✅ shipped
-- **`1.3.8`** Sorcerer § *Sorcery Points* + § *Metamagic* — the
-  convert-slot↔point loop.
+- **`1.3.8`** Sorcerer § *Font of Magic* + § *Metamagic* — Sorcery
+  Points pool (= level from L2, long refresh); `convertSlotToPoints`
+  and `createSpellSlot` (with `SLOT_CREATION_COSTS` table; created
+  slots tagged `temporary` for 1.6.0 long-rest stripping);
+  `applyMetamagic` with a 10-option `METAMAGIC_OPTIONS` registry
+  (each declaring cost + effect schema). ✅ shipped
 - **`1.3.9`** Warlock § *Eldritch Invocations* selection and
   validation (pact magic itself already ships).
 - **`1.3.10`** Wizard § *Arcane Recovery* — recover spell-slot
