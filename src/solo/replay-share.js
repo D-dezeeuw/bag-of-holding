@@ -48,6 +48,13 @@ export function share(session, { includeLog = false } = {}) {
  * `verifyLog`; surfaced here so consumers can do the obvious thing
  * — `Replay.verify(payload, engine)` — without reaching into the
  * shape.
+ *
+ * Up-front fingerprint check: if the payload was produced under a
+ * different rule pack, the dice stream will diverge sometime
+ * after the first knob-affected roll (crit range, damage floor,
+ * exploding dice). Surfacing that at the boundary is friendlier
+ * than letting `verifyLog` report a mid-stream divergence with no
+ * hint that the *engine* was wrong, not the log.
  */
 export function verify(payload, engine) {
   if (!payload || payload.version !== SHARE_VERSION) {
@@ -55,6 +62,15 @@ export function verify(payload, engine) {
   }
   if (typeof payload.seed !== 'number') {
     throw new Error('Replay.verify: payload.seed must be a number for verification');
+  }
+  if (payload.rulesFingerprint && engine.rulesFingerprint !== payload.rulesFingerprint) {
+    return {
+      ok: false,
+      divergedAt: -1,
+      expected: payload.rulesFingerprint,
+      actual: engine.rulesFingerprint,
+      reason: 'rulesFingerprint mismatch'
+    };
   }
   return engine.verifyLog({ seed: payload.seed, log: payload.rollLog, rules: engine.rules });
 }

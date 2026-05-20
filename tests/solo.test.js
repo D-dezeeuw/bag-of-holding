@@ -102,19 +102,29 @@ test('Solo.oracle.twist accepts extra entries', () => {
 });
 
 test('engine.Solo.oracle does NOT share the engine rng (oracle pulls would break replay)', () => {
-  // The whole point of decoupling oracle rng from dice rng: an
-  // oracle pull mid-session can't silently perturb the dice stream
-  // that `engine.rollLog` is recording. Two seeded engines must
-  // produce identical dice regardless of how many oracle questions
-  // the host asks.
+  // The contract: an oracle pull mid-session must not perturb the
+  // dice stream that `engine.rollLog` is recording, otherwise
+  // `verifyLog` diverges. Test the stronger version: build TWO
+  // oracles on the SAME engine and ask many questions — the engine
+  // dice must still match a parallel engine that asked nothing.
   const e1 = createEngine({ rng: Dice.seededRng(2026) });
   const e2 = createEngine({ rng: Dice.seededRng(2026) });
-  const o1 = e1.Solo.oracle();   // default rng (Math.random)
-  for (let i = 0; i < 5; i++) o1.ask('?', 'likely');
-  // Both engines should produce the same first attack roll.
-  const a1 = e1.Combat.attackRoll({ attackBonus: 5, ac: 10 });
-  const a2 = e2.Combat.attackRoll({ attackBonus: 5, ac: 10 });
-  assert.equal(a1.d20, a2.d20);
+  const o1a = e1.Solo.oracle();
+  const o1b = e1.Solo.oracle();
+  for (let i = 0; i < 20; i++) {
+    o1a.ask('many', 'likely');
+    o1b.twist();
+    o1a.complication();
+  }
+  // Now both engines roll a sequence — must be identical.
+  for (let i = 0; i < 10; i++) {
+    const a = e1.Combat.attackRoll({ attackBonus: 5, ac: 10 });
+    const b = e2.Combat.attackRoll({ attackBonus: 5, ac: 10 });
+    assert.equal(a.d20, b.d20, `attack #${i} d20 must match between engines`);
+  }
+  // And verifyLog must still pass for e1, proving the oracle did
+  // not contaminate the recorded stream.
+  assert.equal(e1.verifyLog({ seed: 2026, log: e1.rollLog }).ok, true);
 });
 
 test('Solo.oracle is reproducible when an explicit seeded rng is passed', () => {
@@ -411,19 +421,194 @@ test('STARTER_PARTY has four canonical L3 archetypes', () => {
   }
 });
 
-test('STARTER_PARTY records derive into valid sheets', () => {
+test('STARTER_PARTY records derive into expected SRD HP / AC values', () => {
+  // Literal expected values, computed by hand against SRD 5.2:
+  //   - HP = first level full + (level - 1) * (avg + CON mod) + total CON-mod-from-derived-record
+  //   - AC reads from the equipped armor + shield + Dex contribution.
+  // Pinning these so a future plugin merge / character.js change
+  // can't silently move a starter party member's baseline.
   const engine = createEngine();
+  const expected = {
+    thora:   { hp: 31, ac: 18 },   // Dwarf fighter, chain mail + shield, CON 16
+    sable:   { hp: 24, ac: 15 },   // Halfling rogue, leather, DEX 18 (after bumps)
+    oran:    { hp: 24, ac: 15 },   // Human cleric, chain shirt + shield, CON 14
+    merrick: { hp: 17, ac: 12 }    // Elf wizard, no armor, DEX 14
+  };
   for (const r of STARTER_PARTY) {
     const sheet = engine.deriveSheet(r);
-    assert.equal(sheet.meta.classId, r.classId);
+    const e = expected[r.id];
+    assert.ok(e, `no expected fixture for ${r.id}`);
     assert.equal(sheet.proficiencyBonus, 2);
-    assert.ok(sheet.hp.max > 0);
-    assert.ok(sheet.ac.value >= 10);
-    assert.ok(sheet.attacks.length > 0);
+    assert.equal(sheet.hp.max, e.hp, `${r.name} HP`);
+    assert.equal(sheet.ac.value, e.ac, `${r.name} AC`);
+    assert.ok(sheet.attacks.length > 0, `${r.name} should have at least one attack`);
   }
 });
 
 test('STARTER_PARTY is frozen', () => {
   assert.equal(Object.isFrozen(STARTER_PARTY), true);
   assert.equal(Object.isFrozen(STARTER_PARTY[0]), true);
+});
+
+// === Additional coverage from the 2.0.0 audit ===
+
+test('Solo.oracle rejects negative-weight table entries', () => {
+  const oracle = Solo.oracle({ rng: Dice.seededRng(1) });
+  assert.throws(
+    () => oracle.pick([{ id: 'a', weight: -3 }, { id: 'b', weight: 5 }]),
+    /invalid weight/
+  );
+  // Extra-twists at construction time: validated lazily on first
+  // draw, surfacing the same pointer-quality error.
+  const bad = Solo.oracle({
+    rng: Dice.seededRng(1),
+    twists: [{ id: 'bad', text: 'x', weight: Infinity }]
+  });
+  assert.throws(() => bad.twist(), /invalid weight/);
+});
+
+test('Solo.oracle.ask returns yes-but / no-but in the threshold-adjacent band', () => {
+  // Walk every d100 face from a deterministic stream; assert the
+  // classification matches the documented contract.
+  // Stream of 1..100 by hand:
+  const queue = [];
+  for (let i = 1; i <= 100; i++) queue.push((i - 0.5) / 100);
+  const rng = () => queue.shift();
+  const oracle = Solo.oracle({ rng });
+  // threshold 50:
+  //   d100 1-5    → exceptional-yes
+  //   d100 6-40   → yes
+  //   d100 41-50  → yes-but
+  //   d100 51-59  → no-but
+  //   d100 60-94  → no
+  //   d100 95-100 → exceptional-no
+  const buckets = { 'exceptional-yes': 0, 'yes': 0, 'yes-but': 0, 'no-but': 0, 'no': 0, 'exceptional-no': 0 };
+  for (let i = 1; i <= 100; i++) {
+    const a = oracle.ask('?', 'fifty-fifty');
+    buckets[a.outcome]++;
+  }
+  assert.equal(buckets['exceptional-yes'], 5);
+  assert.equal(buckets['yes'], 35);
+  assert.equal(buckets['yes-but'], 10);
+  assert.equal(buckets['no-but'], 9);   // 51-59
+  assert.equal(buckets['no'], 35);
+  assert.equal(buckets['exceptional-no'], 6);  // 95-100
+});
+
+test('Solo.oracle handles edge thresholds (0 and 100)', () => {
+  const queue = [0.01, 0.99];
+  const rng = () => queue.shift();
+  const oracle = Solo.oracle({ rng });
+  // odds = 0 → impossible: every answer must be a no-family.
+  const a = oracle.ask('?', 0);
+  assert.ok(a.outcome.includes('no') || a.outcome === 'exceptional-no');
+  // odds = 100 → certain: every answer yes-family.
+  const b = oracle.ask('?', 100);
+  assert.ok(b.outcome.includes('yes') || b.outcome === 'exceptional-yes');
+});
+
+test('Session.endTurn fires onTurnEnd and onTurnStart hooks', () => {
+  const fired = [];
+  const engine = createEngine({
+    rng: Dice.seededRng(2026),
+    hooks: {
+      onTurnEnd: ({ previous }) => { fired.push({ kind: 'end', id: previous.id }); },
+      onTurnStart: ({ actor }) => { fired.push({ kind: 'start', id: actor.id }); }
+    }
+  });
+  const session = engine.Session.create({
+    party: [STARTER_PARTY[0]],
+    encounter: { participants: [
+      { id: 'thora', dexterity: 12, speed: 30, hp: 31, ac: 18 },
+      { id: 'foe',   dexterity: 10, speed: 30, hp: 10, ac: 10 }
+    ]}
+  });
+  const first = session.currentActor();
+  session.endTurn();
+  // Both hooks should have fired exactly once on the lifecycle boundary.
+  assert.ok(fired.some(f => f.kind === 'end' && f.id === first.id), 'onTurnEnd fires for outgoing actor');
+  assert.ok(fired.some(f => f.kind === 'start'), 'onTurnStart fires for incoming actor');
+});
+
+test('Session.snapshot deep-clones — later mutation does not leak in', () => {
+  const engine = createEngine({ rng: Dice.seededRng(1) });
+  const session = engine.Session.create({
+    party: [STARTER_PARTY[0]],
+    encounter: { participants: [
+      { id: 'thora', dexterity: 12, speed: 30, hp: 31, ac: 18 },
+      { id: 'foe',   dexterity: 10, speed: 30, hp: 20, ac: 10 }
+    ]}
+  });
+  const snap1 = session.snapshot();
+  session.applyDamage('foe', { amount: 5 });
+  const snap2 = session.snapshot();
+  const foe1 = snap1.party.find(p => p.id === 'foe');
+  const foe2 = snap2.party.find(p => p.id === 'foe');
+  assert.equal(foe1.hp, 20, 'snapshot taken before damage must not move');
+  assert.equal(foe2.hp, 15, 'snapshot taken after damage reflects new hp');
+});
+
+test('Session.serialize round-trips timers and concentration', () => {
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({
+    seed: 2026,
+    party: [STARTER_PARTY[3]],   // Merrick wizard
+    encounter: { participants: [
+      { id: 'merrick', dexterity: 14, speed: 30, hp: 17, ac: 12 },
+      { id: 'foe',     dexterity: 10, speed: 30, hp: 20, ac: 10 }
+    ]}
+  });
+  // Stamp state that previously fell off the snapshot whitelist.
+  const a = session.actor('merrick');
+  Object.assign(a, engine.Combat.addTimer(a, { id: 'bless', remainingRounds: 3 }));
+  const concentrated = engine.Spellcasting.startConcentration(a, { spellId: 'mage-armor', level: 1 });
+  Object.assign(a, concentrated.actor);
+
+  const payload = JSON.parse(JSON.stringify(session.serialize()));
+  // Payload SHOULD NOT carry the dice rollLog — that's the Replay.share path.
+  assert.equal(payload.rollLog, undefined);
+
+  const engine2 = createEngine({ rng: Dice.seededRng(2026) });
+  const restored = engine2.Session.restore(payload);
+  const merrick = restored.actor('merrick');
+  assert.deepEqual(merrick.timers, [{ id: 'bless', remainingRounds: 3 }]);
+  assert.deepEqual(merrick.concentration, { spellId: 'mage-armor', level: 1 });
+});
+
+test('Session.serialize does not emit Date-based timestamps', () => {
+  // The engine doesn't read wall clocks — log entries must be host-
+  // stamped if a timestamp is wanted. Pinning this so a future
+  // accidental Date.now() in src/solo gets caught.
+  const engine = createEngine();
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  session.record('narrative', { text: 'hello' });
+  const payload = session.serialize();
+  for (const entry of payload.log) {
+    assert.equal(entry.ts, undefined, `log entry of kind '${entry.kind}' must not carry a ts field`);
+  }
+});
+
+test('Session passes through to session.oracle when given', () => {
+  const engine = createEngine();
+  const oracle = engine.Solo.oracle({ rng: Dice.seededRng(7) });
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]], oracle });
+  assert.equal(session.oracle, oracle);
+});
+
+test('Session without an oracle exposes session.oracle as null', () => {
+  const engine = createEngine();
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  assert.equal(session.oracle, null);
+});
+
+test('Replay.verify surfaces rulesFingerprint mismatch at the boundary', () => {
+  const e1 = createEngine({ rng: Dice.seededRng(2026), rules: { critOn: [19, 20] } });
+  const e2 = createEngine({ rng: Dice.seededRng(2026) });  // default rules
+  const session = e1.Session.create({ seed: 2026, party: [STARTER_PARTY[0]] });
+  e1.Combat.attackRoll({ attackBonus: 5, ac: 10 });
+  const payload = e1.Replay.share(session);
+  const result = e2.Replay.verify(payload);
+  assert.equal(result.ok, false);
+  assert.equal(result.divergedAt, -1);
+  assert.match(result.reason, /rulesFingerprint/);
 });

@@ -145,7 +145,7 @@
       <div class="row">
         <label>spawn foe</label>
         <select id="spawn-monster"></select>
-        <button id="do-spawn">Add to encounter</button>
+        <button id="do-spawn" title="Rebuilds the encounter with the new foe; initiative is re-rolled.">Restart encounter with new foe</button>
       </div>
     </div>
   </section>
@@ -345,7 +345,12 @@
     function newSession() {
       state.seed = Number($('#seed-input').value) || Date.now();
       const engine = createEngine({ rng: Dice.seededRng(state.seed) });
-      const oracle = engine.Solo.oracle();
+      // Oracle gets a separate seeded stream so its d100 pulls don't
+      // perturb the dice replay (engine.rollLog wouldn't capture
+      // them, and verifyLog would diverge). Deriving the oracle
+      // seed from the session seed keeps the demo deterministic
+      // overall.
+      const oracle = engine.Solo.oracle({ rng: Dice.seededRng(state.seed ^ 0xA5A5A5A5) });
       const session = engine.Session.create({
         seed: state.seed,
         party: STARTER_PARTY,
@@ -357,9 +362,10 @@
       state.foeIds = new Set();
       // Spawn an initial encounter so the demo is interactive on
       // first load: the four party members vs. a goblin and an orc.
+      // ACs match the SRD monsters registry.
       const initialFoes = [
-        { id: 'goblin-1', name: 'Goblin', dexterity: 14, speed: 30, hp: 7, hpMax: 7, ac: 13 },
-        { id: 'orc-1',    name: 'Orc',    dexterity: 12, speed: 30, hp: 15, hpMax: 15, ac: 13 }
+        { id: 'goblin-1', name: 'Goblin', dexterity: 14, speed: 30, hp: 7, hpMax: 7, ac: 15, attacks: [{ name: 'Scimitar', attackBonus: 4, damage: '1d6+2' }] },
+        { id: 'orc-1',    name: 'Orc',    dexterity: 12, speed: 30, hp: 15, hpMax: 15, ac: 13, attacks: [{ name: 'Greataxe', attackBonus: 5, damage: '1d12+3' }] }
       ];
       const participants = [
         ...STARTER_PARTY.map(r => {
@@ -434,8 +440,15 @@
           const first = sheet.attacks[0];
           if (first) { attackBonus = first.attackBonus; damageDice = first.damageDice; damageMod = first.damageMod; }
         } else if (attacker.attacks?.[0]) {
+          // Monster damage strings ship as 'XdY+Z'. Split before
+          // calling damageRoll — passing the full spec doubles the
+          // +Z on a crit, which is wrong (crits double dice, not
+          // modifiers per SRD § Critical Hits).
           const a = attacker.attacks[0];
-          attackBonus = a.attackBonus; damageDice = a.damage; damageMod = 0;
+          const m = String(a.damage).match(/^(\d+d\d+)([+-]\d+)?$/);
+          attackBonus = a.attackBonus;
+          damageDice = m ? m[1] : a.damage;
+          damageMod = m && m[2] ? Number(m[2]) : 0;
         }
         state.session.attack({ attackerId, targetId, attackBonus, damageDice, damageMod, ac: target.ac });
         render();
@@ -478,7 +491,7 @@
           dexterity: monster.abilityScores.dex,
           speed: monster.speed,
           hp: monster.hp, hpMax: monster.hp, ac: monster.ac,
-          attacks: monster.attacks
+          attacks: monster.attacks ?? []
         };
         state.foeIds.add(spawnId);
         // Splice into the existing encounter: drop the encounter and

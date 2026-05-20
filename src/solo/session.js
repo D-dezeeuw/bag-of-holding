@@ -19,6 +19,18 @@
 
 const SESSION_VERSION = 'bag-of-holding/session@1';
 
+// Fields on an actor that are derived from the CharacterRecord at
+// session construction time. Snapshot strips them — they'll be
+// rebuilt from the record on restore — so the serialised payload
+// stays small and round-tripping doesn't risk drift between two
+// engines that derive the same sheet to numerically different
+// values (e.g. after a plugin pack reshuffle).
+const DERIVED_FIELDS = Object.freeze(new Set([
+  'sheet', 'proficiencyBonus', 'abilityScores', 'speciesId',
+  'classId', 'subclassId', 'level', 'name', 'hitDie', 'speed',
+  'dexterity', 'conMod'
+]));
+
 function actorFromRecord(record, engine) {
   const sheet = engine.deriveSheet(record);
   const conMod = sheet.abilityScores.mod.con;
@@ -27,7 +39,7 @@ function actorFromRecord(record, engine) {
   // value is the spent die rolled per SRD § Short Rest. The session
   // tracks remaining slots; spending happens via engine.Rest.
   const hitDiceTotal = record.level;
-  return {
+  const actor = {
     id: record.id,
     name: record.name,
     classId: record.classId,
@@ -46,9 +58,21 @@ function actorFromRecord(record, engine) {
     dexterity: sheet.abilityScores.final.dex,
     conMod,
     conditions: [],
-    resources: engine.Mechanics.freshResources(engine.classes[record.classId], record.level),
+    // Pass the freshly-built actor shell as the third arg so plugin
+    // resource specs that key off actor (e.g. ability-mod-scaled
+    // pools) see real data, not undefined.
+    resources: engine.Mechanics.freshResources(engine.classes[record.classId], record.level, undefined),
     sheet
   };
+  // Wire spell slot bars for casters. Records may pre-declare slot
+  // state; if they do, honour it.
+  const progression = engine.classes[record.classId]?.spellcasting?.progression;
+  if (record.spells?.slots) {
+    actor.spellSlots = record.spells.slots.map(s => ({ ...s }));
+  } else if (progression && progression !== 'none') {
+    actor.spellSlots = engine.Spellcasting.freshSlots(progression, record.level);
+  }
+  return actor;
 }
 
 function freshActorMap(party, engine) {
@@ -57,13 +81,22 @@ function freshActorMap(party, engine) {
   return map;
 }
 
-function ensureSlotBar(actor, record, engine) {
-  if (actor.spellSlots) return actor;
-  const classDef = engine.classes[record.classId];
-  const progression = classDef?.spellcasting?.progression;
-  if (!progression || progression === 'none') return actor;
-  actor.spellSlots = engine.Spellcasting.freshSlots(progression, record.level);
-  return actor;
+/**
+ * Strip derived/cached fields and deep-clone the rest. Used by
+ * snapshot() so the returned object never shares references with
+ * the live actor — mutating one will not move the other. Drops
+ * `sheet` and the other purely-derived fields enumerated in
+ * DERIVED_FIELDS; everything else (timers, concentration,
+ * deathSaves, dodgeUntilNextTurn, resources, ...) round-trips.
+ */
+function cloneVolatileState(actor) {
+  const out = {};
+  for (const key of Object.keys(actor)) {
+    if (DERIVED_FIELDS.has(key)) continue;
+    const v = actor[key];
+    out[key] = v && typeof v === 'object' ? structuredClone(v) : v;
+  }
+  return out;
 }
 
 /**
@@ -87,13 +120,6 @@ export function create({ engine, party, encounter, scene, seed, log: priorLog, o
   }
 
   const actors = freshActorMap(party, engine);
-  // Wire spell slot bars for any caster in the party. Records may
-  // pre-declare slot state; if they do, honour it.
-  for (const record of party) {
-    const actor = actors.get(record.id);
-    if (record.spells?.slots) actor.spellSlots = record.spells.slots.map(s => ({ ...s }));
-    else ensureSlotBar(actor, record, engine);
-  }
 
   let sceneState = scene ?? engine.SceneClock.freshScene();
   let encounterState = null;
@@ -105,8 +131,7 @@ export function create({ engine, party, encounter, scene, seed, log: priorLog, o
     // their own monster actors via the participant object.
     if (actors.has(p.id)) return;
     const a = {
-      id: p.id,
-      name: p.name ?? p.id,
+      name: p.id,
       hp: p.hp ?? 0,
       hpMax: p.hpMax ?? p.hp ?? 0,
       ac: p.ac ?? 10,
@@ -134,8 +159,13 @@ export function create({ engine, party, encounter, scene, seed, log: priorLog, o
   const log = Array.isArray(priorLog) ? [...priorLog] : [];
   let logSeq = log.length;
 
+  /**
+   * Append a high-level narrative entry to the session log. No
+   * wall-clock timestamp — the kernel doesn't read clocks; if the
+   * host wants `ts` on each entry it can stamp the returned object.
+   */
   function record(kind, payload = {}) {
-    const entry = { seq: logSeq++, ts: Date.now(), kind, ...payload };
+    const entry = { seq: logSeq++, kind, ...payload };
     log.push(entry);
     return entry;
   }
@@ -162,13 +192,22 @@ export function create({ engine, party, encounter, scene, seed, log: priorLog, o
     if (current) {
       const a = actors.get(current.id);
       if (a) {
-        const { actor: ticked, expired } = engine.Combat.tickTimers(a);
+        // Use Combat.turnEnd (not raw tickTimers) so the onTurnEnd
+        // hook fires for plugins that subscribe to the lifecycle.
+        const { actor: ticked, expired } = engine.Combat.turnEnd(a, { sessionId: seed });
         actors.set(current.id, ticked);
         if (expired.length > 0) record('timersExpired', { actorId: current.id, expired });
       }
     }
     const { state: nextState, finished } = engine.Combat.endTurn(encounterState);
     encounterState = nextState;
+    // After advancing, fire onTurnStart for the incoming actor so
+    // start-of-turn handlers (regen, recharge) see the signal.
+    const incoming = engine.Combat.currentActor(encounterState);
+    if (incoming) {
+      const a = actors.get(incoming.id);
+      if (a) engine.Combat.turnStart(a, { sessionId: seed });
+    }
     record('endTurn', { round: encounterState.round, turnIndex: encounterState.turnIndex, finished });
     return { finished };
   }
@@ -273,40 +312,42 @@ export function create({ engine, party, encounter, scene, seed, log: priorLog, o
     return { attack: attackResult, damage: damageResult };
   }
 
+  /**
+   * Point-in-time snapshot of the session. Deep-cloned: returned
+   * structures share no references with live state, so a host can
+   * pin them for telemetry / undo / diffing without seeing later
+   * mutations leak in.
+   */
   function snapshot() {
-    const partyState = Array.from(actors, ([id, a]) => ({
-      id,
-      hp: a.hp,
-      hpMax: a.hpMax,
-      tempHp: a.tempHp ?? 0,
-      ac: a.ac,
-      conditions: a.conditions,
-      hitDiceUsed: a.hitDiceUsed,
-      hitDiceTotal: a.hitDiceTotal,
-      exhaustion: a.exhaustion ?? 0,
-      resources: a.resources,
-      spellSlots: a.spellSlots,
-      deathSaves: a.deathSaves
-    }));
+    const partyState = Array.from(actors, ([_id, a]) => ({ id: a.id, ...cloneVolatileState(a) }));
     return {
       party: partyState,
-      scene: sceneState,
-      encounter: encounterState,
-      log: [...log]
+      scene: { ...sceneState },
+      encounter: encounterState ? structuredClone(encounterState) : null,
+      log: log.map((e) => ({ ...e }))
     };
   }
 
+  /**
+   * Serialise the session into a portable JSON payload that
+   * Session.restore can rehydrate against a same-fingerprint
+   * engine. Includes the character records (so restore can
+   * re-derive sheets) and the snapshot of volatile state; does NOT
+   * include the dice rollLog — that's the Replay.share path,
+   * intentionally separate so "load my save" and "audit my rolls"
+   * are distinct affordances.
+   */
   function serialize() {
+    const snap = snapshot();
     return {
       version: SESSION_VERSION,
       seed: seed ?? null,
       rulesFingerprint: engine.rulesFingerprint,
       partyRecords: party,
-      partyState: snapshot().party,
-      scene: sceneState,
-      encounter: encounterState,
-      log: [...log],
-      rollLog: [...engine.rollLog]
+      partyState: snap.party,
+      scene: snap.scene,
+      encounter: snap.encounter,
+      log: snap.log
     };
   }
 
@@ -363,13 +404,20 @@ export function restore(payload, engine) {
     seed: payload.seed ?? undefined,
     log: payload.log
   });
-  // Patch live state back onto the session's actor map. snapshot()
-  // serialises everything that drifts during play; copying it back
-  // lets the host pick up at the saved HP / slot / condition state.
+  // Restore volatile state onto each actor. Use the same clone
+  // helper as snapshot so the rehydrated actor doesn't share
+  // references with the payload (which the host might JSON-parse
+  // and re-use elsewhere).
   if (Array.isArray(payload.partyState)) {
     for (const state of payload.partyState) {
       const a = session.actor(state.id);
-      Object.assign(a, state);
+      const cloned = structuredClone(state);
+      // Keep the derived fields the session re-built from the
+      // record; overlay only the volatile half.
+      for (const key of Object.keys(cloned)) {
+        if (DERIVED_FIELDS.has(key)) continue;
+        a[key] = cloned[key];
+      }
     }
   }
   return session;

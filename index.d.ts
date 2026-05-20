@@ -259,7 +259,7 @@ export interface VerifyLogArgs {
 
 export type VerifyLogResult =
   | { ok: true }
-  | { ok: false; divergedAt: number; expected: unknown; actual: unknown };
+  | { ok: false; divergedAt: number; expected: unknown; actual: unknown; reason?: string };
 
 /** Replay a roll log forward from `seed` and verify each operation
  *  reproduces the logged outcome. See `src/replay.js` for the full
@@ -1250,11 +1250,18 @@ export interface SessionCreateOptions {
 
 export interface SessionLogEntry {
   seq: number;
-  ts: number;
   kind: string;
   [extra: string]: unknown;
 }
 
+/**
+ * Volatile per-actor state captured by `Session.snapshot()` and
+ * `Session.serialize()`. Open-ended on purpose — homebrew packs
+ * stamp their own fields onto actors (e.g. Bardic Inspiration die
+ * size, Wild Shape form id) and the snapshot round-trips them
+ * verbatim. The listed fields are the SRD-canonical core that the
+ * shipped engine writes to.
+ */
 export interface SessionPartySnapshot {
   id: string;
   hp: number;
@@ -1264,10 +1271,13 @@ export interface SessionPartySnapshot {
   conditions: ConditionName[];
   hitDiceUsed: number;
   hitDiceTotal: number;
-  exhaustion: number;
+  exhaustion?: number;
   resources?: Record<string, Resource>;
-  slots?: SpellSlot[];
+  spellSlots?: SpellSlot[];
   deathSaves?: DeathSaveTracker;
+  timers?: ActorTimer[];
+  concentration?: ConcentrationState | null;
+  [extra: string]: unknown;
 }
 
 export interface SessionSnapshot {
@@ -1286,7 +1296,6 @@ export interface SerialisedSession {
   scene: Scene;
   encounter: EncounterState | null;
   log: SessionLogEntry[];
-  rollLog: RollEntry[];
 }
 
 export interface SessionAttackArgs {

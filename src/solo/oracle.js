@@ -78,7 +78,14 @@ function rollD100(rng) {
 }
 
 function weightedPick(rng, table) {
-  const total = table.reduce((a, e) => a + (e.weight ?? 1), 0);
+  let total = 0;
+  for (const entry of table) {
+    const w = entry.weight ?? 1;
+    if (!Number.isFinite(w) || w < 0) {
+      throw new Error(`Solo.oracle: weighted table entry '${entry.id ?? '<no id>'}' has invalid weight ${w}; must be a non-negative finite number`);
+    }
+    total += w;
+  }
   if (total <= 0) throw new Error('Solo.oracle: weighted table must have at least one positive-weight entry');
   let r = rng() * total;
   for (const entry of table) {
@@ -100,16 +107,20 @@ function resolveOdds(odds) {
 }
 
 /**
- * Build a solo-play oracle bound to an rng. Use the engine's
- * shared rng to keep oracle answers in the seeded replay stream
- * alongside dice rolls:
+ * Build a solo-play oracle. The oracle has its own rng — sharing
+ * the engine's dice rng would silently advance the dice stream
+ * (the d100 pulls go nowhere observable in `engine.rollLog`), so
+ * `engine.verifyLog` would diverge whenever a host mixed oracle
+ * questions with attacks. Pass an explicit seeded rng for a
+ * reproducible oracle stream:
  *
  *   const engine = createEngine({ rng: Dice.seededRng(42) });
- *   const oracle = engine.Solo.oracle();         // shares the engine's rng
+ *   const oracle = engine.Solo.oracle({ rng: Dice.seededRng(7) });
+ *   //                                ^^^ separate seed, independent stream
  *
- * Or pass a separate rng for an isolated oracle stream:
+ * Or default to `Math.random` for a casual non-replayable session:
  *
- *   const oracle = Solo.oracle({ rng: Dice.seededRng(7) });
+ *   const oracle = engine.Solo.oracle();
  *
  * @param {object} [opts]
  * @param {() => number} [opts.rng]              RNG; default Math.random.
