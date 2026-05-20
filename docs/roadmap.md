@@ -931,16 +931,25 @@ the new `Equipment` namespace.
 
 Closes [§ 17 Equipment & inventory](srd-coverage.md#17-equipment--inventory).
 
-### `1.18.0`: Travel & exploration
+### `1.18.0`: Travel & exploration ✅ shipped in v1.20.0
 
-Out-of-combat time finally has rules attached.
+Out-of-combat time has rules attached: a new `Travel` namespace
+covers pace, forced march, rest interruption, foraging, and
+navigation.
 
-- **Travel pace.** Slow / normal / fast tables (per-hour mileage,
-  perception modifiers).
-- **Forced march.** Exhaustion saves per hour past 8.
-- **Resting in dangerous terrain.** Interruption probability
-  handler.
-- **Foraging / Navigation.** DC tables.
+- **`TRAVEL_PACES`** with per-hour and per-day mileage for slow /
+  normal / fast plus the passive Perception trade-off on fast.
+- **`milesTravelled`** multiplies hours by pace.
+- **`forcedMarchCheck`** CON save per hour past 8, DC ramps with
+  the over-cap count; failure costs 1 exhaustion.
+- **`checkRestInterruption`** with a host-supplied probability.
+- **`forageCheck`** WIS (Survival) against a terrain DC; success
+  returns pounds of food + gallons of water scaled by the surplus.
+- **`navigateCheck`** WIS (Survival) or navigator's-tools check
+  against a terrain DC; failure flags the party lost.
+
+All save and ability rolls route through the engine rng so a
+seeded session reproduces travel days end to end.
 
 Closes the exploration half of
 [§ 8 Movement, vision, exploration](srd-coverage.md#8-movement-vision-exploration).
