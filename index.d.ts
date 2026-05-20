@@ -34,7 +34,25 @@ export interface Species {
   name: string;
   size: Size;
   speed: number;
+  /** Free-form display labels for a species card. */
   traits?: string[];
+  /** Structured, engine-readable mechanics for the species. Optional
+   *  on homebrew records; the engine treats a missing block as
+   *  "no mechanical traits to surface". */
+  effects?: {
+    darkvisionFt?: number;
+    blindsightFt?: number;
+    truesightFt?: number;
+    damageResistances?: readonly string[];
+    /** Alternate movement modes granted by the species (e.g. Aarakocra
+     *  fly 30, Triton swim 30). Merges into the derived sheet's
+     *  `speed` block. */
+    extraSpeeds?: Readonly<{ fly?: number; swim?: number; climb?: number; burrow?: number }>;
+    /** Open-ended flag map. Engine ships keys like `feyAncestry`,
+     *  `lucky`, `brave`, `stonecunning`, `trance`; plugins can add
+     *  their own. */
+    flags?: Readonly<Record<string, boolean>>;
+  };
 }
 
 /** Spellcasting progression tier. `full` = Wizard/Cleric/Druid/Bard/
@@ -876,7 +894,21 @@ export interface DerivedSheet {
     breakdown: { armor: number; shield: number; dex: number; misc: number };
   };
   initiative: number;
-  speed: { walk: number };
+  /** Walk speed and any species-granted alternate modes. The keys are
+   *  open-ended so homebrew species can introduce burrow / fly / climb
+   *  / swim without a schema bump. */
+  speed: { walk: number; fly?: number; swim?: number; climb?: number; burrow?: number };
+  /** Range in feet for each vision type from the species effects map.
+   *  `0` means the sense isn't granted; the host stamps the same shape
+   *  onto any actor for `Movement.visionMode` to read. */
+  senses: { darkvision: number; blindsight: number; truesight: number };
+  /** Damage resistances granted by species (Dwarven poison, Tiefling
+   *  fire). Host-readable list the damage pipeline (`Combat.applyDamage`)
+   *  picks up directly off an actor. */
+  damageResistances: string[];
+  /** Flat boolean flags for trait-driven hook handlers. Empty for a
+   *  species with no flag-bearing traits. */
+  traitFlags: Record<string, boolean>;
   saves: Record<Ability, DerivedSave>;
   skills: Record<SkillId, DerivedSkill>;
   attacks: DerivedAttack[];

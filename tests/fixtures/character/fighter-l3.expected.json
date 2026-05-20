@@ -17,6 +17,9 @@
   },
   "initiative": 2,
   "speed": { "walk": 30 },
+  "senses": { "darkvision": 0, "blindsight": 0, "truesight": 0 },
+  "damageResistances": [],
+  "traitFlags": { "resourceful": true, "skillful": true, "versatile": true },
   "saves": {
     "str": { "mod": 5,  "proficient": true  },
     "dex": { "mod": 2,  "proficient": false },

@@ -282,11 +282,54 @@ function deriveInitiative(allFeats, profBonus, dexMod) {
  * misleadingly show "25 ft (exhausted from 30)".
  */
 function deriveSpeed(species, conditions, exhaustionLevel) {
+  const effects = species.effects ?? {};
+  const extras = effects.extraSpeeds ?? {};
   if (conditions.some((c) => SPEED_ZERO_CONDITIONS.includes(c))) {
-    return { walk: 0 };
+    const zeroed = { walk: 0 };
+    for (const mode of Object.keys(extras)) zeroed[mode] = 0;
+    return zeroed;
   }
   const penalty = Exhaustion.speedPenalty({ exhaustion: exhaustionLevel });
-  return { walk: Math.max(0, species.speed - penalty) };
+  const speeds = { walk: Math.max(0, species.speed - penalty) };
+  for (const [mode, base] of Object.entries(extras)) {
+    speeds[mode] = Math.max(0, base - penalty);
+  }
+  return speeds;
+}
+
+/**
+ * Senses block per SRD 5.2 § Vision and Light. Pulls darkvision /
+ * blindsight / truesight ranges off the species effects map; the
+ * host stamps the same shape onto any actor for `Movement` helpers
+ * to read.
+ */
+function deriveSenses(species) {
+  const effects = species.effects ?? {};
+  return {
+    darkvision: effects.darkvisionFt ?? 0,
+    blindsight: effects.blindsightFt ?? 0,
+    truesight: effects.truesightFt ?? 0
+  };
+}
+
+/**
+ * Pull damage resistances off the species effects map. Returned as a
+ * fresh array so the sheet's `damageResistances` is host-mutable
+ * (after the host melts the frozen sheet with a copy) without
+ * leaking into the SRD species record.
+ */
+function deriveDamageResistances(species) {
+  const list = species.effects?.damageResistances ?? [];
+  return [...list];
+}
+
+/**
+ * Species trait flags surfaced as a flat object so 1.6 hook handlers
+ * and host UIs can read them without parsing strings. Empty object
+ * for a species with no flags set.
+ */
+function deriveTraitFlags(species) {
+  return { ...(species.effects?.flags ?? {}) };
 }
 
 /**
@@ -466,6 +509,9 @@ export function deriveSheet(record, registries) {
   const ac = deriveAc(record, items, abilityMods.dex);
   const initiative = deriveInitiative(allFeats, profBonus, abilityMods.dex);
   const speed = deriveSpeed(species, conditions, exhaustionLevel);
+  const senses = deriveSenses(species);
+  const damageResistances = deriveDamageResistances(species);
+  const traitFlags = deriveTraitFlags(species);
   const saves = deriveSaves(classDef, record.proficiencies?.saves, profBonus, abilityMods);
   const skills = deriveSkills(
     background,
@@ -509,6 +555,9 @@ export function deriveSheet(record, registries) {
     ac,
     initiative,
     speed,
+    senses,
+    damageResistances,
+    traitFlags,
     saves,
     skills,
     attacks,

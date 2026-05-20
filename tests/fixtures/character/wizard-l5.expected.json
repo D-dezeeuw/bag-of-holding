@@ -17,6 +17,9 @@
   },
   "initiative": 2,
   "speed": { "walk": 30 },
+  "senses": { "darkvision": 60, "blindsight": 0, "truesight": 0 },
+  "damageResistances": [],
+  "traitFlags": { "feyAncestry": true, "keenSenses": true, "trance": true },
   "saves": {
     "str": { "mod": -1, "proficient": false },
     "dex": { "mod": 2,  "proficient": false },

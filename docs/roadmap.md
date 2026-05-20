@@ -828,24 +828,27 @@ consumers needing multiclass features call `Multiclass.*` helpers.
 Closes [§ 15 Character creation
 pipeline](srd-coverage.md#15-character-creation-pipeline).
 
-### `1.13.0`: Species traits as mechanics
+### `1.13.0`: Species traits as mechanics ✅ shipped in v1.17.0
 
-Species records carry `traits: string[]` today; this release turns
-them into actionable mechanics.
+Species records now carry a structured `effects` block alongside the
+free-form `traits` labels. `deriveSheet` lifts those effects onto the
+sheet so hosts and hooks can read them directly.
 
-- **Darkvision range** derivation onto the sheet's senses block.
-- **Stonecunning, Lucky, Fey Ancestry, Trance, Brave** as effect
-  flags read by 1.6 hooks.
-- **Half movement modes.** Aarakocra fly, Triton swim, etc., surfaced
-  through the `speeds` map.
-- **Resistances.** Tiefling fire, Dragonborn elemental; feed the
-  1.4 damage pipeline.
-- **Cantrip-from-species.** High Elf cantrip slot becomes a real
-  spell entry on the sheet.
+- **Darkvision range** on `sheet.senses.darkvision`; blindsight and
+  truesight ride the same block.
+- **Trait flags.** Stonecunning, Lucky, Fey Ancestry, Trance, Brave,
+  and similar surface on `sheet.traitFlags` as a flat boolean map.
+- **Alternate movement modes.** A species `effects.extraSpeeds`
+  block (fly / swim / climb / burrow) merges into `sheet.speed`,
+  honouring exhaustion penalties and speed-zero conditions.
+- **Resistances.** `effects.damageResistances` lands on
+  `sheet.damageResistances` so the 1.4 damage pipeline picks them up
+  when the host stamps the sheet onto an actor.
 
 Closes the trait-mechanics half of
 [§ 16 Species, backgrounds, feats](srd-coverage.md#16-species-backgrounds-feats);
-content expansion is parallel `1.x.y` work.
+content expansion (extra species, cantrip-from-species) is parallel
+`1.x.y` work.
 
 ### `1.14.0`: Saves & edge mechanics ✅ shipped
 

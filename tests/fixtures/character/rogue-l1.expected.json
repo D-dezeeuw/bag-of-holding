@@ -17,6 +17,9 @@
   },
   "initiative": 5,
   "speed": { "walk": 30 },
+  "senses": { "darkvision": 0, "blindsight": 0, "truesight": 0 },
+  "damageResistances": [],
+  "traitFlags": { "brave": true, "halflingNimbleness": true, "lucky": true, "naturallyStealthy": true },
   "saves": {
     "str": { "mod": -1, "proficient": false },
     "dex": { "mod": 5,  "proficient": true  },
