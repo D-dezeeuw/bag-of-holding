@@ -272,13 +272,13 @@ boxes are always the live worklist.
 - [x] Skill / save / passive derivation *(v0.1.5)*
 - [x] AC breakdown (unarmored / light+med / heavy + shield) *(v0.1.5)*
 - [x] Max HP derivation (L1 max die + per-level average) *(v0.1.5)*
-- [ ] **Multiclass record shape** — `record.classes: { fighter: 3, rogue: 2 }` *(SRD § Character Creation — Multiclassing)*
-- [ ] **Multiclass prerequisites** — STR 13, etc. *(SRD § Character Creation — Multiclassing — Prerequisites)*
-- [ ] **Multiclass spell-slot table** *(SRD § Spells — Multiclass Spellcaster)*
-- [ ] **Languages** — `record.languages: [...]`, background contributions *(SRD § Character Creation — Languages)*
-- [ ] **Tool proficiencies** — `record.tools: [...]`, proficiency-with-tool advantage rule *(SRD § Equipment — Tools)*
-- [ ] **Origin feat auto-application** — backgrounds carry `originFeat` but its mechanical effects don't merge into the sheet *(SRD § Character Origins — Backgrounds)*
-- [ ] **Starting equipment selection** *(SRD § Character Creation — Starting Equipment)*
+- [x] **Multiclass record shape** — `record.classes: { fighter: 3, rogue: 2 }` accepted alongside legacy `classId+level`; `Multiclass.totalLevel` reads both *(v1.12.0)*
+- [x] **Multiclass prerequisites** — `MULTICLASS_PREREQS` table + `canMulticlassInto(record, classId)` enforces every existing class's prereq plus the new one *(v1.12.0)*
+- [x] **Multiclass caster level** — `Multiclass.casterLevel` with `CASTER_WEIGHT` map (full/half; Warlock excluded as Pact Magic is separate; custom weights for third-casters via arg) *(v1.12.0)*
+- [x] **Languages** — `Multiclass.languages` / `knowsLanguage` accessors; `record.languages[]` shape *(v1.12.0)*
+- [x] **Tool proficiencies** — `Multiclass.tools` / `isProficientWithTool` accessors; `record.tools[]` shape *(v1.12.0)*
+- [ ] **Origin feat auto-application** — backgrounds carry `originFeat` but its mechanical effects don't merge into the sheet yet; deferred until a real consumer drives the shape
+- [ ] **Starting equipment selection** *(SRD § Character Creation — Starting Equipment)* — deferred to host-side character-builder UI
 
 ## 16. Species, backgrounds, feats
 
