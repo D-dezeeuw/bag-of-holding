@@ -2,7 +2,7 @@
 
 `bag-of-holding` is a calculator, not a database. The host
 (Dungeons-and-Dans, a homebrew shell, a CLI tool) owns the persistent
-character — the thing you save to `.dnd.json`, undo, share. The engine
+character, the thing you save to `.dnd.json`, undo, share. The engine
 turns that record into every number you'd draw on a paper sheet.
 
 > The math is the engine. The host owns the prose, the persistence,
@@ -24,7 +24,7 @@ CharacterRecord     ──deriveSheet──▶   DerivedSheet
 **Inputs (CharacterRecord)** are the things the player picks or rolls:
 class, level, ability scores, equipped items, applied conditions, XP.
 The host persists this. Nothing the engine computes ever lands back on
-this record — if the player swaps a sword, the host updates
+this record; if the player swaps a sword, the host updates
 `equipment.weaponIds` and asks the engine to derive again.
 
 **Outputs (DerivedSheet)** are every number you'd read off a paper
@@ -38,11 +38,11 @@ field gets a loud error rather than a silently stale sheet.
 There is no `engine.setAbilityScore(record, ability, n)`. The host
 owns the record; mutating it is a one-line update in the host's save
 layer. Putting an engine-side mutation API in the middle would be a
-second source of truth — exactly the problem the boundary rule in
+second source of truth, exactly the problem the boundary rule in
 [boundary.md](./boundary.md) exists to prevent.
 
 The level-up flow, the equip-an-item flow, the "AI narrated a
-level-up" flow — all of those are host concerns. They update the
+level-up" flow, all of those are host concerns. They update the
 record, then call `deriveSheet` again to get the new numbers. Same
 pattern as a spreadsheet: cells store formulas (the record), and the
 sheet view (the derived sheet) is recomputed when anything changes.
@@ -54,15 +54,15 @@ interface CharacterRecord {
   id: string;
   name: string;
 
-  // Identity — looked up against the engine's registries.
+  // Identity, looked up against the engine's registries.
   speciesId: string;
   backgroundId: string;
   classId: string;
   subclassId?: string;           // null until level 3 (SRD 5.2)
-  level: number;                 // 1–5 in v0; engine roadmap 0.9 lifts the cap
+  level: number;                 // 1 to 20
 
   // Six ability scores, *base* (rolled or point-buy). Background
-  // bumps are NOT folded in here — the engine applies them so that a
+  // bumps are NOT folded in here, the engine applies them so that a
   // background swap doesn't double-apply.
   abilityScores: {
     str: number; dex: number; con: number;
@@ -83,7 +83,7 @@ interface CharacterRecord {
   hpRolled?: number[];
 
   // What the character has on. References into the engine's items
-  // registry — the engine resolves names, damage dice, and AC.
+  // registry, the engine resolves names, damage dice, and AC.
   equipment: {
     armorId?: string;            // single armor slot
     shieldId?: string;           // single shield slot
@@ -92,7 +92,7 @@ interface CharacterRecord {
   };
 
   // Explicit proficiencies on top of what class + background grant.
-  // Most PCs don't need this — derivation already accumulates the
+  // Most PCs don't need this; derivation already accumulates the
   // class's save profs and the background's skill profs. Use this
   // field for ASI feats that grant a new skill, multiclass
   // contributions, or homebrew.
@@ -113,7 +113,7 @@ interface CharacterRecord {
   // Conditions.apply/remove to mutate, not direct array push.
   conditions?: ConditionName[];
 
-  // 0–6 per SRD 5.2.
+  // 0 to 6 per SRD 5.2.
   exhaustion?: number;
 
   // Spell loadout for casters. Slot tracking arrives with 0.5.0;
@@ -260,7 +260,7 @@ import { createEngine } from '@zeeuw/bag-of-holding';
 const engine = createEngine();
 const sheet = engine.deriveSheet(record);
 
-// Or, module-level — engine is passed explicitly:
+// Or, module-level, engine is passed explicitly:
 import { Character } from '@zeeuw/bag-of-holding';
 const sheet2 = Character.deriveSheet(record, engine);
 ```
@@ -337,16 +337,14 @@ These belong upstream of the engine (the host) or downstream of v0
 difference between "the engine got this wrong" and "the engine
 doesn't claim to do this yet."
 
-- **Spell slot tracking.** Records carry `spells.slots`; the engine
-  doesn't compute slot tables until 0.5.0
-  ([roadmap § 0.5.0](./roadmap.md)).
+- **Slot-state mutation.** The derived sheet reflects max slots from
+  the class progression; tracking spent slots over a session is a
+  host concern (use `Spellcasting.consumeSlot` and
+  `Spellcasting.refillSlots` against your stored slot array).
 - **Class skill proficiency choices.** Backgrounds carry their
-  skills; the SRD class skill picks ("Fighter chooses two from …")
+  skills; the SRD class skill picks ("Fighter chooses two from ...")
   aren't in the class records yet. Use `record.proficiencies.skills`
   to express the player's pick.
-- **Condition effects on attack/save math.** Restrained sets speed
-  to 0 today; baking `Blinded → disadvantage on attacks`, etc., into
-  *combat* math arrives with 0.7.0.
 - **Encumbrance status.** `carryingCapacity` gives you the numbers;
   comparing them against carried weight is the host's job.
 - **Recompute orchestration.** The engine doesn't memoise. Hosts that

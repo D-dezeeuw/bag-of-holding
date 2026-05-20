@@ -1,4 +1,4 @@
-# Legal — what we can and can't reference
+# Legal, what we can and can't reference
 
 A pragmatic guide for contributors. The rules below are the working
 agreement, not legal advice. When in doubt, default to a generic or
@@ -16,21 +16,21 @@ closed, as long as we credit Wizards (see the README footer).
 
 ## What we can do
 
-- **Game mechanics — always.** Rules are not copyrightable, and the
+- **Game mechanics, always.** Rules are not copyrightable, and the
   SRD grants explicit permission on top of that. Attack rolls,
   saving throws, condition effects, spell slot tables, multiclassing
-  formulas — all fine.
+  formulas, all fine.
 - **SRD-listed named content.** The standard monsters (Goblin, Orc,
-  Red Dragon, Owlbear, …), the canonical magic items (Bag of
+  Red Dragon, Owlbear, ...), the canonical magic items (Bag of
   Holding, Cloak of Elvenkind, Wand of Magic Missiles, Staff of the
-  Magi, Potion of Healing, …), the SRD spells (Fireball, Magic
-  Missile, Counterspell, …), the classes / subclasses / species /
-  backgrounds / feats explicitly in the SRD 5.2 document — all
+  Magi, Potion of Healing, ...), the SRD spells (Fireball, Magic
+  Missile, Counterspell, ...), the classes / subclasses / species /
+  backgrounds / feats explicitly in the SRD 5.2 document, all
   usable by their real names.
 - **Generic terms.** Words like *fighter*, *cleric*, *sword*,
   *dragon*, *spell slot* are not Wizards' to own.
 - **Invented homebrew.** Anything we make up ourselves
-  (`Void Thrall`, `Helm of Some-Adjective`) — fine to use as
+  (`Void Thrall`, `Helm of Some-Adjective`), fine to use as
   examples, fixtures, and recipes.
 
 ## What we don't do
@@ -39,13 +39,13 @@ closed, as long as we credit Wizards (see the README footer).
   Yuan-ti, Slaad, Displacer Beast, Carrion Crawler, Githyanki /
   Githzerai, Kuo-toa, and similar are Wizards' Product Identity and
   are *not* in the SRD. Don't reference them by name, even in tests
-  or recipes — invent something generic instead.
+  or recipes; invent something generic instead.
 - **Named NPCs and wizards.** Mordenkainen, Tasha, Bigby, Tenser,
   Drizzt, Elminster, Acererak, Strahd, Vecna, etc. These are
   characters Wizards owns. If a spell historically used a wizard's
   name (Bigby's Hand, Tenser's Floating Disk, Mordenkainen's
   Magnificent Mansion), the SRD 5.2 renames it (Arcane Hand,
-  Floating Disk, Magnificent Mansion) — use the SRD name.
+  Floating Disk, Magnificent Mansion), use the SRD name.
 - **Setting names.** Forgotten Realms, Eberron, Greyhawk, Faerûn,
   Waterdeep, Baldur's Gate, Neverwinter, Sword Coast, the Underdark.
   None of these belong to us. Recipe examples should stay setting-
@@ -66,10 +66,10 @@ SRD registry:
 1. **Is it in the SRD 5.2 document?** Open the PDF / official
    listing and search for the name. If it's there, use the real
    name freely.
-2. **Is it generic?** "Cave fish", "abandoned shrine guard" — fine.
+2. **Is it generic?** "Cave fish", "abandoned shrine guard", fine.
 3. **Otherwise, invent.** Make up a clearly homebrew name. The
    `extraMonsters` / `extraSpells` / `extraItems` plugin surfaces
-   exist precisely for this — see the `void-thrall` example in
+   exist precisely for this; see the `void-thrall` example in
    `tests/integration.test.js`.
 
 ## Attribution
@@ -82,5 +82,5 @@ package, keep both intact.
 
 Default to a generic or invented name. The cost of renaming a test
 fixture is zero; the cost of getting it wrong is non-zero. Ask in a
-PR if you're unsure — flagging it is much cheaper than untangling
+PR if you're unsure, flagging it is much cheaper than untangling
 it after release.
