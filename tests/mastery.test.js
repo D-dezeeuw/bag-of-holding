@@ -33,9 +33,26 @@ test('no rider when weapon itself is null or undefined', () => {
 });
 
 test('graze fires on miss only', () => {
+  // No attacker passed → proficiencyBonus defaults to 0, so the
+  // damage collapses to `attackBonus - 0 = 3`. Same answer as the
+  // pre-1.0.1 buggy formula; the divergent case is pinned below.
   const glaive = { mastery: 'graze' };
   assert.deepEqual(applyMastery(glaive, {}, MISS), { kind: 'graze', damage: 3 });
   assert.deepEqual(applyMastery(glaive, {}, HIT),  { kind: 'none' });
+});
+
+test('graze damage equals the ability modifier, not the full attack bonus', () => {
+  // SRD 5.2 § Weapon Mastery Properties — Graze: damage equals the
+  // ability modifier used to make the attack. A L5 Fighter with
+  // +3 STR (ability mod) and +3 proficiency has `attackBonus = 6`,
+  // so the rider must report 3 (the ability mod), not 6.
+  const rider = applyMastery(
+    { mastery: 'graze' },
+    {},
+    { hit: false, attackBonus: 6 },
+    { proficiencyBonus: 3 }
+  );
+  assert.deepEqual(rider, { kind: 'graze', damage: 3 });
 });
 
 test('vex / sap / cleave / nick / push / slow / topple fire on hit only', () => {
@@ -46,13 +63,29 @@ test('vex / sap / cleave / nick / push / slow / topple fire on hit only', () => 
   }
 });
 
-test('topple builds a Constitution save DC = 8 + atk mod + prof bonus', () => {
+test('topple builds a Constitution save DC = 8 + ability mod + prof bonus', () => {
+  // SRD 5.2 § Weapon Mastery Properties — Topple. The attacker has
+  // attackBonus +3 and proficiency +2, so their ability modifier is
+  // 3 - 2 = 1, and the DC is 8 + 1 + 2 = 11. The pre-1.0.1 bug
+  // returned 13 by adding the proficiency bonus twice.
   const weapon = { mastery: 'topple' };
   const rider = applyMastery(weapon, {}, HIT, { proficiencyBonus: 2 });
   assert.equal(rider.kind, 'topple');
   assert.equal(rider.ability, 'con');
   assert.equal(rider.onFail, 'prone');
-  assert.equal(rider.saveDC, 8 + 3 + 2);
+  assert.equal(rider.saveDC, 8 + 1 + 2);
+});
+
+test('topple DC matches the SRD for a L5 Fighter (+4 STR, +3 prof)', () => {
+  // Canonical SRD example: attackBonus = +4 ability + +3 prof = +7,
+  // so the DC is 8 + 4 + 3 = 15. The pre-1.0.1 bug produced 18.
+  const rider = applyMastery(
+    { mastery: 'topple' },
+    {},
+    { hit: true, attackBonus: 7 },
+    { proficiencyBonus: 3 }
+  );
+  assert.equal(rider.saveDC, 15);
 });
 
 test('unknown mastery throws', () => {
@@ -83,7 +116,9 @@ test('topple builds DC = 8 + 0 + 0 with no attacker mods supplied', () => {
 
 test('topple tolerates a null attacker (short-circuits proficiencyBonus chain)', () => {
   // Explicitly passes `null` for attacker — covers the optional-chain
-  // short-circuit on `attacker?.proficiencyBonus`.
+  // short-circuit on `attacker?.proficiencyBonus`. With profBonus
+  // defaulting to 0, the ability mod is recovered as `attackBonus - 0
+  // = 3`, so the DC is 8 + 3 + 0 = 11.
   const rider = applyMastery({ mastery: 'topple' }, {}, HIT, null);
   assert.equal(rider.kind, 'topple');
   assert.equal(rider.saveDC, 8 + 3 + 0);

@@ -128,9 +128,19 @@ export function damageRoll({ damageDice, damageMod = 0, critical = false }, rng 
  * the attacker's modifiers).
  */
 export const DEFAULT_MASTERY_HANDLERS = Object.freeze({
-  graze: (_w, _t, result) => {
+  graze: (_w, _t, result, attacker) => {
     if (result?.hit) return { kind: 'none' };
-    return { kind: 'graze', damage: result?.attackBonus ?? 0 };
+    // SRD 5.2 § Weapon Mastery Properties — Graze: "the target
+    // takes damage equal to the ability modifier you used to make
+    // the attack roll." `attackResult.attackBonus` is the *total*
+    // bonus (abilityMod + proficiencyBonus + situational), so we
+    // recover the ability modifier by subtracting the proficiency
+    // bonus the attacker was using. Callers that pass neither field
+    // land at 0 — keeps an under-specified call quiet rather than
+    // fabricating damage.
+    const attackBonus = result?.attackBonus ?? 0;
+    const proficiencyBonus = attacker?.proficiencyBonus ?? 0;
+    return { kind: 'graze', damage: attackBonus - proficiencyBonus };
   },
 
   cleave: (_w, _t, result) => {
@@ -160,9 +170,16 @@ export const DEFAULT_MASTERY_HANDLERS = Object.freeze({
 
   topple: (_w, _t, result, attacker) => {
     if (!result?.hit) return { kind: 'none' };
-    // Past the hit guard, `result` is defined.
-    const attackAbilityMod = result.attackBonus ?? 0;
+    // SRD 5.2 § Weapon Mastery Properties — Topple: the Constitution
+    // save DC is 8 + the attacker's ability modifier + their
+    // proficiency bonus. `attackBonus` already folds proficiency in,
+    // so we strip it back out to recover the bare ability modifier
+    // before re-applying both sides of the SRD formula — the
+    // algebraic form keeps the SRD wording auditable from the code
+    // even though it simplifies to `8 + attackBonus`.
+    const attackBonus = result.attackBonus ?? 0;
     const proficiencyBonus = attacker?.proficiencyBonus ?? 0;
+    const attackAbilityMod = attackBonus - proficiencyBonus;
     const saveDC = 8 + attackAbilityMod + proficiencyBonus;
     return { kind: 'topple', saveDC, ability: 'con', onFail: 'prone' };
   },

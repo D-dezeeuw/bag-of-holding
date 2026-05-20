@@ -320,7 +320,7 @@ Gaps and bugs identified by reading the engine against the published
 parking lot below these are tracked commitments — the kernel is not
 honestly "SRD 5.2 compliant" until they land.
 
-### `1.0.1` — SRD math fixes (patch)
+### `1.0.1` — SRD math fixes (patch) ✅ shipped
 
 Three handlers return values that diverge from the published rule
 text. Patch-level because public signatures are unchanged; only the

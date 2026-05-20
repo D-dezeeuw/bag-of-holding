@@ -1,11 +1,12 @@
 import { rollDie } from './dice.js';
 
-// SRD 5.2 caps "trivially easy" at DC 5 and "nearly impossible" at
-// DC 25. Anything outside that band is a content bug (or an LLM
-// hallucinating an obstacle) — we clamp at the engine boundary so a
-// stray DC 100 can't soft-lock the game.
+// SRD 5.2 § Ability Checks — Typical Difficulty Classes: the table
+// runs Very Easy (5), Easy (10), Medium (15), Hard (20), Very Hard
+// (25), Nearly Impossible (30). Anything outside that band is a
+// content bug (or an LLM hallucinating an obstacle) — we clamp at
+// the engine boundary so a stray DC 100 can't soft-lock the game.
 const MIN_DC = 5;
-const MAX_DC = 25;
+const MAX_DC = 30;
 
 /**
  * The 5e ability modifier is `(score − 10) / 2`, **floored toward
