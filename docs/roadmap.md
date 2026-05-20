@@ -499,8 +499,13 @@ in the typecheck file:
   recovery; CR cap (1/4 / 1/2 / 1 at L2/L4/L8) and movement-mode
   unlocks (swim L4, fly L8) enforced; `actor.wildShape` form record
   + revert mechanic + caps lookup. ✅ shipped
-- **`1.3.5`** Monk § *Martial Arts* + § *Focus Points* (replaces Ki
-  in the 2024 SRD): point pool, spend handlers, short-rest refresh.
+- **`1.3.5`** Monk § *Focus Points* (replaces Ki in 2024) — pool =
+  level from L2, short-rest full refresh; Martial Arts die scaling
+  (d6/d8/d10/d12 at L1/L5/L11/L17); Flurry of Blows (1 FP → 2 strikes,
+  3 at L10 via Heightened Focus); Patient Defense (free Disengage,
+  or 1 FP for Disengage + Dodge + 2 MA-die tempHp); Step of the Wind
+  (free Dash, or 1 FP for Disengage + Dash + doubled jump + ally
+  carry). ✅ shipped
 - **`1.3.6`** Paladin § *Lay on Hands* (pool = 5 × level), § *Divine
   Smite* (consume a slot, add radiant dice scaled per slot level).
 - **`1.3.7`** Ranger § *Hunter's Mark* binding, § *Favored Enemy*
