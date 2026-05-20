@@ -651,12 +651,11 @@ tracking](srd-coverage.md#9-time-and-duration-tracking) for the
 round-clock + scene-clock halves. The condition-metadata + save-
 end-of-turn rows there migrate to a planned 1.6.1.
 
-### `1.7.0` — Combat actions menu
+### `1.7.0` — Combat actions menu ✅ shipped
 
-The encounter system spends a generic `'action'` budget today but
-knows none of the action semantics. This release adds the SRD action
-verbs and re-derives `opportunityAttack`'s `disengaged` flag
-properly.
+The encounter system spent a generic `'action'` budget previously
+but knew none of the action semantics. This release adds the SRD
+action verbs as engine helpers.
 
 - **Dash, Disengage, Dodge, Help, Hide, Ready, Search, Study,
   Influence** — each as a verb on `engine.Combat`: consumes a

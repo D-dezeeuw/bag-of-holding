@@ -462,6 +462,19 @@ export function createEngine(opts = {}) {
     ACTION_COSTS: EncounterBase.ACTION_COSTS,
     COVER_BONUSES: EncounterBase.COVER_BONUSES,
 
+    // === Action verbs (since 1.7.0) ===
+    dash: EncounterBase.dash,
+    disengage: EncounterBase.disengage,
+    dodge: EncounterBase.dodge,
+    help: EncounterBase.help,
+    hide: EncounterBase.hide,
+    ready: EncounterBase.ready,
+    ability: EncounterBase.ability,
+    grapple: EncounterBase.grapple,
+    shove: EncounterBase.shove,
+    offHandAttack: EncounterBase.offHandAttack,
+    improvisedAttack: EncounterBase.improvisedAttack,
+
     // === Death saves (since 1.1.0) ===
     //
     // Bound so the d20 from each save flows into the same rollLog as
