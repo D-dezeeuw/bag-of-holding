@@ -28,11 +28,10 @@ model, a framework, or a virtual tabletop.
   optional `context` tags per roll, and a `verifyLog` replay
   verifier that flags any divergence between recorded and
   re-executed outcomes.
-- **Plugin-extensible at the kernel.** Phase A (content: species,
-  classes, items, conditions, weapon-mastery handlers) and Phase B
-  (rule knobs: critOn/fumbleOn, damageFloor, explodingDamageDice,
-  XP curve overrides) both via `createEngine({ … })`. Phase C
-  (behavioural hooks) is next on the roadmap.
+- **Plugin-extensible at the kernel.** Phase A (content), Phase B
+  (rule knobs), Phase C (behavioural hooks), and Phase D (turn-
+  lifecycle + scene events) all via `createEngine({ … })`. See
+  [docs/spec.md § Plugins](docs/spec.md).
 - **Character sheets.** `Character.deriveSheet(record, engine)`
   turns a host-owned record into a frozen sheet (AC, HP, saves,
   skills, attacks, spellcasting). Host owns the record; engine
@@ -42,6 +41,9 @@ model, a framework, or a virtual tabletop.
 - **SRD 5.2 (2025).** Weapon Mastery, numeric Exhaustion,
   Backgrounds-as-ability-source — the current rules, not a 5.1 carry-over.
 - **100% line / branch / function coverage** as an ongoing contract.
+- **SRD-completeness tracked transparently.** See
+  [docs/srd-coverage.md](docs/srd-coverage.md) for the live
+  per-section worklist.
 
 ## Install
 
@@ -63,27 +65,26 @@ Or drop it straight into a static page from a CDN — no build step:
 ## Use
 
 ```js
-import {
-  Dice, Checks, Combat, Conditions, XP, Movesets, Beats, SRD
-} from '@zeeuw/bag-of-holding';
+import { Dice, Combat, Conditions, XP, SRD } from '@zeeuw/bag-of-holding';
 
 // Roll dice with the standard XdY±Z grammar.
 Dice.roll('2d6+3');
 // → { spec: '2d6+3', rolls: [4, 5], modifier: 3, total: 12 }
 
-// Resolve an attack and (on a hit) the damage.
+// Resolve an attack → damage → applied HP, with resistance + tempHp
+// folded in automatically.
 const attack = Combat.attackRoll({ attackBonus: 5, ac: 14 });
 if (attack.hit) {
-  Combat.damageRoll({
-    damageDice: '1d8',
-    damageMod: 3,
-    critical: attack.critical
+  const dmg = Combat.damageRoll({
+    damageDice: '1d8', damageMod: 3,
+    damageType: 'slashing', critical: attack.critical
   });
+  Combat.applyDamage(target, { amount: dmg.total, type: dmg.damageType });
 }
 
 // SRD 5.2 Weapon Mastery — riders resolve declaratively.
 const longsword = SRD.items.longsword;       // mastery: 'sap'
-const rider = Combat.applyMastery(longsword, target, attack);
+Combat.applyMastery(longsword, target, attack);
 // → { kind: 'sap', disadvantage: true }     (target's next attack)
 
 // Conditions are immutable — apply / remove returns a new actor.
@@ -94,6 +95,13 @@ const tired   = Conditions.exhaustion.gain(actor);   // 0..6, SRD 5.2
 XP.levelForXP(2700);          // → 4
 XP.nextLevelThreshold(2700);  // → 6500
 ```
+
+The engine ships ~20 namespaces — `Dice`, `Checks`, `Combat`,
+`Conditions`, `XP`, `Spellcasting`, `Rest`, `Mechanics`, `SceneClock`,
+`MagicItems`, `Monsters`, `Movement`, `Multiclass`, `Inspiration`,
+`EncounterDesign`, `Movesets`, `Beats`, `Character`, plus the `SRD`
+content alias. See [docs/recipes.md](docs/recipes.md) for worked
+examples of how they combine.
 
 ## Custom rules (plugins)
 
@@ -133,28 +141,23 @@ validation behaviour, and merge semantics.
 
 ## Documentation
 
-- [docs/recipes.md](docs/recipes.md) — pragmatic patterns for building
-  clients: dice as a static-page widget, attack-from-stealth, custom
-  weapon mastery, seeded sessions, save & restore, AI-loop shape, and
-  more. The "how do I actually do X?" reference.
+- [docs/recipes.md](docs/recipes.md) — pragmatic patterns and
+  compound flows (combat actions menu, damage pipeline, class
+  mechanics, magic-item lifecycle, ritual casting, AoE spells, …).
+  The "how do I actually do X?" reference.
 - [docs/why.md](docs/why.md) — the case for the library: market gap,
   niche, moat, the conditions under which this would be a waste of
   time. Read first.
 - [docs/spec.md](docs/spec.md) — what the engine implements (and what
   it doesn't); plugin contract; types.
 - [docs/srd-coverage.md](docs/srd-coverage.md) — line-by-line
-  checklist of what the engine implements against the SRD 5.2. The
-  live worklist for SRD-compliance work.
-- [docs/character-sheet.md](docs/character-sheet.md) — the host/engine
-  contract for character records, the `DerivedSheet` schema, and the
-  worked example end-to-end.
-- [docs/roadmap.md](docs/roadmap.md) — versioned milestones from today
-  (`0.x`) to feature-complete (`1.0`) and the vision behind them.
-- [docs/boundary.md](docs/boundary.md) — the contract: what the engine
-  **won't** do.
+  checklist against the SRD 5.2. The live SRD-compliance worklist.
 - [docs/character-sheet.md](docs/character-sheet.md) — the
   `CharacterRecord` (host-owned) ↔ `DerivedSheet` (engine-derived)
   contract with a worked example.
+- [docs/roadmap.md](docs/roadmap.md) — versioned milestones and the
+  vision behind them.
+- [docs/boundary.md](docs/boundary.md) — what the engine **won't** do.
 - [docs/beat-schema.md](docs/beat-schema.md) — the story-beat shape
   and runtime.
 
@@ -168,9 +171,10 @@ validation behaviour, and merge semantics.
 ## Development
 
 ```bash
-npm test                  # 115 tests, ~70ms
+npm test                  # node --test
 npm run test:coverage     # 100 / 100 / 100 line / branch / function
 npm run typecheck         # tsc --noEmit against the hand-maintained .d.ts
+npm run bundle-size       # measure min + gzip against the budget
 ```
 
 The coverage and typecheck scripts are the quality gates; the library
