@@ -907,20 +907,27 @@ Treasure tables deferred to a later content-only patch.
 
 Closes [§ 20 Encounter design](srd-coverage.md#20-encounter-design).
 
-### `1.17.0`: Equipment depth
+### `1.17.0`: Equipment depth ✅ shipped in v1.19.0
 
-Armor mechanics, tools, and the long tail of mundane gear.
+Armor mechanics, tools, and the long tail of mundane gear, all in
+the new `Equipment` namespace.
 
-- **Encumbrance variant.** `Character.encumbranceLevel(actor)`
-  returns `'none' | 'encumbered' | 'heavily-encumbered'`.
-- **Armor donning / doffing time.** Fields + helper.
-- **Stealth disadvantage on heavy armor**, applied to the derived
-  Stealth skill.
-- **STR-requirement speed penalty.** Heavy armor below the STR
-  requirement reduces speed by 10 ft.
-- **Tools as proficiency.** `record.tools`; `Checks.toolCheck`.
-- **Adventuring gear / services / lifestyle / trade goods** as
-  registry entries (pure data).
+- **`Equipment.encumbranceLevel`** for the variant rule. Returns
+  `'none' | 'encumbered' | 'heavily-encumbered'`.
+- **Armor records gain `category`, `weight`, `donTime`, `doffTime`,
+  `strRequired`, `stealthDisadvantage`.** All SRD § Armor table
+  fields available off `engine.items.<id>`.
+- **`deriveSheet` surfaces stealth disadvantage** as
+  `sheet.skills.stealth.disadvantage` when heavy armor is equipped.
+- **STR-requirement speed penalty.** Heavy armor below the
+  `strRequired` threshold subtracts 10 ft from every movement mode
+  on the sheet.
+- **Encumbrance speed penalty.** `record.encumbrance: 'encumbered'`
+  or `'heavily-encumbered'` subtracts 10 / 20 ft per the variant.
+- **`Equipment.toolCheck`.** Proficiency-aware tool check that
+  routes through the engine rng.
+- **`ADVENTURING_GEAR`, `TOOLS`, `LIFESTYLES`, `SERVICES`** pure-data
+  registries.
 
 Closes [§ 17 Equipment & inventory](srd-coverage.md#17-equipment--inventory).
 

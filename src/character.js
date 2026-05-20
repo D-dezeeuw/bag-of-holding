@@ -281,7 +281,7 @@ function deriveInitiative(allFeats, profBonus, dexMod) {
  * — we hard-zero on any of them so a paralyzed PC's sheet doesn't
  * misleadingly show "25 ft (exhausted from 30)".
  */
-function deriveSpeed(species, conditions, exhaustionLevel) {
+function deriveSpeed(species, conditions, exhaustionLevel, extraPenalty = 0) {
   const effects = species.effects ?? {};
   const extras = effects.extraSpeeds ?? {};
   if (conditions.some((c) => SPEED_ZERO_CONDITIONS.includes(c))) {
@@ -289,7 +289,7 @@ function deriveSpeed(species, conditions, exhaustionLevel) {
     for (const mode of Object.keys(extras)) zeroed[mode] = 0;
     return zeroed;
   }
-  const penalty = Exhaustion.speedPenalty({ exhaustion: exhaustionLevel });
+  const penalty = Exhaustion.speedPenalty({ exhaustion: exhaustionLevel }) + extraPenalty;
   const speeds = { walk: Math.max(0, species.speed - penalty) };
   for (const [mode, base] of Object.entries(extras)) {
     speeds[mode] = Math.max(0, base - penalty);
@@ -361,7 +361,7 @@ function deriveSaves(classDef, extraSaves, profBonus, abilityMods) {
  * rather than throwing — a host editor mid-edit shouldn't crash on a
  * half-written record.
  */
-function deriveSkills(background, extraSkills, expertise, profBonus, abilityMods) {
+function deriveSkills(background, extraSkills, expertise, profBonus, abilityMods, stealthDisadvantage = false) {
   const proficientSet = new Set([
     ...(background.skillProficiencies ?? []),
     ...(extraSkills ?? [])
@@ -372,12 +372,20 @@ function deriveSkills(background, extraSkills, expertise, profBonus, abilityMods
     const proficient = proficientSet.has(skillId);
     const isExpert = proficient && expertiseSet.has(skillId);
     const profPortion = isExpert ? profBonus * 2 : (proficient ? profBonus : 0);
-    skills[skillId] = {
+    const skill = {
       ability,
       mod: abilityMods[ability] + profPortion,
       proficient,
       expertise: isExpert
     };
+    // Heavy / armored disadvantage rides through to the host as a
+    // flag the UI can render alongside the mod, instead of folding
+    // into the mod itself (advantage / disadvantage are roll-time
+    // mechanics in 5e, not flat penalties).
+    if (skillId === 'stealth' && stealthDisadvantage) {
+      skill.disadvantage = true;
+    }
+    skills[skillId] = skill;
   }
   return skills;
 }
@@ -508,7 +516,16 @@ export function deriveSheet(record, registries) {
   const hp = { max: deriveMaxHp(record, classDef, abilityMods.con) };
   const ac = deriveAc(record, items, abilityMods.dex);
   const initiative = deriveInitiative(allFeats, profBonus, abilityMods.dex);
-  const speed = deriveSpeed(species, conditions, exhaustionLevel);
+  // Armor metadata governs both stealth disadvantage (per SRD § Armor)
+  // and a 10 ft speed penalty when a heavy armor's strRequired isn't
+  // met. The host can also stamp `record.encumbrance` for the variant
+  // rule, which routes through the same speed-penalty pipeline.
+  const armor = record.equipment?.armorId ? items[record.equipment.armorId] : null;
+  const armorStealthDisadvantage = Boolean(armor?.stealthDisadvantage);
+  const armorSpeedPenalty = armor && armor.strRequired && abilityFinal.str < armor.strRequired ? 10 : 0;
+  const encumbranceSpeed = (record.encumbrance === 'encumbered') ? 10
+    : (record.encumbrance === 'heavily-encumbered') ? 20 : 0;
+  const speed = deriveSpeed(species, conditions, exhaustionLevel, armorSpeedPenalty + encumbranceSpeed);
   const senses = deriveSenses(species);
   const damageResistances = deriveDamageResistances(species);
   const traitFlags = deriveTraitFlags(species);
@@ -518,7 +535,8 @@ export function deriveSheet(record, registries) {
     record.proficiencies?.skills,
     record.proficiencies?.expertise,
     profBonus,
-    abilityMods
+    abilityMods,
+    armorStealthDisadvantage
   );
   const attacks = deriveAttacks(record, items, profBonus, abilityMods);
   const spellcasting = deriveSpellcasting(classDef, profBonus, abilityMods);
