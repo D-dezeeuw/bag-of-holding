@@ -62,6 +62,7 @@
   ],
   "spellcasting": { "ability": "int", "attackBonus": 7, "saveDC": 15 },
   "passives": { "perception": 11, "insight": 11, "investigation": 14 },
+  "featGrants": { "magic-initiate_wizard": { "cantripsKnown": 2, "level1Spell": 1, "spellcastingAbility": "choose:int|wis|cha" } },
   "carryingCapacity": { "capacity": 120, "push": 240, "lift": 240 },
   "activeEffects": { "conditions": ["blinded"], "exhaustion": 0 }
 }

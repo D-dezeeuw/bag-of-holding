@@ -877,6 +877,14 @@ export function createEngine(opts = {}) {
           const cancel = fireOnCast(actor, spell, { ...(args ?? {}), ritual: true });
           if (cancel) return cancel;
           return Spellcasting.castAsRitual(actor, spell, args);
+        },
+        // Spell scroll casting (since 1.29.0; SRD § Magic Items —
+        // Spell Scroll). Rolls the higher-level check through the
+        // engine rng; scroll consumption is the host's job.
+        castFromScroll: (actor, spell, args) => {
+          const cancel = fireOnCast(actor, spell, args);
+          if (cancel) return cancel;
+          return Spellcasting.castFromScroll(actor, spell, args, rng);
         }
       };
     })(),

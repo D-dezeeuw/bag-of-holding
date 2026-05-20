@@ -62,6 +62,7 @@
   ],
   "spellcasting": null,
   "passives": { "perception": 11, "insight": 11, "investigation": 10 },
+  "featGrants": { "savage-attacker": { "rerollWeaponDamageOncePerTurn": true } },
   "carryingCapacity": { "capacity": 240, "push": 480, "lift": 480 },
   "activeEffects": { "conditions": [], "exhaustion": 0 }
 }

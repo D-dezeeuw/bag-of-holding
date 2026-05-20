@@ -62,6 +62,7 @@
   ],
   "spellcasting": null,
   "passives": { "perception": 10, "insight": 10, "investigation": 11 },
+  "featGrants": { "alert": { "initiativeProficiency": true, "initiativeSwap": true } },
   "carryingCapacity": { "capacity": 120, "push": 240, "lift": 240 },
   "activeEffects": { "conditions": [], "exhaustion": 0 }
 }
