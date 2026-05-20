@@ -847,7 +847,7 @@ Closes the trait-mechanics half of
 [§ 16 Species, backgrounds, feats](srd-coverage.md#16-species-backgrounds-feats);
 content expansion is parallel `1.x.y` work.
 
-### `1.14.0` — Saves & edge mechanics
+### `1.14.0` — Saves & edge mechanics ✅ shipped
 
 Reroll-on-save patterns and group/help skill semantics.
 

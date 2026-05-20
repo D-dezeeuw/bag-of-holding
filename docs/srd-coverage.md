@@ -369,12 +369,12 @@ boxes are always the live worklist.
 **Planned:** [v1.14.0](roadmap.md#1140--saves--edge-mechanics).
 
 - [x] `Checks.savingThrow` *(v0.0.0)*
-- [ ] **Inspiration / Heroic Inspiration** — actor flag + grant / spend helpers *(SRD § Character Creation — Heroic Inspiration)*
-- [ ] **Halfling Lucky** reroll on 1 *(SRD § Character Origins — Halfling)*
-- [ ] **Indomitable** *(SRD § Classes — Fighter L9)*
-- [ ] **Diamond Soul / Stillness of Mind / Magic Resistance** reroll-on-save patterns
-- [ ] **Group checks** (half or more succeed → group succeeds) *(SRD § Playing the Game — Ability Checks)*
-- [ ] **Working together** advantage (Help variant for skill checks) *(SRD § Playing the Game — Working Together)*
+- [x] **Inspiration / Heroic Inspiration** — `Inspiration.hasInspiration / grant / spend` *(v1.14.0)*
+- [x] **Halfling Lucky** — `Inspiration.applyHalflingLucky(originalD20)` rerolls on a 1 and keeps the new value *(v1.14.0)*
+- [x] **Indomitable / generic reroll-once** — `Inspiration.rerollFailedSave({ actor, resourceId })` consumes a per-rest counter (Indomitable, Stillness of Mind, etc.) *(v1.14.0)*
+- [x] **Diamond Soul / Magic Resistance reroll-on-save** — same `rerollFailedSave` shape with a different resource id *(v1.14.0)*
+- [x] **Group checks** — `Inspiration.groupCheck({ successes, total })` *(v1.14.0)*
+- [x] **Working together** — `Inspiration.workingTogether({ allyProficient })` *(v1.14.0)*
 
 ## 22. Diseases, poisons, environmental hazards
 
