@@ -1,7 +1,7 @@
 import { rollDie, roll as rollDice, rollExplosive } from './dice.js';
 import { modFromScore } from './checks.js';
 import { DEFAULT_RULES } from './rules.js';
-import { attackStance } from './conditions.js';
+import { attackStance, apply as applyCondition, remove as removeCondition } from './conditions.js';
 
 /**
  * Initiative is mechanically just `d20 + DEX mod`, but it lives in
@@ -219,4 +219,192 @@ export function applyMastery(weapon, target, attackResult, attacker = {}, handle
   const handler = handlers[mastery];
   if (!handler) throw new Error(`Unknown weapon mastery: ${mastery}`);
   return handler(weapon, target, attackResult, attacker);
+}
+
+// === Death saves (SRD 5.2 § Damage and Healing — Death Saving Throws) ===
+//
+// At 0 HP a creature falls Unconscious and rolls a DC 10 d20 at the
+// start of each of its turns. Three successes Stabilise; three
+// failures kill. A natural 1 counts as two failures; a natural 20
+// restores 1 HP and consciousness. Damage taken while at 0 HP counts
+// as a failed save (two if from a critical hit). If damage taken
+// while at 0 HP equals or exceeds the actor's HP maximum, the actor
+// dies outright (massive damage).
+//
+// The engine models this as a `deathSaves` tracker on the actor:
+//
+//   actor.deathSaves = { successes, failures, stable, dead }
+//
+// All five entry points are pure: same inputs → same outputs, new
+// actor returned, original untouched. The host orchestrates *when*
+// to call them — typically `dropToZero` on lethal damage,
+// `deathSave` at turn start, `applyDamageWhileDown` on each
+// subsequent hit, and `reviveTo` / `stabilize` on healing magic or
+// a Medicine check.
+
+/** Default DC per SRD 5.2 § Death Saving Throws. Plugin rule packs
+ *  can lower it for heroic play or raise it for gritty. */
+export const DEFAULT_DEATH_SAVE_DC = 10;
+
+/** Default successes/failures count per SRD 5.2 § Death Saving
+ *  Throws. Three of either ends the sequence. */
+export const DEFAULT_DEATH_SAVE_THRESHOLD = 3;
+
+/** Fresh tracker. Exported so hosts can initialise the field on
+ *  characters created before death saves landed without reaching
+ *  into the engine's internals. */
+export function freshDeathSaves() {
+  return { successes: 0, failures: 0, stable: false, dead: false };
+}
+
+/**
+ * Drop an actor to 0 HP. Applies Unconscious (the SRD condition
+ * accompanying the down state), initialises the death-save tracker,
+ * and zeroes `hp`. Use this rather than a raw `hp = 0` assignment so
+ * the tracker exists before the first `deathSave` call.
+ *
+ * Idempotent: dropping an actor that's already at 0 HP just refreshes
+ * the tracker. The pre-existing `unconscious` condition (if any) is
+ * preserved via the existing `apply` set semantics.
+ */
+export function dropToZero(actor) {
+  const withUnconscious = applyCondition(actor, 'unconscious');
+  return { ...withUnconscious, hp: 0, deathSaves: freshDeathSaves() };
+}
+
+/**
+ * Roll one death save per SRD 5.2 § Death Saving Throws. Returns:
+ *
+ *   { d20, outcome, actor }
+ *
+ * where `outcome` is one of:
+ *   - `'success'`  → made the DC, not yet at the threshold
+ *   - `'failure'`  → missed the DC (or rolled nat 1), not yet dead
+ *   - `'stable'`   → third success, actor stabilised
+ *   - `'dead'`     → third failure (or two from nat 1), actor dead
+ *   - `'revived'`  → nat 20, regains 1 HP and consciousness
+ *   - `'noop'`     → tracker already stable or dead; no roll made
+ *
+ * The `noop` branch returns `d20: 0` so the caller can distinguish
+ * "didn't roll" from any legitimate die face. Calling on an actor
+ * with no tracker initialised treats it as a fresh tracker — useful
+ * for hosts that wire death saves in mid-session.
+ */
+export function deathSave(actor, rng = Math.random, rules = DEFAULT_RULES) {
+  const tracker = actor.deathSaves ?? freshDeathSaves();
+  if (tracker.dead || tracker.stable) return { d20: 0, outcome: 'noop', actor };
+  // `rules` is authoritative — `DEFAULT_RULES` and `buildRules` both
+  // ensure the death-save knobs are populated, so we read them
+  // directly without `??` fallbacks (would be dead code).
+  const dc = rules.deathSaveDC;
+  const threshold = rules.deathSaveSuccessesRequired;
+  const d20 = rollDie(20, rng);
+
+  // Nat 20: regain 1 HP, clear tracker, remove Unconscious. The
+  // SRD wording is "regain 1 Hit Point" — we delegate the condition
+  // removal to the shared `remove` helper so the boolean-list
+  // semantics stay in one place.
+  if (d20 === 20) {
+    const revived = removeCondition(actor, 'unconscious');
+    return {
+      d20,
+      outcome: 'revived',
+      actor: { ...revived, hp: 1, deathSaves: freshDeathSaves() }
+    };
+  }
+  // Nat 1: two failures.
+  if (d20 === 1) {
+    const failures = tracker.failures + 2;
+    const dead = failures >= threshold;
+    return {
+      d20,
+      outcome: dead ? 'dead' : 'failure',
+      actor: { ...actor, deathSaves: { ...tracker, failures, dead } }
+    };
+  }
+  // Ordinary success.
+  if (d20 >= dc) {
+    const successes = tracker.successes + 1;
+    const stable = successes >= threshold;
+    return {
+      d20,
+      outcome: stable ? 'stable' : 'success',
+      actor: { ...actor, deathSaves: { ...tracker, successes, stable } }
+    };
+  }
+  // Ordinary failure.
+  const failures = tracker.failures + 1;
+  const dead = failures >= threshold;
+  return {
+    d20,
+    outcome: dead ? 'dead' : 'failure',
+    actor: { ...actor, deathSaves: { ...tracker, failures, dead } }
+  };
+}
+
+/**
+ * Apply damage to a creature already at 0 HP. Per SRD 5.2 § Damage
+ * at 0 Hit Points:
+ *   - Each hit counts as one failed death save.
+ *   - A critical hit counts as two failed death saves.
+ *   - If the damage equals or exceeds the actor's HP maximum, the
+ *     actor dies outright (massive damage).
+ *
+ * `hpMax` defaults to `actor.hpMax` so hosts can omit it for actors
+ * whose sheet already carries the field. Omitting it entirely and
+ * leaving the actor with no `hpMax` skips the massive-damage check —
+ * an under-specified call won't fabricate an instant death.
+ */
+export function applyDamageWhileDown(actor, damageTaken, { critical = false, hpMax } = {}, rules = DEFAULT_RULES) {
+  const tracker = actor.deathSaves ?? freshDeathSaves();
+  if (tracker.dead) return { outcome: 'noop', actor };
+  const max = hpMax ?? actor.hpMax;
+  const threshold = rules.deathSaveSuccessesRequired;
+  // Massive damage = instant death. Saturates the failure counter at
+  // the threshold so the tracker reads as "dead via 3 failures" and
+  // downstream UI doesn't have to special-case the cause.
+  if (max !== undefined && damageTaken >= max) {
+    return {
+      outcome: 'dead',
+      actor: { ...actor, deathSaves: { ...tracker, failures: threshold, dead: true } }
+    };
+  }
+  const failureDelta = critical ? 2 : 1;
+  const failures = tracker.failures + failureDelta;
+  const dead = failures >= threshold;
+  // Stabilised actors lose their stable flag when they take damage
+  // (per the "your hp drops to 0 again" pathway in the SRD: damage
+  // re-triggers the death-save sequence).
+  return {
+    outcome: dead ? 'dead' : 'failure',
+    actor: { ...actor, deathSaves: { ...tracker, failures, stable: false, dead } }
+  };
+}
+
+/**
+ * Stabilise an actor at 0 HP — Medicine check, spare-the-dying, etc.
+ * Clears the success/failure counters and sets `stable: true`. The
+ * actor stays at 0 HP and Unconscious; the host triggers a wake-up
+ * separately when narratively appropriate (e.g. an hour later per the
+ * SRD's "regain 1 HP after 1d4 hours" rule, which the host owns).
+ */
+export function stabilize(actor) {
+  return {
+    ...actor,
+    deathSaves: { successes: 0, failures: 0, stable: true, dead: false }
+  };
+}
+
+/**
+ * Revive an actor to a positive HP value. Clears the tracker and
+ * removes the Unconscious condition. Throws on non-positive HP
+ * because "revive to 0" is a contradiction — use `stabilize` if you
+ * want to keep the actor down but stop the dying clock.
+ */
+export function reviveTo(actor, hp) {
+  if (!Number.isInteger(hp) || hp < 1) {
+    throw new Error('reviveTo: hp must be a positive integer');
+  }
+  const withoutUnconscious = removeCondition(actor, 'unconscious');
+  return { ...withoutUnconscious, hp, deathSaves: freshDeathSaves() };
 }

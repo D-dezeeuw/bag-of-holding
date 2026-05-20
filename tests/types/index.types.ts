@@ -47,7 +47,10 @@ import defaultEngine, {
   type DerivedAttack,
   type DerivedSave,
   type DerivedSkill,
-  type SkillId
+  type SkillId,
+  type DeathSaveTracker,
+  type DeathSaveResult,
+  type DeathSaveOutcome
 } from '../../index.js';
 
 // ============================================================
@@ -211,6 +214,34 @@ const _replayWithRules: VerifyLogResult = verifyLog({
 // XP namespace respects override table.
 const _grittyLevel: number = grittyEngine.XP.levelForXP(2000);
 void _grittyLevel;
+
+// === Death saves (since 1.1.0) ===
+
+const _deathSaveDC: number = grittyEngine.rules.deathSaveDC;
+const _deathThreshold: number = grittyEngine.rules.deathSaveSuccessesRequired;
+void _deathSaveDC; void _deathThreshold;
+
+const tracker: DeathSaveTracker = defaultEngine.Combat.freshDeathSaves();
+void tracker.successes; void tracker.failures; void tracker.stable; void tracker.dead;
+
+const downedActor: Actor = defaultEngine.Combat.dropToZero({ id: 'pc' });
+const _saveResult: DeathSaveResult = defaultEngine.Combat.deathSave(downedActor, 'turn 1');
+const _outcome: DeathSaveOutcome = _saveResult.outcome;
+void _outcome;
+
+const _damageResult: { outcome: DeathSaveOutcome; actor: Actor } =
+  defaultEngine.Combat.applyDamageWhileDown(downedActor, 5, { critical: true });
+void _damageResult;
+
+const _stabilised: Actor = defaultEngine.Combat.stabilize(downedActor);
+const _revived: Actor = defaultEngine.Combat.reviveTo(downedActor, 8);
+void _stabilised; void _revived;
+
+// Custom DC + threshold via rules.
+const _heroicEngine: Engine = createEngine({
+  rules: { deathSaveDC: 5, deathSaveSuccessesRequired: 1 }
+});
+void _heroicEngine;
 
 // === Character sheet derivation ===
 

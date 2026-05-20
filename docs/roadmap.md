@@ -359,7 +359,7 @@ fix is small, the blast radius is contained (each is one handler /
 one constant), and shipping them as 1.0.1 keeps semver honest before
 any feature work lands on top.
 
-### `1.1.0` — Death saving throws
+### `1.1.0` — Death saving throws ✅ shipped
 
 The 0-HP-to-dead pipeline is entirely absent. SRD 5.2 § *Death
 Saving Throws* and § *Damage at 0 Hit Points* still apply: at 0 HP a
