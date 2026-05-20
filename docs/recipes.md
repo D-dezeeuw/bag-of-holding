@@ -61,6 +61,21 @@ recipe points to the milestone where it gets a first-class helper.
 - [26. Wiring into Spektrum history](#26-wiring-into-spektrum-history)
 - [27. Minimal AI-loop shape](#27-minimal-ai-loop-shape)
 
+### Lifecycle, mechanics & advanced flows (since 1.x)
+
+- [28. One turn end-to-end (turn lifecycle)](#28-one-turn-end-to-end-turn-lifecycle)
+- [29. Combat actions menu (Dash + Disengage + Dodge)](#29-combat-actions-menu-dash--disengage--dodge)
+- [30. Grapple → grappled condition](#30-grapple--grappled-condition)
+- [31. Two-weapon fighting with Nick mastery](#31-two-weapon-fighting-with-nick-mastery)
+- [32. Damage pipeline end-to-end (resistance + tempHp + drop-to-zero)](#32-damage-pipeline-end-to-end-resistance--temphp--drop-to-zero)
+- [33. Heal an Unconscious ally](#33-heal-an-unconscious-ally)
+- [34. Class mechanic: Barbarian Rage](#34-class-mechanic-barbarian-rage)
+- [35. Class mechanic: Rogue Sneak Attack](#35-class-mechanic-rogue-sneak-attack)
+- [36. Magic item lifecycle (attune → spend → dawn recharge)](#36-magic-item-lifecycle-attune--spend--dawn-recharge)
+- [37. Counterspell intercept via the onCast hook](#37-counterspell-intercept-via-the-oncast-hook)
+- [38. Fireball: AoE targeting + save-for-half](#38-fireball-aoe-targeting--save-for-half)
+- [39. Monster legendary actions in a round](#39-monster-legendary-actions-in-a-round)
+
 ---
 
 ## 1. Roll dice from a static HTML page
@@ -854,3 +869,562 @@ network call. The AI calls happen on either side of it. The roll
 log is the auditable trail showing exactly what the engine produced
 given what the AI requested — *"the AI claims it rolled X, did it?"*
 becomes a verifiable question.
+
+## 28. One turn end-to-end (turn lifecycle)
+
+**Use case:** Walk one actor through a full combat turn — turn
+start fires the lifecycle hook, the actor takes an action, the
+turn ends and round-scoped timers tick.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const log = [];
+const engine = createEngine({
+  hooks: {
+    onTurnStart: (p) => log.push(`start: ${p.actor.id}`),
+    onTurnEnd:   (p) => log.push(`end: ${p.actor.id}, expired ${p.expired.length}`)
+  }
+});
+
+// Carry a 3-round Bless effect on the actor.
+let actor = engine.Combat.addTimer(
+  { id: 'pc', hp: 18, hpMax: 25 },
+  { id: 'bless', kind: 'spell', remainingRounds: 3 }
+);
+
+// --- Turn start ---
+engine.Combat.turnStart(actor, 'round 1');
+
+// --- Action: attack an orc ---
+const attack = engine.Combat.attackRoll({ attackBonus: 5, ac: 13 });
+if (attack.hit) {
+  const dmg = engine.Combat.damageRoll({
+    damageDice: '1d8', damageMod: 3, damageType: 'slashing',
+    critical: attack.critical
+  });
+  // host applies dmg.total to the orc via Combat.applyDamage(orc, ...)
+}
+
+// --- Turn end: timers tick by one round; expired entries surface ---
+const { actor: next, expired } = engine.Combat.turnEnd(actor);
+actor = next;
+// log: ['start: pc', 'end: pc, expired 0']
+// actor.timers[0].remainingRounds === 2
+```
+
+A timer that hits 0 lands in the `expired` array of the
+`turnEnd` result and the `onTurnEnd` hook payload — the host
+removes any state the timer was shadowing (a Bless bonus, a Sap
+disadvantage).
+
+## 29. Combat actions menu (Dash + Disengage + Dodge)
+
+**Use case:** The action menu verbs all consume the right budget
+slot and stamp an actor flag the rest of the engine reads. Here a
+Rogue Dodges, attempts to Disengage out of melee, then Dashes
+clear next turn.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+
+let state = engine.Combat.startEncounter([
+  { id: 'rogue', dexterity: 16, speed: 30 },
+  { id: 'ogre',  dexterity: 8,  speed: 40 }
+]);
+
+// --- Dodge: sets actor.dodging = true. Attacks against rogue have
+//     disadvantage until the rogue's next turn. ---
+let rogue = { id: 'rogue', hp: 8, hpMax: 28 };
+let r = engine.Combat.dodge(state, rogue);
+state = r.state; rogue = r.actor;
+// attackStance() now reports 'disadvantage' for attacks vs rogue:
+const orcAttack = engine.Combat.attackRoll({
+  attackBonus: 6, ac: 16, target: rogue, attackerDistanceFt: 5
+});
+// orcAttack.stance === 'disadvantage'
+
+// --- Next turn: Disengage as an action, then Dash to pull away ---
+r = engine.Combat.disengage(state, rogue);
+state = r.state; rogue = r.actor;
+// rogue.disengaged === true → opportunityAttack short-circuits
+
+// (Disengage consumed the action — Dash needs an action too, so a
+//  realistic Rogue uses Cunning Action's bonus-action Dash via the
+//  monk-style helper. With the action available, regular Dash:)
+r = engine.Combat.dash(state, 'rogue');
+state = r.state;
+// state.budgets.rogue.movement === 60   (base 30 + dash 30)
+```
+
+Each verb returns `{ allowed, state, actor?, result? }`. A budget
+already spent makes the verb refuse with a debuggable reason — the
+host renders that as a disabled chip rather than crashing.
+
+## 30. Grapple → grappled condition
+
+**Use case:** A Fighter shoves an orc, then on the next attempt
+grapples. The 2024 SRD made both single-roll saves (DC `8 + STR +
+prof`); the engine computes the DC and reports the save block, the
+host rolls the target's save, the engine applies the condition on
+failure.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+const state = engine.Combat.startEncounter([
+  { id: 'pc', dexterity: 14, speed: 30 },
+  { id: 'orc', dexterity: 10, speed: 30 }
+]);
+
+const fighter = {
+  id: 'pc', abilityScores: { str: 16 }, proficiencyBonus: 3
+};
+
+const attempt = engine.Combat.grapple(state, fighter, { targetId: 'orc' });
+// attempt.result.save  → { dc: 14, abilities: ['str', 'dex'] }
+// attempt.result.onFail → { condition: 'grappled' }
+
+// Target rolls the save with the better of STR or DEX.
+const orc = { id: 'orc', abilityScores: { str: 14, dex: 12 } };
+const save = engine.Checks.savingThrow({
+  abilityScore: orc.abilityScores.str,     // pick higher
+  dc: attempt.result.save.dc,
+  actor: orc, ability: 'str'
+});
+
+// On a failed save → apply the condition.
+const orcAfter = save.success
+  ? orc
+  : engine.Conditions.apply(orc, attempt.result.onFail.condition);
+// orcAfter.conditions.includes('grappled') === !save.success
+```
+
+`engine.Combat.shove(state, actor, { choice: 'push' })` follows the
+same shape, with `onFail.pushFt = 5` instead of a condition.
+
+## 31. Two-weapon fighting with Nick mastery
+
+**Use case:** A character holds a Light + Nick weapon in the main
+hand (say a Scimitar) and another Light weapon in the off-hand
+(say a Dagger). Per the 2024 PHB, the **Nick** mastery folds the
+off-hand attack into the Attack action itself — so a second
+strike doesn't cost a bonus action.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+const state = engine.Combat.startEncounter([
+  { id: 'pc', dexterity: 18, speed: 30 }
+]);
+
+const scimitar = engine.items.scimitar;     // mastery: 'nick'
+const dagger   = engine.items.dagger;
+
+// 1. Main-hand attack with the scimitar.
+const main = engine.Combat.attackRoll({ attackBonus: 7, ac: 13 });
+// 2. Apply the Nick mastery rider.
+const rider = engine.Combat.applyMastery(scimitar, target, main);
+// rider.kind === 'nick'  →  the engine signals an extra attack
+//                            is folded into this Attack action.
+
+// 3. Resolve the dagger swing. With Nick, no bonus-action spend.
+//    Without Nick, the host would call:
+//       engine.Combat.offHandAttack(state, pc, { weapon: dagger })
+//    and consume the bonus-action budget.
+const off = engine.Combat.attackRoll({ attackBonus: 7, ac: 13 });
+```
+
+`offHandAttack` also returns
+`{ result: { suppressPositiveAbilityMod: true } }` so the host
+knows to strip the ability mod from the off-hand damage roll (SRD:
+"you don't add your ability modifier to the damage … unless that
+modifier is negative").
+
+## 32. Damage pipeline end-to-end (resistance + tempHp + drop-to-zero)
+
+**Use case:** A dragon breathes fire on a fire-resistant target
+that has tempHp. The 1.4 damage pipeline folds the modifier order
+(Immunity → Resistance → Vulnerability), absorbs through tempHp,
+subtracts HP, and routes to `dropToZero` if the actor crosses 0.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+
+let actor = {
+  id: 'pc', hp: 8, hpMax: 30,
+  damageResistances: ['fire'],
+  tempHp: 5
+};
+
+// 1. Damage roll surfaces a damageType.
+const dmg = engine.Combat.damageRoll({
+  damageDice: '8d6', damageType: 'fire', damageMod: 0
+});
+
+// 2. Apply through the pipeline.
+const result = engine.Combat.applyDamage(actor, {
+  amount: dmg.total, type: dmg.damageType, source: 'dragon-breath'
+});
+
+// `result.finalAmount` halved by resistance, then tempHp absorbed.
+// Outcome tags:
+//   'damaged' — HP went down but not to 0
+//   'absorbed' — tempHp ate it all
+//   'downed'   — HP just crossed to 0 (Unconscious applied)
+//   'dead'     — massive-damage instant death
+//   'immune'   — damageImmunities matched the type
+actor = result.actor;
+
+// Hooks fire automatically:
+//   onDamageApplied for every outcome
+//   onHpChanged only when HP actually moved
+//   onConditionApplied when 'downed' adds Unconscious
+//   onDeath on 'dead' or three failed death saves
+```
+
+`engine.Combat.applyDamageModifiers(actor, { amount, type })` is
+the pure modifier layer — handy for previewing damage in a UI
+without applying it.
+
+## 33. Heal an Unconscious ally
+
+**Use case:** A Cleric uses Healing Word on a teammate who's
+down. `Combat.heal` caps at hpMax, removes the Unconscious
+condition when HP rises above 0, and clears the death-save tracker.
+
+```js
+import { createEngine, Dice } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine({ rng: Dice.seededRng(7) });
+
+// Ally is at 0 HP with 2 failed death saves on the clock.
+let ally = engine.Combat.dropToZero({ id: 'fighter', hpMax: 30 });
+ally = engine.Combat.applyDamageWhileDown(ally, 4).actor;  // 1 failure
+ally = engine.Combat.applyDamageWhileDown(ally, 4).actor;  // 2 failures
+
+// Healing Word: 1d4 + WIS mod (host computes the amount).
+const healAmount = engine.Dice.roll('1d4+3').total;
+const result = engine.Combat.heal(ally, healAmount);
+
+// result.actor.hp           > 0
+// result.actor.conditions   no longer includes 'unconscious'
+// result.actor.deathSaves   reset to fresh
+// onHpChanged hook fires with cause: 'heal'
+```
+
+`engine.Combat.stabilize(actor)` is the Medicine-check / Spare-the-
+Dying path — clears the tracker without restoring HP (actor stays
+Unconscious at 0 HP, no longer rolling death saves).
+
+## 34. Class mechanic: Barbarian Rage
+
+**Use case:** Barbarian rages on turn 1, takes BPS damage with
+resistance, deals bonus rage damage on a STR weapon attack, then
+ends the rage on turn 3.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+const barbarian = engine.classes.barbarian;
+
+let actor = {
+  id: 'pc', classId: 'barbarian', level: 5,
+  hp: 45, hpMax: 50,
+  abilityScores: { str: 18 },
+  resources: engine.Mechanics.freshResources(barbarian, 5)
+};
+
+// --- Activate Rage (bonus action; spends a use) ---
+let r = engine.Mechanics.apply(actor, 'rage');
+// r.damageBonus → 2 at L5
+actor = r.actor;
+// actor.rage = { active: true, roundsRemaining: 100,
+//                damageBonus: 2,
+//                resistances: ['bludgeoning', 'piercing', 'slashing'] }
+
+// --- Take a slashing hit while raging ---
+// Host applies the rage flag's resistance to the damage pipeline by
+// adding the rage resistances to the actor's damageResistances:
+const incoming = engine.Combat.applyDamage(
+  { ...actor, damageResistances: actor.rage.resistances },
+  { amount: 14, type: 'slashing' }
+);
+// incoming.finalAmount === 7 (halved by resistance)
+actor = incoming.actor;
+
+// --- Attack with rage damage bonus on the damage roll ---
+const dmg = engine.Combat.damageRoll({
+  damageDice: '1d12', damageMod: 4 + 2,   // STR mod 4 + rage bonus 2
+  damageType: 'slashing'
+});
+
+// --- End rage as a bonus action when you want ---
+r = engine.Mechanics.apply(actor, 'endRage');
+actor = r.actor;
+// actor.rage is gone
+
+// On a Short Rest, one rage use comes back per the 2024 SRD:
+actor = engine.Rest.shortRest(actor);
+```
+
+`engine.Mechanics.apply(actor, 'rageDamageBonus')` returns the
+current `{ bonus }` for UI tooltips; `isRaging` is a boolean
+predicate.
+
+## 35. Class mechanic: Rogue Sneak Attack
+
+**Use case:** A Rogue gets advantage on an attack (an ally is
+adjacent to the target), hits, and triggers Sneak Attack. The
+mechanic gates on per-turn eligibility and returns the bonus
+damage spec.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+const rogue = engine.classes.rogue;
+
+let actor = {
+  id: 'pc', classId: 'rogue', level: 5,
+  abilityScores: { dex: 18 }
+};
+
+// 1. Attack roll (with advantage from an adjacent ally).
+const attack = engine.Combat.attackRoll({
+  attackBonus: 7, ac: 14,
+  target: { conditions: [] }, attackerDistanceFt: 5
+});
+
+if (attack.hit) {
+  // 2. Sneak Attack rider — must meet finesse / ranged + advantage
+  //    OR adjacent ally; once per turn.
+  const rider = engine.Mechanics.apply(actor, 'sneakAttack', {
+    attackHadAdvantage: attack.stance === 'advantage',
+    allyAdjacent: true,
+    weaponFinesse: true
+  });
+  // rider.triggers === true
+  // rider.damageDice === '3d6'     (⌈5/2⌉ at L5)
+  // rider.damageType === 'precision'
+  actor = rider.actor;
+  // actor.sneakAttackUsedThisTurn === true
+
+  // 3. Roll base + sneak damage as one block.
+  const baseDmg = engine.Combat.damageRoll({
+    damageDice: '1d8+4',     // dagger + DEX
+    damageType: 'piercing', critical: attack.critical
+  });
+  const sneakDmg = engine.Dice.roll(rider.damageDice);
+  // Apply baseDmg.total + sneakDmg.total to the target.
+}
+
+// 4. At turn end, clear the once-per-turn flag.
+actor = engine.Mechanics.apply(actor, 'endTurn').actor;
+```
+
+A second attack in the same turn finds `actor.sneakAttackUsedThis
+Turn === true` and `sneakAttack` returns `{ triggers: false,
+reason: 'already used this turn' }`.
+
+## 36. Magic item lifecycle (attune → spend → dawn recharge)
+
+**Use case:** A character attunes to a Wand of Magic Missiles
+(7 charges, regains `1d6+1` at dawn), spends three charges, then
+advances time across the dawn boundary to recharge.
+
+```js
+import { createEngine, Dice } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine({ rng: Dice.seededRng(11) });
+
+const wand = {
+  id: 'wand-of-magic-missiles', name: 'Wand of Magic Missiles',
+  rarity: 'uncommon',
+  charges: { max: 7, recovers: '1d6+1', rechargesOn: 'dawn' }
+};
+
+let actor = { id: 'pc' };
+
+// --- Attune (engine accepts the host has gated this on a Short Rest) ---
+({ actor } = engine.MagicItems.attune(actor, wand));
+// actor.attunedItems === ['wand-of-magic-missiles']
+// actor.itemCharges['wand-of-magic-missiles'] === { used: 0, max: 7 }
+
+// --- Spend 3 charges to cast the spell ---
+({ actor } = engine.MagicItems.spendCharge(actor, wand.id, 3));
+// 4 charges remain
+
+// --- Advance the scene clock across dawn ---
+let scene = engine.SceneClock.freshScene({ startMinute: 1080 });   // 18:00
+const adv = engine.SceneClock.advanceTime(scene, { hours: 14 });
+// adv.events  → ['dawn']     (dawn at 06:00, +12h)
+scene = adv.scene;
+
+// --- Dawn fired → host runs the recharge handler ---
+if (adv.events.includes('dawn')) {
+  const rc = engine.MagicItems.rechargeItem(actor, wand);
+  actor = rc.actor;
+  // rc.recovered is 1d6+1 (rolled deterministically from the seed)
+}
+```
+
+`engine.MagicItems.identifyItem(actor, wand.id)` flips the host's
+"this is identified" state for the player view; `isIdentified` is
+the predicate.
+
+## 37. Counterspell intercept via the onCast hook
+
+**Use case:** A wizard tries to cast Fireball. An enemy spellcaster
+in your party has Counterspell ready and intercepts. The `onCast`
+hook (Phase D, since 1.6.0) fires before slot consumption, so a
+cancelled cast doesn't burn the slot.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine({
+  hooks: {
+    onCast: ({ spell, args, actor }) => {
+      // Host policy: NPC enemy spellcaster always counters a Fireball
+      // if the NPC's host-side state says it has a reaction available.
+      if (spell.id === 'fireball' && actor.classId !== 'pc-party') {
+        return { cancelled: true, reason: 'countered by ally NPC' };
+      }
+    }
+  }
+});
+
+const fireball = engine.spells.fireball;
+const npc = {
+  id: 'evil-mage', classId: 'enemy', spellSlots: [{ level: 3, used: 0, max: 2 }]
+};
+
+const result = engine.Spellcasting.castSpell(npc, fireball);
+// result.ok === false
+// result.cancelled === true
+// result.reason === 'countered by ally NPC'
+// npc.spellSlots[0].used === 0   ← slot untouched
+```
+
+The hook payload is `{ actor, spell, args }`. A handler that
+returns nothing or `undefined` lets the cast proceed; returning
+`{ cancelled: true, reason? }` short-circuits without consuming
+the slot.
+
+## 38. Fireball: AoE targeting + save-for-half
+
+**Use case:** A Wizard casts Fireball at a point in space. The
+engine resolves the target list from the area shape, the host
+rolls each target's save, and `castSpellSave` packages the
+half-damage outcomes uniformly.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+
+const wizard = {
+  id: 'pc', proficiencyBonus: 3, abilityScores: { int: 18 },
+  spellSlots: [{ level: 3, used: 0, max: 2 }]
+};
+const fireball = engine.spells.fireball;
+
+// --- Cast: consume a slot (the engine handles V/S/M, slot, concentration) ---
+let actor = wizard;
+({ actor } = engine.Spellcasting.castSpell(actor, fireball));
+
+// --- Resolve the area: a 20-ft sphere at the origin point ---
+const candidates = [
+  { id: 'orc-1',    position: { x: 5,  y: 0 } },
+  { id: 'orc-2',    position: { x: 15, y: 8 } },
+  { id: 'goblin-1', position: { x: 25, y: 0 } },    // out of range
+  { id: 'ally',     position: { x: -3, y: -2 } }
+];
+const hits = engine.Spellcasting.targetsInArea({
+  origin: { x: 0, y: 0 }, shape: 'sphere', size: 20,
+  candidates
+});
+// hits  → [orc-1, orc-2, ally]    (within 20 ft)
+
+// --- Roll the spell save for each target (DEX vs the spell's DC) ---
+const spellDC = 8 + 3 + 4;           // 8 + prof + INT mod
+const damageTotal = engine.Dice.roll('8d6').total;
+
+const results = hits.map((target) => ({
+  targetId: target.id,
+  // Host runs each target's save:
+  saved: engine.Checks.savingThrow({
+    abilityScore: 12, dc: spellDC, ability: 'dex', actor: target
+  }).success,
+  damage: damageTotal
+}));
+
+// --- Package half-damage-on-success outcomes ---
+const outcomes = engine.Spellcasting.castSpellSave(results,
+  { halfOnSuccess: true });
+// outcomes:
+//   [{ targetId: 'orc-1',    saved: false, appliedDamage: 28 },
+//    { targetId: 'orc-2',    saved: true,  appliedDamage: 14 },
+//    { targetId: 'ally',     saved: false, appliedDamage: 28 }]
+
+// Host then applies each `appliedDamage` via Combat.applyDamage.
+```
+
+`AOE_SHAPES = ['sphere', 'cube', 'cone', 'line', 'cylinder',
+'emanation']` — cone and line require a `direction` vector; the
+others ignore it.
+
+## 39. Monster legendary actions in a round
+
+**Use case:** An Adult Red Dragon takes its turn, then between the
+party's turns spends a legendary action. The host calls
+`refreshLegendaryActions` at the dragon's turn start to refresh
+the pool; `useLegendaryAction` spends a use; `useLegendaryResistance`
+converts a failed save into a success.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+const dragon = engine.monsters['adult-red-dragon'];   // or a host fixture
+
+let actor = {
+  id: 'dragon-1',
+  legendary: engine.Monsters.freshLegendaryState(dragon),     // { used: 0, max: 3 }
+  legendaryResistance: engine.Monsters.freshLegendaryResistance(dragon)
+};
+
+// --- Dragon's turn ends; refresh the legendary pool ---
+actor = engine.Monsters.refreshLegendaryActions(actor);
+
+// --- Between party turns: spend a Tail Attack ---
+let la = engine.Monsters.useLegendaryAction(actor, dragon, 'tail-attack');
+// la.option.name === 'Tail Attack'
+// la.actor.legendary.used === 1
+actor = la.actor;
+
+// --- A spellcaster lands a Hold Monster on the dragon. Spend a
+//     Legendary Resistance to convert the failed WIS save to a success. ---
+const lr = engine.Monsters.useLegendaryResistance(actor, dragon);
+actor = lr.actor;
+// lr.ok === true; the dragon shrugs off the Hold Monster.
+
+// --- Lair Actions trigger at initiative count 20 if in the dragon's lair ---
+if (engine.Monsters.lairActionAvailable(dragon,
+  { initiativeCount: 20, inLair: true })) {
+  const lair = engine.Monsters.fireLairAction(dragon, 'magma-eruption');
+  // host resolves the eruption's effect on candidates in the lair.
+}
+```
+
+`engine.Monsters.castInnate(actor, dragon, 'fireball')` decrements
+the per-day counter for tracked spells (3/day, 1/day) and reports
+at-will spells succeeding without depletion.
