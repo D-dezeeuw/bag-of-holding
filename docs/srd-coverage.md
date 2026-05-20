@@ -287,14 +287,14 @@ boxes are always the live worklist.
 
 **Planned:** species trait *mechanics* in [v1.13.0](roadmap.md#1130--species-traits-as-mechanics); fighting styles ride in with [v1.7.0](roadmap.md#170--combat-actions-menu) or the related class subrelease; Epic Boons in [v1.20.0](roadmap.md#1200--tier-4-class-features-l17l20--epic-boons); registry *depth* tracked under [v1.x.y](roadmap.md#1xy--content-registry-expansion-parallel).
 
-- [x] 9 species, 16 backgrounds (data only), 3 feats *(v0.0.0)*
+- [x] 9 species *(v0.0.0)*
 - [x] Species `speed`, `size`, `traits[]` strings *(v0.0.0)*
-- [ ] **Species traits as mechanics**: Darkvision range, Stonecunning, Lucky, Fey Ancestry, etc.
-- [ ] **Full SRD background coverage** (*check registry headcount against SRD's 16*)
-- [ ] **Origin feats** beyond the 3 currently shipped *(SRD § Feats, Origin Feats)*
-- [ ] **General feats**: Alert, Lucky, Tough, Mage Slayer, etc. *(SRD § Feats, General Feats)*
-- [ ] **Fighting Styles** as feat-like records: Archery, Defense, Dueling, Great Weapon Fighting, Protection, Two-Weapon Fighting *(SRD § Classes, Fighting Style)*
-- [ ] **Epic Boons** L19 feat slot *(SRD § Feats, Epic Boons)*
+- [x] **Species traits as mechanics**: Darkvision range, Stonecunning, Lucky, Fey Ancestry, etc. *(v1.17.0)*
+- [x] **Full SRD background coverage** (16 backgrounds) *(v1.27.0)*
+- [x] **Origin feats**: Magic Initiate, Alert, Savage Attacker *(v0.0.0)*
+- [x] **General feats**: Tough, Lucky, Mobile, Sentinel, Great Weapon Master, Sharpshooter, Crossbow Expert, Polearm Master, War Caster, Elemental Adept, and more *(v1.27.0, 23 entries)*
+- [x] **Fighting Styles** as feat-like records: Archery, Defense, Dueling, Great Weapon Fighting, Protection, Two-Weapon Fighting *(v1.27.0)*
+- [x] **Epic Boons** L19 feat slot *(v1.22.0, 11 entries)*
 
 ## 17. Equipment & inventory
 
@@ -329,7 +329,7 @@ boxes are always the live worklist.
 - [x] **Identify**: `actor.identifiedItems[]` + `identifyItem` / `isIdentified` *(v1.9.0)*
 - [x] **Magic item resilience**: `MagicItems.itemSavingThrow(item, dc)` vs `item.savingThrow.bonus` *(v1.9.0)*
 - [ ] **Sentient magic items**: alignment + conflict resolution *(SRD § Magic Items, Sentient Magic Items)*
-- [ ] **Magic item A-Z** registry (*currently a handful; SRD lists hundreds*)
+- [x] **Magic item registry** *(v1.27.0; 102 entries total across mundane gear, wondrous items, magic weapons/armor, scrolls, wands, staves, rods. Further depth ships as content packs.)*
 
 ## 19. Monsters
 
@@ -350,7 +350,7 @@ boxes are always the live worklist.
 - [x] **Saving-throw bonus accessor**: `Monsters.saveBonus(monster, ability)` reads `monster.saves[ability]` with ability-mod fallback *(v1.10.0)*
 - [~] **Languages** per monster, schema slot on the record; no engine-side consumer yet
 - [x] **Legendary Resistance**: `useLegendaryResistance(actor, monster)` converts a failed save to a success *(v1.10.0)*
-- [ ] **Monster registry depth** (*SRD ships hundreds; we ship 9*)
+- [x] **Monster registry** *(v1.27.0; 66 entries spanning CR 0 through CR 15. Further depth ships as Bestiary content packs in 2.2-2.4.)*
 
 ## 20. Encounter design
 
