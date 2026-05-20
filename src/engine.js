@@ -48,6 +48,7 @@ import * as InspirationBase from './inspiration.js';
 import * as EncounterDesignBase from './encounter-design.js';
 import * as HazardsBase from './hazards.js';
 import * as EquipmentBase from './equipment.js';
+import * as TravelBase from './travel.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -791,6 +792,15 @@ export function createEngine(opts = {}) {
       donTime: (armorId) => EquipmentBase.donTime(armorId, items),
       doffTime: (armorId) => EquipmentBase.doffTime(armorId, items),
       toolCheck: (args) => EquipmentBase.toolCheck(args, rng)
+    }),
+    // Travel & exploration (since 1.20.0; closes 1.18.0 milestone).
+    Travel: Object.freeze({
+      TRAVEL_PACES: TravelBase.TRAVEL_PACES,
+      milesTravelled: TravelBase.milesTravelled,
+      forcedMarchCheck: (actor, opts) => TravelBase.forcedMarchCheck(actor, opts, rng, hazardSaver),
+      checkRestInterruption: (opts) => TravelBase.checkRestInterruption(opts, rng),
+      forageCheck: (args) => TravelBase.forageCheck(args, rng),
+      navigateCheck: (args) => TravelBase.navigateCheck(args, rng)
     }),
     Inspiration: Object.freeze({
       hasInspiration: InspirationBase.hasInspiration,
