@@ -49,6 +49,7 @@ import * as EncounterDesignBase from './encounter-design.js';
 import * as HazardsBase from './hazards.js';
 import * as EquipmentBase from './equipment.js';
 import * as TravelBase from './travel.js';
+import * as MountedCombatBase from './mounted-combat.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -954,6 +955,15 @@ export function createEngine(opts = {}) {
       checkRestInterruption: (opts) => TravelBase.checkRestInterruption(opts, rng),
       forageCheck: (args) => TravelBase.forageCheck(args, rng),
       navigateCheck: (args) => TravelBase.navigateCheck(args, rng)
+    }),
+    // Mounted Combat (since 1.30.0; SRD 5.2 § Combat — Mount).
+    // Pure helpers, no logging needed.
+    MountedCombat: Object.freeze({
+      mount: MountedCombatBase.mount,
+      dismount: MountedCombatBase.dismount,
+      isMountedOn: MountedCombatBase.isMountedOn,
+      legalMountActions: MountedCombatBase.legalMountActions,
+      CONTROLLED_MOUNT_ACTIONS: MountedCombatBase.CONTROLLED_MOUNT_ACTIONS
     }),
     Inspiration: Object.freeze({
       hasInspiration: InspirationBase.hasInspiration,
