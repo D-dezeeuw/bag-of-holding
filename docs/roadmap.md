@@ -320,6 +320,11 @@ Gaps and bugs identified by reading the engine against the published
 parking lot below these are tracked commitments — the kernel is not
 honestly "SRD 5.2 compliant" until they land.
 
+The full line-by-line worklist lives in
+[docs/srd-coverage.md](srd-coverage.md). The milestones below carve
+out the first few releases; everything else from that checklist
+lands in subsequent ones.
+
 ### `1.0.1` — SRD math fixes (patch) ✅ shipped
 
 Three handlers return values that diverge from the published rule
