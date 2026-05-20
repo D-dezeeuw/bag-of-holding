@@ -155,17 +155,17 @@ boxes are always the live worklist.
 **Planned:** movement modes + vision in [v1.11.0](roadmap.md#1110--movement-modes--vision); travel pace + forced march in [v1.18.0](roadmap.md#1180--travel--exploration).
 
 - [x] Single `speed` value derived (post-condition / exhaustion) *(v0.7.0)*
-- [ ] **Per-mode speeds** — walk / fly / swim / climb / burrow *(SRD § Adventuring — Special Types of Movement)*
-- [ ] **Difficult terrain** — each foot costs 2 feet *(SRD § Adventuring — Movement)*
-- [ ] **Falling damage** — 1d6 per 10 ft, max 20d6, prone on landing *(SRD § Adventuring — Falling)*
-- [ ] **Long / high jump** — STR-mod ft horizontal, 3 + STR mod ft vertical *(SRD § Adventuring — Movement)*
-- [ ] **Crawling** — each foot costs 2 feet *(SRD § Conditions — Prone interaction)*
+- [x] **Per-mode speeds** — `Movement.speedFor(actor, mode)`; `actor.speeds: { walk, fly, swim, climb, burrow }` with legacy `actor.speed` fallback for walk *(v1.11.0)*
+- [x] **Difficult terrain** — `Movement.movementCost(feet, { difficult, crawling })` *(v1.11.0)*
+- [x] **Falling damage** — `Movement.fall(distanceFt)` → 1d6/10ft, max 20d6, prone if damage taken *(v1.11.0)*
+- [x] **Long / high jump** — `Movement.longJump`, `Movement.highJump` (STR-mod with optional `runningStart`) *(v1.11.0)*
+- [x] **Crawling** — `movementCost({ crawling: true })` doubles the cost *(v1.11.0)*
 - [ ] **Travel pace** — slow / normal / fast tables *(SRD § Adventuring — Travel Pace)*
 - [ ] **Forced march, starvation, suffocation, drowning** *(SRD § Adventuring — Between Adventures)*
-- [ ] **Light levels** — bright / dim / darkness *(SRD § Adventuring — Vision and Light)*
-- [ ] **Special senses** — darkvision (range), blindsight, tremorsense, truesight *(SRD § Monsters — Senses)*
-- [ ] **Heavily / lightly obscured** *(SRD § Adventuring — Vision and Light)*
-- [ ] **Line of sight / line of effect** — separate from cover *(SRD § Spells — Targets)*
+- [x] **Light levels** — `LIGHT_LEVELS` constant *(v1.11.0)*
+- [x] **Special senses** — `Movement.effectiveLight(viewer, { ambient, distanceFt })` honours darkvision, blindsight, truesight *(v1.11.0)*
+- [x] **Heavily / lightly obscured** — `Movement.obscuredState` returns `heavy` / `light` / `none` *(v1.11.0)*
+- [x] **Line of sight / line of effect** — `Movement.hasLineOfSight` / `hasLineOfEffect` predicates *(v1.11.0)*
 
 ## 9. Time and duration tracking
 

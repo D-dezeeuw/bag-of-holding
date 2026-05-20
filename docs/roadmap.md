@@ -771,10 +771,10 @@ Closes the mechanics half of
 [§ 19 Monsters](srd-coverage.md#19-monsters); data expansion is
 parallel work tracked under `1.x.y`.
 
-### `1.11.0` — Movement modes + vision
+### `1.11.0` — Movement modes + vision ✅ shipped
 
-The single `speed` number expands to per-mode + environment-aware,
-and the vision layer comes online.
+The single `speed` number expanded to per-mode + environment-aware,
+and the vision layer came online.
 
 - **Per-mode speeds** — species / monster records carry `speeds: {
   walk, fly?, swim?, climb?, burrow? }`. Sheet derivation surfaces
