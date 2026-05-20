@@ -1,7 +1,7 @@
 import { rollDie, roll as rollDice, rollExplosive } from './dice.js';
 import { modFromScore } from './checks.js';
 import { DEFAULT_RULES } from './rules.js';
-import { attackStance, apply as applyCondition, remove as removeCondition } from './conditions.js';
+import { attackStance, apply as applyCondition, remove as removeCondition, effectsFor } from './conditions.js';
 
 /**
  * Initiative is mechanically just `d20 + DEX mod`, but it lives in
@@ -50,10 +50,19 @@ export function attackRoll({ attackBonus, ac, attacker, target, attackerDistance
   } else {
     d20 = rollDie(20, rng);
   }
-  const critical = rules.critOn.includes(d20);
+  let critical = rules.critOn.includes(d20);
   const fumble = rules.fumbleOn.includes(d20);
   const total = d20 + attackBonus;
   const hit = critical || (!fumble && total >= ac);
+  // SRD § Conditions — Paralyzed / Unconscious / Petrified / Stunned
+  // (since 1.5.0): a melee attack that hits a target with the
+  // `critIfAttackerWithin5` flag automatically crits when the
+  // attacker is within 5 ft. The conditions module already declares
+  // these flags; here we honour them.
+  if (hit && target && attackerDistanceFt !== undefined && attackerDistanceFt <= 5) {
+    const tEffects = effectsFor(target);
+    if (tEffects.critIfAttackerWithin5) critical = true;
+  }
   return { d20, attackBonus, total, ac, hit, critical, fumble, stance };
 }
 
@@ -538,10 +547,14 @@ export function applyDamage(actor, args = {}) {
   let next = { ...actor, tempHp: tempAfter };
 
   if (remainingDamage === 0) {
+    // `absorbed` only when tempHp actually did the work — a no-op
+    // call (amount 0, no tempHp) reads cleaner as `damaged` with
+    // zero applied damage. The host renders the two the same; the
+    // distinction matters for telemetry / audit logs.
     return wrapDamageResult({
       actor: next, amount, finalAmount, tempHpAbsorbed: tempAbsorbed,
       hpBefore, hpAfter: hpBefore,
-      outcome: 'absorbed', source
+      outcome: tempAbsorbed > 0 ? 'absorbed' : 'damaged', source
     });
   }
 

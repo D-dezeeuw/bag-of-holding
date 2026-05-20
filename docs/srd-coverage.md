@@ -101,11 +101,11 @@ boxes are always the live worklist.
 - [x] Numeric Exhaustion 0–6 (−2/level on D20 Tests, −5 ft/level on Speed, death at 6) *(v0.0.0)*
 - [x] Mechanical effect map (`CONDITION_EFFECTS`) folded into attack stance *(v0.7.0)*
 - [x] `apply` / `remove` / `has` immutable helpers *(v0.0.0)*
-- [ ] **Condition immunity** — actor-side filter `actor.conditionImmunities: [...]` on `apply` *(SRD § Monsters — Immunities)*
-- [ ] **Auto-fail STR/DEX saves** on paralyzed / stunned / petrified / unconscious — the flag exists, the binding into `savingThrow` doesn't *(SRD condition entries)*
-- [ ] **Auto-crit from within 5 ft** on paralyzed / unconscious / petrified / stunned — flag exists, not yet folded into `attackRoll`'s `critical` *(SRD condition entries)*
-- [ ] **Per-application metadata** — condition entries are bare strings; no source / DC / duration so `save at end of turn` effects can't end themselves
-- [ ] **Save-to-end-of-turn** ongoing effects *(SRD: Hold Person, Hideous Laughter, Charm Monster, etc.)*
+- [x] **Condition immunity** — `actor.conditionImmunities[]` filter on `apply`; `isImmuneTo` predicate *(v1.5.0)*
+- [x] **Auto-fail STR/DEX saves** under paralyzed / stunned / petrified / unconscious — engine binding short-circuits via `autoFailed: true` *(v1.5.0)*
+- [x] **Auto-crit from within 5 ft** on paralyzed / unconscious / petrified / stunned — `attackRoll` honours the target's `critIfAttackerWithin5` flag *(v1.5.0)*
+- [ ] **Per-application metadata** — condition entries stay as strings in 1.5; record-shape `{ name, source?, dc?, saveAbility?, endsOn? }` planned for [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking)
+- [ ] **Save-to-end-of-turn** ongoing effects *(SRD: Hold Person, Hideous Laughter, Charm Monster, etc.)* — planned for [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking)
 
 ## 5. Damage pipeline
 
@@ -194,7 +194,7 @@ boxes are always the live worklist.
 - [x] Concentration: start / end / save-DC formula `max(10, ⌊dmg/2⌋)` *(v0.5.0)*
 - [x] Cantrip scaling tiers (L5/11/17) *(v0.5.0)*
 - [x] Prep-caster count + validation *(v0.5.0)*
-- [ ] **Auto-drop concentration** on incapacitated / stunned / paralyzed / unconscious / petrified / dead *(SRD § Spells — Concentration)*
+- [x] **Auto-drop concentration** on incapacitating conditions (incapacitated / stunned / paralyzed / unconscious / petrified) — engine's bound `Conditions.apply` calls `endConcentration` when the condition's `incapacitates` flag is set *(v1.5.0)*
 - [ ] **`spell.concentration` flag** on spell records + auto-`startConcentration` on cast
 - [ ] **One leveled spell per turn rule** *(SRD § Spells — Casting a Spell — "you can cast only one leveled spell on a turn")*
 - [ ] **Casting from a slot of higher level** — handler receives `castLevel`; spell records carry `upcast` deltas *(SRD § Spells — Casting at a Higher Level)*

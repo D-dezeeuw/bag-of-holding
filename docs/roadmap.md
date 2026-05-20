@@ -566,26 +566,40 @@ exist. This release ships the full SRD pipeline.
 Closes [§ 5 Damage pipeline](srd-coverage.md#5-damage-pipeline) and
 unblocks rows in §§ 11, 18, 19, 22.
 
-### `1.5.0` — Condition system completion
+### `1.5.0` — Condition system completion ✅ shipped
 
-`CONDITION_EFFECTS` declares flags that the math layer doesn't yet
+`CONDITION_EFFECTS` declared flags that the math layer didn't yet
 fully consume; this release wires the remaining branches.
 
 - **Condition immunity** — `actor.conditionImmunities: ConditionName[]`,
-  filtered on `Conditions.apply`. Monster stat blocks consume the
-  same field.
-- **Auto-fail STR/DEX saves** under paralyzed / stunned / petrified /
-  unconscious — `Checks.savingThrow` reads the flag and returns
-  `{ success: false, autoFailed: true }`.
-- **Auto-crit from within 5 ft** on paralyzed / unconscious /
-  petrified / stunned — `Combat.attackRoll` checks the target's
-  flag plus attacker distance.
-- **Concentration auto-drop** on incapacitating conditions —
-  Conditions binding fires `endConcentration` when an
-  `incapacitates`-flagged condition lands.
-- **Per-application metadata** — conditions become `{ name, source?,
-  dc?, saveAbility?, endsOn? }`; the existing boolean-string API
-  stays as a shorthand.
+  filtered inside `Conditions.apply` (no-op on immune). Companion
+  predicate `Conditions.isImmuneTo(actor, name)` for chip / UI gating.
+- **Auto-fail STR/DEX saves** — engine binding of `Checks.savingThrow`
+  reads the target actor + ability and short-circuits to a failed
+  save with `autoFailed: true` when the SRD conditions force it.
+  Module-level `savingThrow({ ..., autoFailed: true })` also short-
+  circuits for callers that already know the answer.
+- **Auto-crit from within 5 ft** — `Combat.attackRoll` reads the
+  target's `critIfAttackerWithin5` flag (paralyzed, unconscious,
+  petrified, stunned) plus `attackerDistanceFt` and upgrades the
+  hit to a crit.
+- **Concentration auto-drop** — engine's bound `Conditions.apply`
+  calls `Spellcasting.endConcentration` when an `incapacitates`-
+  flagged condition lands (or the actor was just made immune to it,
+  which is a no-op and bypasses both the drop and the hook fire).
+- **`Conditions.effectsFor` / `attackStance` re-exported** on the
+  engine binding for parity with the module-level surface.
+
+**Per-application metadata** (`{ name, source?, dc?, saveAbility?,
+endsOn? }`) is *deferred* to the 1.6.0 turn-lifecycle release —
+the save-end-of-turn binding it enables lives there anyway, and
+keeping conditions as strings for now means existing fixtures and
+host integrations don't churn.
+
+**Bundle budget bumped** from 120 kB / 30 kB gz to 160 kB / 40 kB
+gz to absorb the 10-class mechanics + damage pipeline + condition
+completion shipped since 1.0.0. New range covers expected growth
+through the 1.x line.
 
 Closes [§ 4 Conditions](srd-coverage.md#4-conditions) and the
 concentration half of

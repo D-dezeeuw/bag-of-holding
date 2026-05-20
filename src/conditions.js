@@ -231,9 +231,27 @@ export function has(actor, condition) {
  */
 export function apply(actor, condition, allowedConditions = CONDITIONS) {
   if (!allowedConditions.includes(condition)) throw new Error(`Unknown condition: ${condition}`);
+  // SRD § Monsters — Immunities (since 1.5.0): actors with the
+  // condition listed in their `conditionImmunities` are unaffected.
+  // We return the unchanged actor rather than throwing so the host
+  // chip / UI can render "immune" gracefully without branch logic.
+  if ((actor.conditionImmunities ?? []).includes(condition)) {
+    return actor;
+  }
   const current = new Set(actor.conditions ?? []);
   current.add(condition);
   return { ...actor, conditions: [...current] };
+}
+
+/**
+ * Returns `true` when the actor would be immune to the named
+ * condition. Useful for hosts that want to surface an "immune to
+ * Charmed" affordance in a chip set without first attempting an
+ * `apply`. Reads `actor.conditionImmunities` directly.
+ */
+export function isImmuneTo(actor, condition) {
+  return Array.isArray(actor.conditionImmunities) &&
+    actor.conditionImmunities.includes(condition);
 }
 
 /**

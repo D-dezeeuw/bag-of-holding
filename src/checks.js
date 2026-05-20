@@ -55,7 +55,26 @@ export function abilityCheck({ abilityScore, proficient = false, proficiencyBonu
  * distinct (active reach vs passive resistance), so the engine keeps
  * the names separate even though one delegates. That makes call
  * sites — and grep — read closer to the rule being applied.
+ *
+ * `args.autoFailed: true` (since 1.5.0) short-circuits the d20 roll
+ * and returns a failed save with `autoFailed: true` on the result —
+ * for the SRD condition flags (paralyzed / stunned / petrified /
+ * unconscious force auto-fail on STR/DEX saves). The engine binding
+ * sets this flag automatically from the actor's active conditions
+ * when the caller supplies an `actor` and an `ability`. Callers
+ * using `Checks.savingThrow` directly can also pass `autoFailed: true`
+ * for the same short-circuit behaviour.
  */
 export function savingThrow(args, rng = Math.random) {
+  if (args.autoFailed === true) {
+    return {
+      d20: 0,
+      mod: 0,
+      total: 0,
+      dc: clampDC(args.dc),
+      success: false,
+      autoFailed: true
+    };
+  }
   return abilityCheck(args, rng);
 }

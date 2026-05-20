@@ -30,9 +30,14 @@ const ROOT = path.resolve(__dirname, '..');
 // content (a new sourcebook) triggers a deliberate decision rather
 // than silent drift. Budget set at ~1.5× current to absorb minor
 // patches without re-pinning every commit.
+//
+// Budget history:
+//   1.0.0  — 120 kB min / 30 kB gz (initial)
+//   1.5.0  — 160 kB min / 40 kB gz (10 class mechanics, damage
+//            pipeline, condition completion)
 const BUDGETS = {
-  minBytes: 120 * 1024,    // 120 kB approx-minified
-  gzipBytes: 30 * 1024     //  30 kB gzipped
+  minBytes: 160 * 1024,    // 160 kB approx-minified
+  gzipBytes:  40 * 1024    //  40 kB gzipped
 };
 
 async function walk(dir) {

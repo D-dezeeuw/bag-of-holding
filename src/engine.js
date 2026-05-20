@@ -160,8 +160,11 @@ function buildConditions(extraConditions = []) {
     CONDITIONS: combined,
     EXHAUSTION_MAX: ConditionsBase.EXHAUSTION_MAX,
     has: ConditionsBase.has,
+    isImmuneTo: ConditionsBase.isImmuneTo,
     apply: (actor, condition) => ConditionsBase.apply(actor, condition, combined),
     remove: ConditionsBase.remove,
+    effectsFor: ConditionsBase.effectsFor,
+    attackStance: ConditionsBase.attackStance,
     exhaustion: ConditionsBase.exhaustion
   };
 }
@@ -236,7 +239,20 @@ export function createEngine(opts = {}) {
   const ConditionsBound = {
     ...ConditionsBoundBase,
     apply: (actor, condition) => {
-      const next = ConditionsBoundBase.apply(actor, condition);
+      let next = ConditionsBoundBase.apply(actor, condition);
+      // Immunity short-circuits to the same actor reference; skip
+      // the hook fire and downstream concentration drop in that case.
+      if (next === actor) return next;
+      // SRD § Spells — Concentration (since 1.5.0): incapacitating
+      // conditions break concentration. The condition-effects map
+      // tags `incapacitates: true` on stunned / paralyzed /
+      // petrified / unconscious / incapacitated. The exhaustion
+      // pathway fires `onDeath` separately when level 6 is reached;
+      // here we close the second drop pathway.
+      const effect = ConditionsBase.CONDITION_EFFECTS[condition];
+      if (effect?.incapacitates && next.concentration) {
+        next = Spellcasting.endConcentration(next);
+      }
       hooks.fire('onConditionApplied', { actor: next, condition, previous: actor });
       return next;
     },
@@ -323,7 +339,20 @@ export function createEngine(opts = {}) {
       return result;
     },
     savingThrow: (args, context) => {
-      const result = Checks.savingThrow(args, rng);
+      // SRD § Conditions (since 1.5.0): paralyzed / stunned /
+      // petrified / unconscious force auto-fail on STR and DEX
+      // saves. The engine binding sets `autoFailed` when the
+      // caller supplies an actor + ability, so module-level
+      // callers using just abilityScore stay unaffected.
+      let augmented = args;
+      if (args.actor && args.ability &&
+          (args.ability === 'str' || args.ability === 'dex')) {
+        const effects = ConditionsBase.effectsFor(args.actor);
+        if (effects.autoFailStrDexSaves) {
+          augmented = { ...args, autoFailed: true };
+        }
+      }
+      const result = Checks.savingThrow(augmented, rng);
       record('savingThrow', {
         abilityScore: args.abilityScore,
         proficient: args.proficient ?? false,
