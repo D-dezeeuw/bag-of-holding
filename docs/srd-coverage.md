@@ -246,7 +246,7 @@ boxes are always the live worklist.
 - [x] **Ranger:** Favored Enemy free-cast pool (scales with PB), Hunter's Mark cast with free-cast preference + slot fallback, target binding on `actor.huntersMark`, 1d6 force damage rider, status helper *(SRD § Ranger — Favored Enemy / Hunter's Mark)* *(v1.3.7)*
 - [x] **Sorcerer:** Sorcery Points pool, Font of Magic (slot ↔ points conversion + slot creation table), 10 Metamagic options with cost + effect schema *(SRD § Sorcerer — Font of Magic / Metamagic)* *(v1.3.8)*
 - [x] **Warlock:** Eldritch Invocations — 10 canonical invocations with prereq metadata (warlock level, required cantrip, repeatable), count-by-level table, validation + persistence + agonizing-blast bonus lookup *(SRD § Warlock — Eldritch Invocations)* *(v1.3.9)*
-- [ ] **Wizard:** Arcane Recovery — slot levels = ⌈½ wizard level⌉, once per long rest, on a short rest *(SRD § Wizard — Arcane Recovery)* — *roadmap 1.3.10*
+- [x] **Wizard:** Arcane Recovery — recover spell-slot levels equal to ⌈½ wizard level⌉ (cap 5, once per Long Rest, on a Short Rest); non-mutating per-slot validation + atomic apply + status helper *(SRD § Wizard — Arcane Recovery)* *(v1.3.10)*
 
 ## 14. Classes — subclasses and tier 3/4
 
