@@ -239,7 +239,7 @@ boxes are always the live worklist.
 - [x] **Rogue:** Sneak Attack + `endTurn` *(v1.3.0)*
 - [x] **Barbarian:** Rage — per-Long-Rest uses (with 1 recovered on Short Rest), Rage Damage by level, BPS resistance flags, 100-round duration cap; STR check/save advantage left to host until `attackStance`-style helper for non-attack D20 Tests lands *(SRD § Barbarian — Rage)* *(v1.3.1)*
 - [x] **Bard:** Bardic Inspiration — CHA-mod uses (min 1), die size by level, refresh tag flips to short at L5, plus `fontOfInspiration(slotLevel)` slot-for-use refund *(SRD § Bard — Bardic Inspiration / Font of Inspiration)* *(v1.3.2)*
-- [ ] **Cleric:** Channel Divinity — uses scale with level, short-rest refresh *(SRD § Cleric — Channel Divinity)* — *roadmap 1.3.3*
+- [x] **Cleric:** Channel Divinity — uses 2/3/4 at L2/L6/L18, long-rest full / short-rest 1, Divine Spark (heal or damage modes) + Turn Undead handlers, spell-save-DC helper *(SRD § Cleric — Channel Divinity / Divine Spark / Turn Undead)* *(v1.3.3)*
 - [ ] **Druid:** Wild Shape — uses per short rest, CR cap by level *(SRD § Druid — Wild Shape)* — *roadmap 1.3.4*
 - [ ] **Monk:** Martial Arts dice, Focus Points (was Ki), short-rest refresh *(SRD § Monk — Martial Arts / Focus Points)* — *roadmap 1.3.5*
 - [ ] **Paladin:** Lay on Hands (pool = 5 × level), Divine Smite (consume slot, +radiant dice scaled per slot) *(SRD § Paladin — Lay on Hands / Divine Smite)* — *roadmap 1.3.6*

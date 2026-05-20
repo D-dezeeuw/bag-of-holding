@@ -491,8 +491,10 @@ in the typecheck file:
   Inspiration, plus `fontOfInspiration(actor, { slotLevel })` to
   refund a use by spending a slot. `freshResources` extended to
   evaluate spec fields as functions of `(level, actor)`. ✅ shipped
-- **`1.3.3`** Cleric § *Channel Divinity* (uses scale with level,
-  short-rest refresh).
+- **`1.3.3`** Cleric § *Channel Divinity* — uses 2/3/4 at L2/L6/L18,
+  full refresh on Long Rest, 1 use on Short Rest (2024); plus two
+  worked effect handlers (Divine Spark heal/damage modes; Turn
+  Undead) and the `channelDivinityDC` helper (8 + prof + WIS). ✅ shipped
 - **`1.3.4`** Druid § *Wild Shape* (uses per short rest, CR cap by
   level).
 - **`1.3.5`** Monk § *Martial Arts* + § *Focus Points* (replaces Ki
