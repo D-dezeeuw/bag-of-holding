@@ -142,6 +142,9 @@ validation behaviour, and merge semantics.
   time. Read first.
 - [docs/spec.md](docs/spec.md) — what the engine implements (and what
   it doesn't); plugin contract; types.
+- [docs/srd-coverage.md](docs/srd-coverage.md) — line-by-line
+  checklist of what the engine implements against the SRD 5.2. The
+  live worklist for SRD-compliance work.
 - [docs/character-sheet.md](docs/character-sheet.md) — the host/engine
   contract for character records, the `DerivedSheet` schema, and the
   worked example end-to-end.
