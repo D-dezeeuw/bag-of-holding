@@ -690,9 +690,35 @@ export function createEngine(opts = {}) {
     Conditions: ConditionsBound,
     XP: XPBound,
     Movesets, Beats,
-    // Spellcasting: pure module, no engine binding needed (slot
-    // tables are static; concentration state lives on the actor).
-    Spellcasting,
+    // Spellcasting: mostly pure module; engine wraps `castSpell` to
+    // fire the `onCast` hook (Phase D, since 1.6.0). The hook can
+    // short-circuit a cast via `cancelled: true` — that's the
+    // Counterspell intercept point.
+    Spellcasting: (() => {
+      // Single onCast wrapper shared by both cast entry points; the
+      // cancel branch is one occurrence rather than two so the
+      // coverage tool doesn't double-count the same logic.
+      const fireOnCast = (actor, spell, args) => {
+        const pre = hooks.fire('onCast', { actor, spell, args });
+        if (pre.cancelled === true) {
+          return { ok: false, reason: pre.reason ?? 'cast cancelled by reaction', cancelled: true };
+        }
+        return null;
+      };
+      return {
+        ...Spellcasting,
+        castSpell: (actor, spell, args) => {
+          const cancel = fireOnCast(actor, spell, args);
+          if (cancel) return cancel;
+          return Spellcasting.castSpell(actor, spell, args);
+        },
+        castAsRitual: (actor, spell, args) => {
+          const cancel = fireOnCast(actor, spell, { ...(args ?? {}), ritual: true });
+          if (cancel) return cancel;
+          return Spellcasting.castAsRitual(actor, spell, args);
+        }
+      };
+    })(),
     // Rest mechanics (since 1.2.0). `spendHitDie` is engine-bound
     // so its die roll flows into rollLog; `longRest` runs against
     // the engine's resolved rules so the recovery-mode knob applies.

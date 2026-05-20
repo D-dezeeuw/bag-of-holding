@@ -354,3 +354,234 @@ export function validatePreparation({ known, prepared, casterLevel, abilityMod, 
   }
   return { valid: true };
 }
+
+// === Canonical cast pipeline (since 1.8.0) ===
+//
+// SRD 5.2 § Spells — Casting a Spell bundles a sequence of checks:
+// components (V/S/M), one-leveled-spell-per-turn, slot consumption,
+// concentration binding, and (for spells with "At Higher Levels"
+// text) a per-slot upcast effect. `castSpell` packages all of that
+// behind a single call.
+//
+// The host owns the *narration* and the *effects* — `castSpell`
+// just returns whether the cast went through, the new actor (with
+// slot / concentration changes applied), the actual cast level
+// (matters for upcast deltas), and any upcast-effect payload the
+// spell record emitted. The host then applies damage / heal /
+// status via the existing surfaces (Combat.applyDamage,
+// Conditions.apply, etc.).
+
+/**
+ * Cast a spell. Returns:
+ *   `{ ok: true, actor, castLevel, upcastEffect, ritual }`
+ * on success or
+ *   `{ ok: false, reason }`
+ * on any refusal. The reason strings are debuggable but stable
+ * shape: each refusal cites the SRD rule it enforces.
+ *
+ * `args`:
+ *   - `slotLevel?: number` — slot to consume (defaults to
+ *     `spell.level`). Used for upcasting.
+ *   - `ritual?: boolean` — cast as a ritual (no slot consumed; +10
+ *     minutes; spell must have the Ritual tag and be prepared).
+ *   - `alreadyCastLeveledThisTurn?: boolean` — host-tracked turn
+ *     flag; the engine enforces the "only one leveled spell per
+ *     turn" rule when this is true.
+ *
+ * `actor` fields read:
+ *   - `actor.silenced` / `actor.somaticBlocked` — component gates.
+ *   - `actor.materials[spellId]` — opaque host-side material
+ *     availability tag for spells with a `components.m.cost`.
+ *   - `actor.spellsPrepared[]` — required for ritual casts.
+ *   - `actor.spellSlots[]` — consumed unless ritual or cantrip.
+ */
+export function castSpell(actor, spell, args = {}) {
+  // 1. Component checks (SRD § Spells — Components).
+  const components = spell.components ?? {};
+  if (components.v && actor.silenced === true) {
+    return { ok: false, reason: 'silenced — cannot speak the Verbal component' };
+  }
+  if (components.s && actor.somaticBlocked === true) {
+    return { ok: false, reason: 'no free hand for the Somatic component' };
+  }
+  if (components.m?.cost && actor.materials?.[spell.id] !== true) {
+    return { ok: false, reason: `missing material component for ${spell.id}` };
+  }
+
+  // 2. One leveled spell per turn (SRD § Spells — Casting a Spell).
+  // Cantrips (level 0) are exempt. `level > 0` short-circuits on
+  // undefined so missing-level spell records (host bug) read as
+  // cantrips here — the rest of the pipeline will tolerate them.
+  if (spell.level > 0 && args.alreadyCastLeveledThisTurn === true) {
+    return { ok: false, reason: 'only one leveled spell can be cast per turn' };
+  }
+
+  let working = actor;
+
+  // 3. Ritual vs normal slot consumption (SRD § Spells — Ritual).
+  if (args.ritual === true) {
+    if (!spell.ritual) {
+      return { ok: false, reason: 'spell does not have the Ritual tag' };
+    }
+    const prepared = Array.isArray(actor.spellsPrepared) ? actor.spellsPrepared : [];
+    if (!prepared.includes(spell.id)) {
+      return { ok: false, reason: 'ritual casting requires the spell to be prepared' };
+    }
+    // No slot consumed for ritual; the +10 minute cost is host-side.
+  } else if (spell.level > 0) {
+    const slotLevel = args.slotLevel ?? spell.level;
+    if (!Number.isInteger(slotLevel) || slotLevel < 1) {
+      return { ok: false, reason: 'slotLevel must be a positive integer' };
+    }
+    if (slotLevel < spell.level) {
+      return { ok: false, reason: `slot level ${slotLevel} below spell's base level ${spell.level}` };
+    }
+    if (!Array.isArray(actor.spellSlots)) {
+      return { ok: false, reason: 'actor has no spellSlots' };
+    }
+    const slotResult = consumeSlot(actor.spellSlots, slotLevel);
+    if (!slotResult.ok) return { ok: false, reason: slotResult.reason };
+    working = { ...working, spellSlots: slotResult.slots };
+  }
+
+  // 4. Concentration auto-bind (SRD § Spells — Concentration).
+  // Pairs with the 1.5.0 auto-drop on incapacitating conditions.
+  if (spell.concentration === true) {
+    const result = startConcentration(working, { spellId: spell.id, level: args.slotLevel ?? spell.level });
+    working = result.actor;
+  }
+
+  // 5. Upcast delta. Spell records expose a `upcast(level)` function
+  // that returns the per-cast-level effect delta (e.g. Fireball
+  // returns `{ extraDice: 1 }` per slot above 3rd).
+  const castLevel = args.ritual === true ? spell.level : (args.slotLevel ?? spell.level);
+  const upcastEffect = typeof spell.upcast === 'function' ? spell.upcast(castLevel) : null;
+
+  return {
+    ok: true,
+    actor: working,
+    castLevel,
+    upcastEffect,
+    ritual: args.ritual === true
+  };
+}
+
+/** Convenience wrapper for ritual casting. */
+export function castAsRitual(actor, spell, args = {}) {
+  return castSpell(actor, spell, { ...args, ritual: true });
+}
+
+// === Area-of-effect targeting (since 1.8.0) ===
+//
+// SRD § Spells — Areas of Effect: six shapes (sphere, cube, cone,
+// line, cylinder, emanation) targeting candidates by position. The
+// engine's job is the geometry: given an origin point, a shape +
+// size + facing, and a list of candidates with positions, return
+// which candidates fall inside. The host owns the grid system —
+// positions can be feet, squares, or anything as long as the units
+// are consistent.
+
+export const AOE_SHAPES = Object.freeze(['sphere', 'cube', 'cone', 'line', 'cylinder', 'emanation']);
+
+function distance2D(a, b) {
+  // Position correctness is the host's contract — a missing axis
+  // would propagate as NaN through every comparison rather than
+  // failing loudly, so no `?? 0` defensive fallback here.
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  return Math.sqrt(dx * dx + dy * dy);
+}
+
+// Note: cone/line take a non-zero `direction` per the outer
+// `targetsInArea` guard, so the inner geometry functions don't
+// re-check `dirLen === 0` — that branch would be unreachable.
+
+function inCone2D(origin, direction, range, point) {
+  const dx = point.x - origin.x;
+  const dy = point.y - origin.y;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  if (distance === 0) return true;     // origin is inside the cone
+  if (distance > range) return false;
+  // 5e cone: width = length at the far end. Half-angle = atan(0.5) ≈
+  // 26.57°. We use `cos(half-angle) ≈ 0.8944` as the dot-product
+  // threshold so the comparison is rotation-free.
+  const dirLen = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+  const cosAngle = (dx * direction.x + dy * direction.y) / (distance * dirLen);
+  return cosAngle >= 0.8944;   // ~26.57° half-angle
+}
+
+function inLine2D(origin, direction, length, width, point) {
+  const dirLen = Math.sqrt(direction.x * direction.x + direction.y * direction.y);
+  // Unit vectors along and perpendicular to the line.
+  const ux = direction.x / dirLen;
+  const uy = direction.y / dirLen;
+  const dx = point.x - origin.x;
+  const dy = point.y - origin.y;
+  const along = dx * ux + dy * uy;
+  const perp = Math.abs(-dx * uy + dy * ux);
+  return along >= 0 && along <= length && perp <= width / 2;
+}
+
+/**
+ * Return the candidates that fall inside the area.
+ *
+ * `args`:
+ *   - `origin: { x, y }` — the spell's anchor point.
+ *   - `shape: AOE_SHAPES[]` — one of the six SRD shapes.
+ *   - `size: number` — radius (sphere / cylinder / emanation), side
+ *     length (cube), length (cone / line).
+ *   - `direction?: { x, y }` — required for cone and line; ignored
+ *     elsewhere.
+ *   - `width?: number` — line width (defaults to 5 ft per SRD).
+ *   - `candidates: [{ id, position: { x, y } }]`.
+ *
+ * Returns the matching candidate records (in the same order they
+ * were passed). Throws on invalid shape or missing direction for
+ * cone/line — those are host bugs we surface at the boundary.
+ */
+export function targetsInArea({ origin, shape, size, direction, width = 5, candidates }) {
+  if (!AOE_SHAPES.includes(shape)) {
+    throw new Error(`Unknown AoE shape: ${shape}. Known: ${AOE_SHAPES.join(', ')}`);
+  }
+  if ((shape === 'cone' || shape === 'line') && (!direction || (direction.x === 0 && direction.y === 0))) {
+    throw new Error(`${shape} requires a non-zero direction vector`);
+  }
+  if (!Array.isArray(candidates)) {
+    throw new Error('candidates must be an array');
+  }
+  const inside = (p) => {
+    if (shape === 'sphere' || shape === 'cylinder' || shape === 'emanation') {
+      return distance2D(origin, p) <= size;
+    }
+    if (shape === 'cube') {
+      return Math.abs(p.x - origin.x) <= size && Math.abs(p.y - origin.y) <= size;
+    }
+    if (shape === 'cone') return inCone2D(origin, direction, size, p);
+    /* shape === 'line' */ return inLine2D(origin, direction, size, width, p);
+  };
+  return candidates.filter((c) => inside(c.position));
+}
+
+/**
+ * Package per-target save outcomes for a save-or-suck / save-for-
+ * half spell. The host runs each save (via `Checks.savingThrow`)
+ * and feeds the results in; the engine computes the applied
+ * damage / outcome per target uniformly.
+ *
+ * `results: [{ targetId, saved: boolean, damage?: number }]`
+ * `opts.halfOnSuccess` defaults to `true` (the SRD default for
+ *  Dex-save Evocation spells like Fireball); set `false` for
+ *  save-or-suck spells where success means no effect at all.
+ */
+export function castSpellSave(results, { halfOnSuccess = true } = {}) {
+  if (!Array.isArray(results)) {
+    throw new Error('results must be an array');
+  }
+  return results.map((r) => ({
+    targetId: r.targetId,
+    saved: r.saved === true,
+    appliedDamage: r.saved
+      ? (halfOnSuccess ? Math.floor((r.damage ?? 0) / 2) : 0)
+      : (r.damage ?? 0)
+  }));
+}
