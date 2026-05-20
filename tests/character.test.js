@@ -146,8 +146,8 @@ test('rejects unknown speciesId / classId / backgroundId with the offending valu
     /classId 'not-a-real-class' not registered with engine/
   );
   assert.throws(
-    () => engine.deriveSheet({ ...valid, backgroundId: 'hermit' }),
-    /backgroundId 'hermit' not registered with engine/
+    () => engine.deriveSheet({ ...valid, backgroundId: 'not-a-real-background' }),
+    /backgroundId 'not-a-real-background' not registered with engine/
   );
 });
 

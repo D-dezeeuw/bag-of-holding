@@ -474,7 +474,7 @@ Sneak Attack exercises a damage-rider / once-per-turn flag), and the
 remaining ten classes can be added incrementally as a consumer
 drives priority.
 
-### `1.3.x`: Per-class feature rollout
+### `1.3.x`: Per-class feature rollout ✅ shipped (all 10 sub-releases)
 
 Each sub-release adds one class's resource-bearing mechanics on top
 of the 1.3.0 foundation, with full test coverage and a smoke entry
@@ -1085,32 +1085,37 @@ Deferred from this milestone (rolled forward into later patches):
 Closes [§ 25 Documentation & host
 contracts](srd-coverage.md#25-documentation--host-contracts).
 
-### `1.x.y`: Content registry expansion (parallel)
+### `1.x.y`: Content registry expansion ✅ shipped in v1.27.0
 
-Pure-data work, no engine surface change. Drops in as patch
-releases between minor versions whenever a contributor has time. The
-engine doesn't require any of these to be complete to ship a feature
-release; they're additive throughout the 1.x line.
+The SRD content registries grew to support actual play out of the
+box. Engine surface didn't change; this is pure-data work.
 
-- **Spells**: `33 → ~370` (SRD 5.2 § Spells A-Z).
-- **Monsters**: `9 → hundreds` (SRD 5.2 § Monsters A-Z).
-- **Items + magic items**: `44 → full SRD list` (Equipment + Magic
-  Items chapters).
-- **Backgrounds**: current registry → all 16 SRD backgrounds.
-- **Feats**: `3 → full SRD list` (origin, general, fighting style,
-  epic boon).
+- **Backgrounds**: 4 → 16 (all SRD 5.2 backgrounds).
+- **Feats**: 14 → 43 (origin: 3; fighting style: 6; general: 23;
+  epic boon: 11).
+- **Spells**: 33 → 104 (cantrips through level 9, covering the
+  canonical SRD spell selection).
+- **Items + magic items**: 44 → 102 (full SRD weapons + armor
+  table, adventuring gear, wondrous items, magic weapons + armor,
+  scrolls, wands, staves, rods).
+- **Monsters**: 9 → 66 (CR 0 through CR 15, every major tier).
 
 Closes the registry-depth rows of
 [§ 16](srd-coverage.md#16-species-backgrounds-feats),
 [§ 17](srd-coverage.md#17-equipment--inventory),
 [§ 18](srd-coverage.md#18-magic-items), and
-[§ 19](srd-coverage.md#19-monsters).
+[§ 19](srd-coverage.md#19-monsters). Further content can land in
+patches as plugin contributions or future content packs (Bestiary
+2.2-2.4, Grimoire 2.5-2.6, Treasury 2.7) without touching the
+engine surface.
 
-### `1.25.0`: SRD-complete maintenance release (held in reserve)
+### `1.25.0`: SRD-complete maintenance release ✅ not needed
 
-Reserved for any non-breaking cleanup needed after `1.24.0` lands
-the SRD-coverage close. If 1.4 → 1.24 lands cleanly, this is
-unnecessary and we skip straight to the 2.x line.
+Reserved for any non-breaking cleanup needed after `1.24.0` landed
+the SRD-coverage close. The 1.4 → 1.24 milestones (shipped as
+v1.13.0 → v1.26.0) landed cleanly, and any further cleanup was
+absorbed into v1.27.0 alongside the content registry expansion.
+Skipping straight to the 2.x line.
 
 ## Post-SRD: playable foundation, content, settings
 
