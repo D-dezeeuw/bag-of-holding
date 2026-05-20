@@ -50,7 +50,10 @@ import defaultEngine, {
   type SkillId,
   type DeathSaveTracker,
   type DeathSaveResult,
-  type DeathSaveOutcome
+  type DeathSaveOutcome,
+  type Resource,
+  type RefreshKind,
+  Mechanics
 } from '../../index.js';
 
 // ============================================================
@@ -263,6 +266,35 @@ const _grittyEngine: Engine = createEngine({
 });
 const _grittyMode: 'half' | 'all' | 'none' = _grittyEngine.rules.longRestHitDiceRecovery;
 void _grittyMode;
+
+const _shortRested: Actor = defaultEngine.Rest.shortRest(restingActor);
+void _shortRested;
+
+// === Class mechanics (since 1.3.0) ===
+
+const _refreshKinds: readonly RefreshKind[] = Mechanics.REFRESH_KINDS;
+void _refreshKinds;
+
+const _secondWindResource: Resource = Mechanics.freshResource({ max: 1, refreshes: 'short' });
+const _fighterResources: Record<string, Resource> = Mechanics.freshResources(
+  defaultEngine.classes.fighter,
+  3
+);
+void _secondWindResource; void _fighterResources;
+
+const _classedActor: Actor = {
+  id: 'pc', classId: 'fighter', level: 3,
+  resources: _fighterResources
+};
+const _swResult = defaultEngine.Mechanics.apply(_classedActor, 'secondWind', {}, 'tag');
+void _swResult;
+
+// Module-level Mechanics surface is the same shape.
+const _spendResult = Mechanics.spendResource(_classedActor, 'secondWind');
+void _spendResult;
+
+const _refreshed: Actor = Mechanics.refreshResources(_classedActor, 'long');
+void _refreshed;
 
 // === Character sheet derivation ===
 

@@ -16,8 +16,9 @@ import { rollDie } from './dice.js';
 import { modFromScore } from './checks.js';
 import { DEFAULT_RULES } from './rules.js';
 import { freshDeathSaves } from './combat.js';
-import { longRest as longRestSlots } from './spellcasting.js';
+import { longRest as longRestSlots, shortRest as shortRestSlots } from './spellcasting.js';
 import { exhaustion } from './conditions.js';
+import { refreshResources } from './mechanics.js';
 
 /**
  * Spend one Hit Die. SRD 5.2 § Short Rest: "the player rolls that
@@ -109,5 +110,29 @@ export function longRest(actor, rules = DEFAULT_RULES) {
   if (Array.isArray(next.spellSlots)) {
     next = { ...next, spellSlots: longRestSlots(next.spellSlots) };
   }
+  // Class-feature resources: long rest restores both short- and
+  // long-tagged counters (per SRD wording: a Long Rest IS a Short
+  // Rest plus more).
+  next = refreshResources(next, 'long');
+  return next;
+}
+
+/**
+ * Apply one Short Rest. SRD 5.2 § Short Rest covers Hit Dice
+ * spending (the host calls `spendHitDie` separately for each die)
+ * and class-feature refresh — Second Wind, Action Surge, Channel
+ * Divinity, etc. Warlock pact slots also refresh on Short Rest.
+ * Spell slots from other casters are NOT touched.
+ *
+ * Hit Dice spending is left to the host because the *choice* of
+ * how many dice to spend is a per-player decision the engine can't
+ * make on its own.
+ */
+export function shortRest(actor) {
+  let next = actor;
+  if (Array.isArray(next.spellSlots)) {
+    next = { ...next, spellSlots: shortRestSlots(next.spellSlots) };
+  }
+  next = refreshResources(next, 'short');
   return next;
 }

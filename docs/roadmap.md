@@ -424,59 +424,74 @@ touch HP and hit dice.
 visibly broken in any extended session. 1.1's "back to 1 HP" pathway
 needs a "back to max HP" counterpart to close the loop.
 
-### `1.3.0` — Class feature mechanics
+### `1.3.0` — Class feature mechanics (foundation + Fighter/Rogue) ✅ shipped
 
 Class definitions currently expose features as strings
 (`features: { 1: ['Second Wind', 'Action Surge', ...] }`). The
 engine *names* features but doesn't enforce them. SRD 5.2 § *Classes*
 specifies the mechanics for each; implementing them is the long tail.
 
-Scope this milestone to **resource-bearing features** (the ones that
-consume a counter and need engine bookkeeping). Purely narrative
-features stay with the host. For each base class, ship handlers +
-actor-state shape + rest-reset wiring:
+**Shipped in 1.3.0:** the foundation — resource shape, mechanics
+dispatch, rest integration — plus reference implementations for
+**Fighter** (§ *Second Wind*, § *Action Surge*) and **Rogue**
+(§ *Sneak Attack*, plus an `endTurn` reset hook the host calls at
+turn end). The shape contract:
 
-- **Barbarian** § *Rage* — per-day uses, advantage on STR
-  checks/saves, +damage by level, resistance to
-  bludgeoning/piercing/slashing.
-- **Bard** § *Bardic Inspiration* — CHA-mod uses, long-rest refresh
-  (short rest from L5 per *Font of Inspiration*).
-- **Cleric** § *Channel Divinity* — uses scale with level, short-rest
-  refresh.
-- **Druid** § *Wild Shape* — uses per short rest, CR cap by level.
-- **Fighter** § *Second Wind* (`1d10 + level` HP, per short rest) and
-  § *Action Surge* (extra action, per short/long rest).
-- **Monk** § *Martial Arts* dice and § *Focus Points* (replaces Ki in
-  the 2024 SRD): point pool, point-spend handlers, short-rest
-  refresh.
-- **Paladin** § *Divine Sense*, § *Lay on Hands* (pool = 5 × level),
-  § *Divine Smite* (consume a spell slot, add radiant dice scaled
-  per slot level).
-- **Ranger** § *Hunter's Mark* binding to a slot, § *Favored Enemy*
+- Resource counters live on `actor.resources[<id>]` as
+  `{ used, max, refreshes: 'short' | 'long' | 'day' }`.
+- Class defs declare their `resources` spec and `mechanics` handler
+  map. `mechanics.<id>(actor, args, ctx)` returns a result object
+  the host interprets.
+- `Mechanics.freshResources(classDef, level)` initialises the pool
+  for a new character; `Mechanics.spendResource(actor, id, amount?)`
+  decrements it; `Mechanics.refreshResources(actor, kind)` resets
+  matching counters on rest.
+- `Rest.longRest` and the new `Rest.shortRest` call
+  `refreshResources` with `'long'` and `'short'` respectively. Long
+  Rest is a superset of Short Rest per SRD 5.2 § Long Rest.
+- `Mechanics.apply(actor, id, args?, context?)` is the engine-bound
+  dispatcher: looks the class up from the registry, threads the
+  engine's rng + audit log into the handler's context.
+
+**Per-class continuations (`1.3.x`):** the remaining ten classes
+follow the same shape; each sub-release adds one class. Tracked
+under [SRD 5.2 completeness § 1.3.x](#13x-per-class-feature-rollout).
+
+*Why scope it this way:* implementing all 12 classes' resource
+features in one release would ship a 2000-line PR with no real-world
+feedback on the contract shape. Two reference implementations prove
+the foundation (Second Wind exercises a healing-with-die mechanic;
+Sneak Attack exercises a damage-rider / once-per-turn flag), and the
+remaining ten classes can be added incrementally as a consumer
+drives priority.
+
+### `1.3.x` — Per-class feature rollout
+
+Each sub-release adds one class's resource-bearing mechanics on top
+of the 1.3.0 foundation, with full test coverage and a smoke entry
+in the typecheck file:
+
+- **`1.3.1`** Barbarian § *Rage* (per-day uses, STR check/save
+  advantage, +damage by level, BPS resistance).
+- **`1.3.2`** Bard § *Bardic Inspiration* (CHA-mod uses, long-rest
+  refresh; short rest from L5 via *Font of Inspiration*).
+- **`1.3.3`** Cleric § *Channel Divinity* (uses scale with level,
+  short-rest refresh).
+- **`1.3.4`** Druid § *Wild Shape* (uses per short rest, CR cap by
+  level).
+- **`1.3.5`** Monk § *Martial Arts* + § *Focus Points* (replaces Ki
+  in the 2024 SRD): point pool, spend handlers, short-rest refresh.
+- **`1.3.6`** Paladin § *Lay on Hands* (pool = 5 × level), § *Divine
+  Smite* (consume a slot, add radiant dice scaled per slot level).
+- **`1.3.7`** Ranger § *Hunter's Mark* binding, § *Favored Enemy*
   free-cast accounting.
-- **Rogue** § *Sneak Attack* (1d6 per two levels, once per turn,
-  finesse/ranged + advantage *or* qualifying ally adjacent).
-- **Sorcerer** § *Sorcery Points* and § *Metamagic* — the
+- **`1.3.8`** Sorcerer § *Sorcery Points* + § *Metamagic* — the
   convert-slot↔point loop.
-- **Warlock** § *Eldritch Invocations* — selection and validation
-  (pact magic itself already ships).
-- **Wizard** § *Arcane Recovery* — recover spell-slot levels equal to
-  ½ wizard level (rounded up), once per long rest, on a short rest.
-
-Shape contract: each handler is a pure function
-`(actor, args?, rng?) → { actor: nextActor, result }` registered on
-the class def under a `mechanics` map, so a custom-class plugin can
-ship its own without forking. Resource counters all live on
-`actor.resources[<id>]` with a normalized
-`{ used, max, refreshes: 'short' | 'long' | 'day' }` shape so 1.2's
-rest functions reset them generically.
-
-*Why now:* Without this, the "12 SRD 5.2 base classes" claim
-overstates what the engine actually enforces. Metadata is fine for
-chip rendering; class *mechanics* are what the rules-kernel boundary
-promises. Largest milestone here — likely split into per-class
-sub-releases (`1.3.1`, `1.3.2`, …) once a real consumer drives the
-priority order.
+- **`1.3.9`** Warlock § *Eldritch Invocations* selection and
+  validation (pact magic itself already ships).
+- **`1.3.10`** Wizard § *Arcane Recovery* — recover spell-slot
+  levels equal to ⌈½ wizard level⌉, once per long rest, on a short
+  rest.
 
 ## Post-1.0 ideas (no commitment)
 
