@@ -41,6 +41,7 @@ import * as RestBase from './rest.js';
 import * as MechanicsBase from './mechanics.js';
 import * as SceneClock from './scene-clock.js';
 import * as MagicItemsBase from './magic-items.js';
+import * as MonstersBase from './monsters.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -738,6 +739,21 @@ export function createEngine(opts = {}) {
     // Magic items lifecycle (since 1.9.0). rechargeItem accepts the
     // engine's rng via the binding so dice-based recoveries (e.g.
     // 1d6+4 at dawn) flow into the same replay-deterministic chain.
+    Monsters: Object.freeze({
+      multiattackSequence: MonstersBase.multiattackSequence,
+      freshLegendaryState: MonstersBase.freshLegendaryState,
+      useLegendaryAction: MonstersBase.useLegendaryAction,
+      refreshLegendaryActions: MonstersBase.refreshLegendaryActions,
+      freshLegendaryResistance: MonstersBase.freshLegendaryResistance,
+      useLegendaryResistance: MonstersBase.useLegendaryResistance,
+      lairActionAvailable: MonstersBase.lairActionAvailable,
+      fireLairAction: MonstersBase.fireLairAction,
+      freshInnateState: MonstersBase.freshInnateState,
+      castInnate: MonstersBase.castInnate,
+      refreshInnateSpells: MonstersBase.refreshInnateSpells,
+      senses: MonstersBase.senses,
+      saveBonus: MonstersBase.saveBonus
+    }),
     MagicItems: Object.freeze({
       RARITY_BANDS: MagicItemsBase.RARITY_BANDS,
       ATTUNEMENT_CAP: MagicItemsBase.ATTUNEMENT_CAP,

@@ -36,7 +36,7 @@ const _default = createEngine();
 export default _default;
 
 export const {
-  Dice, Checks, Combat, Conditions, XP, Movesets, Beats, Spellcasting, Rest, Mechanics, SceneClock, MagicItems,
+  Dice, Checks, Combat, Conditions, XP, Movesets, Beats, Spellcasting, Rest, Mechanics, SceneClock, MagicItems, Monsters,
   species, classes, backgrounds, feats, spells, items, monsters
 } = _default;
 
