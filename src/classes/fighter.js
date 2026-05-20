@@ -21,6 +21,11 @@ export default {
     2: ['Action Surge', 'Tactical Mind'],
     3: ['Fighter Subclass'],
     4: ['Ability Score Improvement'],
-    5: ['Extra Attack', 'Tactical Shift']
+    5: ['Extra Attack', 'Tactical Shift'],
+    6: ['Ability Score Improvement', 'Weapon Mastery (4 weapons)'],
+    7: ['Subclass Feature'],
+    8: ['Ability Score Improvement'],
+    9: ['Indomitable', 'Tactical Master'],
+    10: ['Subclass Feature']
   }
 };

@@ -30,6 +30,11 @@ export default {
     2: ['Fighting Style', 'Divine Smite', 'Channel Divinity'],
     3: ['Sacred Oath'],
     4: ['Ability Score Improvement'],
-    5: ['Extra Attack', 'Faithful Steed']
+    5: ['Extra Attack', 'Faithful Steed'],
+    6: ['Aura of Protection'],
+    7: ['Subclass Feature'],
+    8: ['Ability Score Improvement'],
+    9: ['Abjure Foes'],
+    10: ['Aura of Courage']
   }
 };

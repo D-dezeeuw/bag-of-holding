@@ -30,6 +30,11 @@ export default {
     2: ['Expertise', 'Jack of All Trades'],
     3: ['Bard College'],
     4: ['Ability Score Improvement'],
-    5: ['Font of Inspiration']
+    5: ['Font of Inspiration'],
+    6: ['Subclass Feature'],
+    7: [],
+    8: ['Ability Score Improvement'],
+    9: ['Expertise (2 more skills)'],
+    10: ['Magical Secrets']
   }
 };

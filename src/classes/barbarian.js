@@ -28,6 +28,11 @@ export default {
     2: ['Reckless Attack', 'Danger Sense'],
     3: ['Primal Path'],
     4: ['Ability Score Improvement'],
-    5: ['Extra Attack', 'Fast Movement']
+    5: ['Extra Attack', 'Fast Movement'],
+    6: ['Subclass Feature'],
+    7: ['Feral Instinct', 'Instinctive Pounce'],
+    8: ['Ability Score Improvement'],
+    9: ['Brutal Strike'],
+    10: ['Subclass Feature']
   }
 };

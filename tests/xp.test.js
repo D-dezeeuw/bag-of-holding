@@ -18,12 +18,15 @@ test('levelForXP maps thresholds correctly', () => {
   assert.equal(levelForXP(299), 1);
   assert.equal(levelForXP(300), 2);
   assert.equal(levelForXP(2700), 4);
-  assert.equal(levelForXP(99999), 5);
+  assert.equal(levelForXP(6500), 5);
+  assert.equal(levelForXP(14000), 6);
+  assert.equal(levelForXP(355000), 20);
 });
 
 test('nextLevelThreshold returns next threshold or null at cap', () => {
   assert.equal(nextLevelThreshold(0), 300);
-  assert.equal(nextLevelThreshold(99999), null);
+  // Capped at L20 (355_000 XP).
+  assert.equal(nextLevelThreshold(355000), null);
 });
 
 test('awardMilestone returns a positive delta and detects level-up', () => {

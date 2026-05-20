@@ -30,6 +30,11 @@ export default {
     2: ['Deft Explorer', 'Fighting Style'],
     3: ['Ranger Subclass', 'Primal Awareness'],
     4: ['Ability Score Improvement'],
-    5: ['Extra Attack']
+    5: ['Extra Attack'],
+    6: ['Roving'],
+    7: ['Subclass Feature'],
+    8: ['Ability Score Improvement'],
+    9: ['Expertise'],
+    10: ['Tireless']
   }
 };

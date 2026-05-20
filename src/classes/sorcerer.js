@@ -32,6 +32,11 @@ export default {
     2: ['Font of Magic'],
     3: ['Metamagic'],
     4: ['Ability Score Improvement'],
-    5: ['Sorcerous Restoration']
+    5: ['Sorcerous Restoration'],
+    6: ['Subclass Feature'],
+    7: [],
+    8: ['Ability Score Improvement'],
+    9: [],
+    10: ['Metamagic (third option)']
   }
 };

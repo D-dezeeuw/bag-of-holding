@@ -1,25 +1,25 @@
 /**
- * The SRD 5.2 XP-to-level table, tier 1 only (levels 1–5). Frozen
- * so a buggy import can't mutate progression for the whole runtime
- * — the engine's MVP scope is explicitly capped at level 5 (see
- * docs/spec.md § Out of scope), so extending this table is the
- * deliberate step into tier 2+, not an accident.
+ * SRD 5.2 XP-to-level table. Tier 1 (L1–4), Tier 2 (L5–10),
+ * and the rest of the curve through L20.
  */
 export const THRESHOLDS = Object.freeze({
-  1: 0,
-  2: 300,
-  3: 900,
-  4: 2700,
-  5: 6500
+  1: 0,      2: 300,    3: 900,    4: 2700,   5: 6500,
+  6: 14000,  7: 23000,  8: 34000,  9: 48000, 10: 64000,
+  11: 85000, 12: 100000, 13: 120000, 14: 140000, 15: 165000,
+  16: 195000, 17: 225000, 18: 265000, 19: 305000, 20: 355000
 });
 
 /**
- * Proficiency bonus as a lookup, not a formula, because the SRD
- * table isn't perfectly linear past tier 1 (the +X bumps every
- * four levels in tier 1 but five thereafter). A formula would
- * silently miscompute for tier-2 work later.
+ * Proficiency bonus as a lookup, not a formula. SRD 5.2:
+ * +2 at 1–4, +3 at 5–8, +4 at 9–12, +5 at 13–16, +6 at 17–20.
  */
-export const PROFICIENCY_BY_LEVEL = Object.freeze({ 1: 2, 2: 2, 3: 2, 4: 2, 5: 3 });
+export const PROFICIENCY_BY_LEVEL = Object.freeze({
+  1: 2,  2: 2,  3: 2,  4: 2,
+  5: 3,  6: 3,  7: 3,  8: 3,
+  9: 4, 10: 4, 11: 4, 12: 4,
+  13: 5, 14: 5, 15: 5, 16: 5,
+  17: 6, 18: 6, 19: 6, 20: 6
+});
 
 /**
  * Linear scan rather than binary search because THRESHOLDS has 5

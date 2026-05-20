@@ -31,6 +31,11 @@ export default {
     2: ['Wild Shape', 'Druid Circle'],
     3: [],
     4: ['Ability Score Improvement'],
-    5: []
+    5: [],
+    6: ['Subclass Feature'],
+    7: ['Elemental Fury'],
+    8: ['Ability Score Improvement'],
+    9: [],
+    10: ['Subclass Feature']
   }
 };

@@ -27,6 +27,11 @@ export default {
     2: ["Monk's Focus", 'Unarmored Movement'],
     3: ['Monastic Tradition', 'Deflect Attacks'],
     4: ['Ability Score Improvement'],
-    5: ['Extra Attack', 'Stunning Strike']
+    5: ['Extra Attack', 'Stunning Strike'],
+    6: ['Empowered Strikes', 'Subclass Feature'],
+    7: ['Evasion'],
+    8: ['Ability Score Improvement'],
+    9: ['Acrobatic Movement'],
+    10: ['Heightened Focus']
   }
 };

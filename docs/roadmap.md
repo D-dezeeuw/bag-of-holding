@@ -5,13 +5,13 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-20: `0.8.0`, pre-release. All 12 SRD 5.2
-> base classes at levels 1–5; full Phase A/B/C plugin systems;
-> forensically inspectable randomness; character-sheet derivation;
-> encounter system; spellcasting mechanics; condition effects;
-> **beat runtime v2** (branching successors, conditional gates,
-> nested sub-threads); 419 tests at 100 / 100 / 100 coverage.
-> GitHub-tagged through `v0.8.0`.
+> Status as of 2026-05-20: `0.9.0`, pre-release. All 12 SRD 5.2
+> base classes **at levels 1–10** (Tier 2 shipped); full Phase A/B/C
+> plugin systems; forensically inspectable randomness; character-
+> sheet derivation; encounter system; spellcasting mechanics;
+> condition effects; beat runtime v2; XP/proficiency tables
+> extended through L20; 445 tests at 100 / 100 / 100 coverage.
+> GitHub-tagged through `v0.9.0`.
 
 ## Vision
 
@@ -260,16 +260,21 @@ The beat schema's `successors[]` is now walked by the runtime.
 
 ## Late-term: completeness and ecosystem
 
-### `0.9.0` — Levels 6+
+### `0.9.0` — Levels 6+ ✅ shipped
 
-Stretch toward full level coverage.
+Tier 2 (and the full L1–20 numerical curve) shipped.
 
-- **Tier 2 (levels 6–10)** for the 12 base classes. Subclass
-  features through L10. Spell slots through L5.
-- **Tiers 3–4 deferred** until Tier 2 has been exercised by a real
-  campaign — the higher tiers contain the most "you need a custom
-  rule for this one thing" content and benefit from real-world
-  pressure.
+- **XP table** through L20: 14 000 (L6) … 355 000 (L20).
+- **Proficiency bonus** table through L20: +2 → +6.
+- **Spell slot tables** were already L1–20 (full caster, half
+  caster, Warlock); 0.9.0 wires the host-visible class progression
+  past L5.
+- **Class features at L6–10** for all 12 base classes (Ability
+  Score Improvements, subclass-feature checkpoints, signature
+  features per SRD). Subclass body content for tiers 3–4 is
+  deferred to 1.0.
+- **Cantrip scaling** at the L5 and (still-out-of-scope) L11/17
+  breakpoints already implemented in 0.5.0.
 
 ### `1.0.0` — Feature complete
 

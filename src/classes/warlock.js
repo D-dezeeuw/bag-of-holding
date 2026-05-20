@@ -31,6 +31,11 @@ export default {
     2: ['Eldritch Invocation'],
     3: ["Patron's Boon", 'Pact Boon'],
     4: ['Ability Score Improvement'],
-    5: []
+    5: [],
+    6: ['Subclass Feature'],
+    7: ['Eldritch Invocation (additional)'],
+    8: ['Ability Score Improvement'],
+    9: [],
+    10: ['Subclass Feature']
   }
 };
