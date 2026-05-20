@@ -531,29 +531,40 @@ in the typecheck file:
   Rest, executed on a Short Rest; non-mutating per-slot validation
   + atomic apply. ✅ shipped
 
-### `1.4.0` — Damage pipeline
+### `1.4.0` — Damage pipeline ✅ shipped
 
-`damageRoll` returns a number; the resistance / immunity /
-vulnerability layer between that number and applied HP loss doesn't
-exist. Until it does, monster immunities, magic-item resistances,
-spell save-for-half outcomes, and class-feature resistances all have
-nowhere to plug in.
+`damageRoll` returned a number; the resistance / immunity /
+vulnerability layer between that number and applied HP loss didn't
+exist. This release ships the full SRD pipeline.
 
 - **`Combat.applyDamage(actor, { amount, type, critical?, source? })`** —
   canonical entry point. Applies modifiers in SRD order
-  (adjustments → Resistance → Vulnerability), zeros on Immunity,
-  delegates to `dropToZero` when crossing 0.
-- **Damage-type propagation** — `damageRoll` result carries a
-  `damageType` field sourced from the weapon / spell record.
+  (Immunity → Resistance → Vulnerability), absorbs through Temp HP,
+  subtracts HP, routes through `dropToZero` on cross, fires
+  `applyDamageWhileDown` for hits at 0 HP, and triggers
+  massive-damage instant death when the SRD condition is met.
+  Returns a tagged outcome (`damaged` / `downed` / `dead` /
+  `absorbed` / `immune`).
+- **`Combat.applyDamageModifiers`** — pure helper exposing just the
+  modifier layer; useful for previewing damage in UI without
+  applying it.
+- **Damage-type propagation** — `damageRoll` accepts an optional
+  `damageType` and surfaces it on the result; consumed by the
+  modifier layer.
 - **Temporary HP** — `actor.tempHp`, `Combat.grantTempHp(actor,
-  amount)` (non-stacking, replace if larger, lost on Long Rest);
-  absorbed before HP on damage.
-- **`Combat.heal(actor, amount)`** — generic healing capped at
-  hpMax; removes Unconscious when HP rises above 0.
+  amount)` (non-stacking, replace if larger); absorbed before HP on
+  damage; Long Rest clearing of tempHp is queued for the 1.6
+  turn-lifecycle release.
+- **`Combat.heal(actor, amount)`** — caps at hpMax; removes
+  Unconscious + clears the death-save tracker when HP rises above 0.
+- **Hook wiring** — `engine.Combat.applyDamage` fires
+  `onConditionApplied` on downed outcomes (Unconscious application)
+  and `onDeath` on instant-death / damage-while-down kills, with
+  duplicate-firing suppression for already-unconscious / already-
+  dead actors.
 
-*Why first after `1.3.x`:* almost every other section blocks on
-this. Closes [§ 5 Damage pipeline](srd-coverage.md#5-damage-pipeline)
-and unblocks rows in §§ 11, 18, 19, 22.
+Closes [§ 5 Damage pipeline](srd-coverage.md#5-damage-pipeline) and
+unblocks rows in §§ 11, 18, 19, 22.
 
 ### `1.5.0` — Condition system completion
 

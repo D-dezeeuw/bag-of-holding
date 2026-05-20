@@ -111,21 +111,21 @@ boxes are always the live worklist.
 
 *(SRD § Playing the Game — Damage and Healing)*
 
-**Planned:** [v1.4.0](roadmap.md#140--damage-pipeline).
+**Planned:** complete in [v1.4.0](roadmap.md#140--damage-pipeline); tempHp clearance on Long Rest tightening rides on [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking).
 
-- [ ] **Resistance** — halve damage of a tagged type *(SRD § Damage and Healing — Resistance)*
-- [ ] **Vulnerability** — double damage of a tagged type *(SRD § Damage and Healing — Vulnerability)*
-- [ ] **Immunity** — zero damage of a tagged type / no condition application *(SRD § Damage and Healing — Immunity)*
-- [ ] **Order of application** — adjustments → Resistance → Vulnerability *(SRD § Damage and Healing — Damage)*
-- [ ] **Temporary HP** — non-stacking buffer, replace if larger, expires on Long Rest *(SRD § Damage and Healing — Temporary HP)*
-- [ ] **Damage type surfaced from `damageRoll`** — item records carry type but the roll result doesn't propagate it
-- [ ] `Combat.applyDamage(actor, { amount, type, critical? })` — canonical helper that combines the above, integrates `applyDamageWhileDown`, and triggers `dropToZero` when HP crosses 0
+- [x] **Resistance** — `actor.damageResistances` filter, halve (floor) on match *(v1.4.0)*
+- [x] **Vulnerability** — `actor.damageVulnerabilities` filter, double on match *(v1.4.0)*
+- [x] **Immunity** — `actor.damageImmunities` filter; `applyDamage` outcome `'immune'` *(v1.4.0)*
+- [x] **Order of application** — adjustments → Resistance → Vulnerability per SRD wording *(v1.4.0)*
+- [~] **Temporary HP** — non-stacking buffer, replace if larger *(v1.4.0)* — Long Rest clearance is deferred to 1.6.0's scene-clock release
+- [x] **Damage type surfaced from `damageRoll`** — optional `damageType` arg + propagated on the result *(v1.4.0)*
+- [x] `Combat.applyDamage(actor, { amount, type, critical?, source? })` — canonical helper combining modifier pipeline + tempHp + drop-to-zero + massive-damage + damage-while-down *(v1.4.0)*
 
 ## 6. Healing & death
 
 *(SRD § Playing the Game — Damage and Healing — Healing / Death Saving Throws)*
 
-**Planned:** generic `Combat.heal` lands with [v1.4.0](roadmap.md#140--damage-pipeline); stable creatures regaining 1 HP rides on [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking)'s scene clock.
+**Planned:** generic `Combat.heal` shipped in [v1.4.0](roadmap.md#140--damage-pipeline); stable creatures regaining 1 HP rides on [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking)'s scene clock; `Combat.maximizeHP` for *Heal*-style spells deferred until a real consumer needs it.
 
 - [x] Death save mechanic (`Combat.deathSave`) — DC 10, 3/3 threshold, nat 1 = two failures, nat 20 = revive *(v1.1.0)*
 - [x] `Combat.dropToZero` — applies Unconscious + tracker *(v1.1.0)*
@@ -133,8 +133,8 @@ boxes are always the live worklist.
 - [x] `Combat.stabilize`, `Combat.reviveTo` *(v1.1.0)*
 - [x] Rule knobs: `deathSaveDC`, `deathSaveSuccessesRequired` *(v1.1.0)*
 - [ ] **Stable creatures regain 1 HP after 1d4 hours** *(SRD § Damage and Healing — Stabilizing)*
-- [ ] `Combat.heal(actor, amount)` — generic healing that caps at hpMax and removes Unconscious if HP > 0 *(SRD § Damage and Healing — Healing)*
-- [ ] `Combat.maximizeHP(actor)` — for *Heal* / *Power Word Heal*-style spells
+- [x] `Combat.heal(actor, amount)` — caps at hpMax, removes Unconscious + clears the death-save tracker when HP rises above 0 *(v1.4.0)*
+- [ ] `Combat.maximizeHP(actor)` — for *Heal* / *Power Word Heal*-style spells (deferred until a consumer needs it)
 
 ## 7. Rest mechanics
 
