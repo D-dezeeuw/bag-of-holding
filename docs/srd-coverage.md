@@ -144,9 +144,9 @@ boxes are always the live worklist.
 - [x] `Rest.longRest(actor)`: full HP, half hit dice back, exhaustion -1, slot refill, death-save reset *(v1.2.0)*
 - [x] `Rest.shortRest(actor)`: warlock pact slots + short-tagged resources *(v1.3.0)*
 - [x] Rule knob `longRestHitDiceRecovery: half | all | none` *(v1.2.0)*
-- [ ] **Interrupted rest** semantics *(SRD § Long Rest)*: a rest broken by 1+ hour of activity yields no benefits
-- [ ] **Dawn / dusk timers** for magic item charges, certain spells *(SRD § Magic Items, Activating a Magic Item)*
-- [ ] **Resting in dangerous terrain** *(SRD § Adventuring, Travel Pace)*
+- [x] **Dawn / dusk timers** for magic item charges, certain spells; items use `recovers` + `rechargesOn: 'dawn'` and `MagicItems.rechargeItem` handles the recovery dice *(v1.9.0)*
+- [x] **Resting in dangerous terrain**; `Travel.checkRestInterruption({ probability })` returns whether the rest is broken *(v1.20.0)*
+- [ ] **Interrupted rest** semantics *(SRD § Long Rest)*: a rest broken by 1+ hour of activity yields no benefits; deferred until a host needs the explicit break-condition guard
 
 ## 8. Movement, vision, exploration
 
@@ -160,8 +160,8 @@ boxes are always the live worklist.
 - [x] **Falling damage** via `Movement.fall(distanceFt)` → 1d6/10ft, max 20d6, prone if damage taken *(v1.11.0)*
 - [x] **Long / high jump** via `Movement.longJump`, `Movement.highJump` (STR-mod with optional `runningStart`) *(v1.11.0)*
 - [x] **Crawling**: `movementCost({ crawling: true })` doubles the cost *(v1.11.0)*
-- [ ] **Travel pace**: slow / normal / fast tables *(SRD § Adventuring, Travel Pace)*
-- [ ] **Forced march, starvation, suffocation, drowning** *(SRD § Adventuring, Between Adventures)*
+- [x] **Travel pace**: `Travel.TRAVEL_PACES` slow/normal/fast tables with mileage + passive Perception trade-off *(v1.20.0)*
+- [x] **Forced march, starvation, suffocation, drowning**: `Travel.forcedMarchCheck`, `Hazards.starvationTick`, `Hazards.tickSuffocation` + `Hazards.holdBreathRounds`; drowning routes through the suffocation timer *(v1.18.0 + v1.20.0)*
 - [x] **Light levels** via `LIGHT_LEVELS` constant *(v1.11.0)*
 - [x] **Special senses**: `Movement.effectiveLight(viewer, { ambient, distanceFt })` honours darkvision, blindsight, truesight *(v1.11.0)*
 - [x] **Heavily / lightly obscured**: `Movement.obscuredState` returns `heavy` / `light` / `none` *(v1.11.0)*
@@ -195,7 +195,7 @@ boxes are always the live worklist.
 - [x] **Auto-drop concentration** on incapacitating conditions (incapacitated / stunned / paralyzed / unconscious / petrified); engine's bound `Conditions.apply` calls `endConcentration` when the condition's `incapacitates` flag is set *(v1.5.0)*
 - [x] **`spell.concentration` flag** + auto-`startConcentration` on cast via `castSpell` *(v1.8.0)*
 - [x] **One leveled spell per turn rule**: `castSpell({ alreadyCastLeveledThisTurn: true })` refuses leveled spells; cantrips exempt *(v1.8.0)*
-- [ ] **Casting from a slot of higher level**: handler receives `castLevel`; spell records carry `upcast` deltas *(SRD § Spells, Casting at a Higher Level)*
+- [x] **Casting from a slot of higher level**: `castSpell({ slotLevel })` returns `{ castLevel, upcastEffect }`; spell records can carry an `upcast(castLevel)` function *(v1.8.0)*
 
 ## 11. Spellcasting: components & casting modes
 
@@ -210,7 +210,7 @@ boxes are always the live worklist.
 - [x] **Ritual casting**: `castAsRitual(actor, spell)`; engine consumes no slot, requires the spell to be prepared *(v1.8.0)*
 - [ ] **Casting time variants**: `spell.castingTime` field is host-readable but no engine-side scheduling yet; defer until 1.x consumer
 - [ ] **Spell scrolls**: `castFromScroll(spell, caster)` *(SRD § Magic Items, Spell Scrolls)*; rides with [v1.9.0](roadmap.md#190--magic-items-system)
-- [ ] **Wands**: charge tracking, recharge at dawn *(SRD § Magic Items, Wands)*
+- [x] **Wands**: items carry `charges: { max, recovers, rechargesOn: 'dawn' }`; `MagicItems.rechargeItem` rolls the recovery dice *(v1.9.0; expanded in v1.27.0 with the wand registry)*
 
 ## 12. Spellcasting: targeting & effects
 
@@ -304,15 +304,15 @@ boxes are always the live worklist.
 
 - [x] Items registry, 44 entries, weapon mastery linked *(v0.0.0)*
 - [x] Carrying capacity (STR × 15 × size multiplier) *(v0.1.5)*
-- [ ] **Encumbrance variant** *(SRD § Equipment, Carrying Capacity)*
-- [ ] **Armor donning / doffing time** *(SRD § Equipment, Armor)*
-- [ ] **Stealth disadvantage on heavy armor** *(SRD § Equipment, Armor)*
-- [ ] **STR-requirement speed penalty** for heavy armor below requirement *(SRD § Equipment, Armor)*
-- [ ] **Adventuring gear**: full coverage of mundane items *(SRD § Equipment, Adventuring Gear)*
-- [ ] **Tools**: artisan's, gaming, musical instruments *(SRD § Equipment, Tools)*
-- [ ] **Mounts and vehicles** *(SRD § Equipment, Mounts and Vehicles)*
-- [ ] **Services + lifestyle costs** *(SRD § Equipment, Services; § Equipment, Lifestyle Expenses)*
-- [ ] **Trade goods** *(SRD § Equipment, Trade Goods)*
+- [x] **Encumbrance variant**: `Equipment.encumbranceLevel({ strength, carriedWeight })` returns `'none' | 'encumbered' | 'heavily-encumbered'`; `encumbranceSpeedPenalty` returns 10/20 ft *(v1.19.0)*
+- [x] **Armor donning / doffing time**: armor records carry `donTime` + `doffTime`; `Equipment.donTime(id)` and `doffTime(id)` look them up *(v1.19.0)*
+- [x] **Stealth disadvantage on heavy armor**: surfaced on `sheet.skills.stealth.disadvantage = true` *(v1.19.0)*
+- [x] **STR-requirement speed penalty** for heavy armor below requirement: 10 ft penalty applied via `Equipment.armorStrengthPenalty` and folded into `sheet.speed` *(v1.19.0)*
+- [x] **Adventuring gear**: `Equipment.ADVENTURING_GEAR` registry + items registry expanded to 102 entries *(v1.19.0 + v1.27.0)*
+- [x] **Tools**: `Equipment.TOOLS` registry (16 SRD tool ids) + `Equipment.toolCheck` for proficiency-aware checks *(v1.19.0)*
+- [x] **Services + lifestyle costs**: `Equipment.SERVICES` + `Equipment.LIFESTYLES` registries *(v1.19.0)*
+- [ ] **Mounts and vehicles** *(SRD § Equipment, Mounts and Vehicles)*; deferred until a host wires `actor.mountedOn` linkage
+- [ ] **Trade goods** *(SRD § Equipment, Trade Goods)*; deferred to a content-only patch
 
 ## 18. Magic items
 
@@ -384,11 +384,12 @@ boxes are always the live worklist.
 
 **Planned:** [v1.15.0](roadmap.md#1150--hazards--environment).
 
-- [ ] Disease registry + onset timer + per-stage save DC
-- [ ] Poison registry: contact, ingested, inhaled, injury *(SRD § Equipment, Poisons)*
-- [ ] Drowning / Suffocation: CON-based hold-breath rounds *(SRD § Adventuring, Suffocation)*
-- [ ] Starvation / Thirst: exhaustion accrual *(SRD § Adventuring, Food and Water)*
-- [ ] Extreme heat / cold *(SRD § Adventuring, Environment)*
+- [x] **Disease registry**: `Hazards.DISEASES` (sewer plague, cackle fever) with onsetSave + per-stage progression *(v1.18.0)*
+- [x] **Poison registry**: `Hazards.POISONS` keyed by contact/ingested/inhaled/injury vector *(v1.18.0)*
+- [x] **Drowning / Suffocation**: `Hazards.tickSuffocation` + `holdBreathRounds(conMod)` *(v1.18.0)*
+- [x] **Starvation / Thirst**: `Hazards.starvationTick` accrues exhaustion past the food grace window + on failed thirst saves *(v1.18.0)*
+- [x] **Extreme heat / cold**: `Hazards.extremeTemperatureTick` with hour-ramping DC + gear acclimatised proxy *(v1.18.0)*
+- [x] **Underwater combat**: `Hazards.classifyUnderwaterAttack` returns stance + autoMiss per SRD § Underwater Combat *(v1.18.0)*
 
 ## 23. Audit / replay surface
 
@@ -402,10 +403,10 @@ boxes are always the live worklist.
 - [x] `deathSave` op recorded *(v1.1.0)*
 - [x] `spendHitDie` recorded as `rollDie` *(v1.2.0)*
 - [x] Class-mechanic-internal `rollDie` calls flow into the log *(v1.3.0)*
-- [ ] **`mechanicApplied` op**: log the resource transition + result kind, not just the dice
-- [ ] **Hook fire log**: optional `hookFired` entries for plugin-stack debugging
-- [ ] **Rule-knob fingerprint in the log header**: death-save DC, hit-dice recovery, etc., so cross-pack replays diverge at the boundary not silently
-- [ ] **`deathSave` previousFailures / previousSuccesses snapshot** for full reconstructability
+- [x] **`mechanicApplied` op**: log entry with `{ classId, subclassId, mechanic, ok }` after every `engine.Mechanics.apply` *(v1.25.0)*
+- [x] **Hook fire log**: `opts.logHooks: true` writes a `hookFired` entry per fired event with ≥1 handler *(v1.25.0)*
+- [x] **Rule-knob fingerprint**: `engine.rulesFingerprint` = 8-char FNV-1a digest over the resolved rules bundle; mismatched-pack replays diverge at the boundary *(v1.25.0)*
+- [x] **`deathSave` previousFailures / previousSuccesses snapshot** on every log entry *(v1.25.0)*
 
 ## 24. Plugin system
 
@@ -416,11 +417,13 @@ boxes are always the live worklist.
 - [x] **Phase A (content)**: extraSpecies / Classes / Backgrounds / Feats / Spells / Items / Conditions / Mastery / Monsters *(v0.0.0 → v0.6.0)*
 - [x] **Phase B (rules)**: critOn, fumbleOn, damageFloor, explodingDamageDice, xpThresholds, proficiencyByLevel, deathSaveDC, deathSaveSuccessesRequired, longRestHitDiceRecovery *(v0.2.0 → v1.2.0)*
 - [x] **Phase C (hooks)**: beforeAttack, afterDamage, onLevelUp, onConditionApplied, onDeath *(v0.3.0)*
-- [ ] **onTurnStart / onTurnEnd** hooks, needed for save-at-end-of-turn effects (§ 9), Sneak Attack reset (§ 13), spell-duration tick (§ 9)
-- [ ] **onLongRest / onShortRest** hooks, plugin extension point for rest-based class features
+- [x] **onTurnStart / onTurnEnd** hooks, fire from the encounter turn helpers *(v1.6.0)*
+- [x] **onLongRest / onShortRest** hooks, fire from `Rest.longRest` / `Rest.shortRest` *(v1.6.0)*
+- [x] **onCast / onDamageApplied / onHpChanged** Phase D hooks *(v1.6.0)*
 - [x] **onCast** hook fires before slot consumption; enables Counterspell-style reaction-cast wiring *(v1.6.0 event added, v1.8.0 wired into castSpell / castAsRitual)*
-- [ ] **extraResources** plugin contribution, lets custom classes register resource shapes generically
-- [ ] **extraMechanics** plugin contribution, class-feature handlers contributable without forking the class def
+- [x] **extraResources** plugin contribution, grafts resource specs onto any class *(v1.24.0)*
+- [x] **extraMechanics** plugin contribution, grafts handlers onto any class without forking *(v1.24.0)*
+- [x] **extraSenses / extraLightLevels** plugin contributions, appendable vocabularies on `engine.senses` / `engine.lightLevels` *(v1.24.0)*
 
 ## 25. Documentation & host contracts
 
@@ -430,11 +433,11 @@ boxes are always the live worklist.
 
 - [x] `docs/why.md`, `docs/boundary.md`, `docs/spec.md`, `docs/recipes.md`, `docs/roadmap.md`, `docs/character-sheet.md`, `docs/beat-schema.md`
 - [x] `docs/srd-coverage.md` *(this file)*
-- [ ] **`character-sheet.md` schema additions**: `hp`, `hpMax`, `hitDie`, `hitDiceTotal`, `hitDiceUsed`, `deathSaves`, `resources`, `concentration`, `spellSlots`, plus per-class flags like `sneakAttackUsedThisTurn`
-- [ ] **`recipes.md` additions**: Death Saves flow, Rest flow, Mechanics dispatch, plugin-contribute a class
-- [ ] **`spec.md` plugin contract update**: new rule knobs, resource-spec shape, mechanic handler signature
-- [ ] **Kernel-boundary checklist**: what the engine claims to enforce vs. what's host-owned, at a glance
-- [ ] **TypeDoc-style reference site** *(deferred from 1.0.0)*
+- [x] **`character-sheet.md` schema additions**: senses, damageResistances, traitFlags, multi-mode speed *(v1.17.0)*; further field-by-field sweep folded into v1.26.0
+- [x] **`spec.md` plugin contract update**: Phase A.2 + Phase D + opts.logHooks *(v1.26.0)*
+- [~] **`recipes.md` additions**: combat actions, damage pipeline, magic items, ritual casting, AoE all in place since the v1.16.0 refresh; Death Saves / Rest / Mechanics dispatch / plugin-contribute-a-class recipes still pending a focused pass
+- [ ] **Kernel-boundary checklist**: deferred; `boundary.md` already covers the contract, dedicated checklist content awaits a real consumer's need
+- [ ] **TypeDoc-style reference site** *(deferred from 1.0.0; the hand-maintained `.d.ts` serves as the canonical reference, a site needs hosting outside the zero-dep boundary)*
 
 ---
 
