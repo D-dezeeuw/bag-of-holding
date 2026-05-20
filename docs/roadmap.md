@@ -527,8 +527,9 @@ in the typecheck file:
   `validateInvocations` checker + `setInvocations` mechanic +
   `agonizingBlastBonus` lookup. ✅ shipped
 - **`1.3.10`** Wizard § *Arcane Recovery* — recover spell-slot
-  levels equal to ⌈½ wizard level⌉, once per long rest, on a short
-  rest.
+  levels equal to ⌈½ wizard level⌉, slot-level cap 5, once per Long
+  Rest, executed on a Short Rest; non-mutating per-slot validation
+  + atomic apply. ✅ shipped
 
 ### `1.4.0` — Damage pipeline
 
