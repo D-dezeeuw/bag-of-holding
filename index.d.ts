@@ -232,6 +232,16 @@ export interface ChecksNamespace {
 export interface AttackRollArgs {
   attackBonus: number;
   ac: number;
+  /** Attacker actor — optional. If passed along with `target`, the
+   *  engine derives advantage/disadvantage from active conditions. */
+  attacker?: Actor;
+  /** Target actor — optional. See `attacker` for the condition-
+   *  aware advantage/disadvantage path. */
+  target?: Actor;
+  /** Distance attacker → target in feet. Matters only for the
+   *  `prone` target rule (within 5 ft → advantage; further →
+   *  disadvantage). */
+  attackerDistanceFt?: number;
 }
 
 export interface AttackRollResult {
@@ -242,6 +252,10 @@ export interface AttackRollResult {
   hit: boolean;
   critical: boolean;
   fumble: boolean;
+  /** Advantage / disadvantage / normal stance taken by the roll.
+   *  Surfaced so a host's UI can label the roll without re-deriving
+   *  the conditions. */
+  stance: 'normal' | 'advantage' | 'disadvantage';
 }
 
 export interface DamageRollArgs {
@@ -399,6 +413,29 @@ export interface ExhaustionNamespace {
   modifierToD20Tests(actor: Actor): number;
   speedPenalty(actor: Actor): number;
   isDead(actor: Actor): boolean;
+}
+
+/** Mechanical-effect flags a condition imposes on the math.
+ *  Boolean flags OR together when multiple conditions are active. */
+export interface ConditionEffect {
+  attackerDisadvantage?: boolean;
+  ownAttackDisadvantage?: boolean;
+  ownAttackAdvantage?: boolean;
+  ownCheckDisadvantage?: boolean;
+  targetAdvantage?: boolean;
+  targetDisadvantage?: boolean;
+  autoFailStrDexSaves?: boolean;
+  saveDexDisadvantage?: boolean;
+  incapacitates?: boolean;
+  speedZero?: boolean;
+  critIfAttackerWithin5?: boolean;
+  cantSpeak?: boolean;
+  cantSee?: boolean;
+  cantHear?: boolean;
+  proneOnTarget?: boolean;
+  socialDisadvantageVsCharmer?: boolean;
+  resistance?: 'all' | string;
+  [extra: string]: unknown;
 }
 
 export interface ConditionsNamespace {

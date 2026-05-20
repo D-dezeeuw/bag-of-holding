@@ -106,7 +106,7 @@ const customEngine: Engine = createEngine(houseRules);
 const _pinRider: MasteryRider = customEngine.Combat.applyMastery(
   { id: 'rope', name: 'Rope', type: 'weapon', mastery: 'pin' },
   {},
-  { d20: 15, attackBonus: 5, total: 20, ac: 12, hit: true, critical: false, fumble: false }
+  { d20: 15, attackBonus: 5, total: 20, ac: 12, hit: true, critical: false, fumble: false, stance: 'normal' }
 );
 
 // ============================================================

@@ -15,6 +15,19 @@
  * look, basic move/attack) lands in the base set.
  */
 export function legal({ pc, scene }) {
+  // Condition-aware (since 0.7.0): incapacitating conditions
+  // collapse the moveset to a single "wait" affordance; prone
+  // replaces the chip set with "stand up".
+  const blockers = incapacitatingConditions(pc);
+  if (blockers.length > 0) return incapacitatedActions(blockers);
+  if (Array.isArray(pc?.conditions) && pc.conditions.includes('prone')) {
+    return [
+      { id: 'talk',     label: 'Free-form dialogue',         cost: 'free' },
+      { id: 'look',     label: 'Look around',                cost: 'free' },
+      { id: 'stand-up', label: 'Stand up (half movement)',   cost: 'movement' }
+    ];
+  }
+
   const actions = baseActions(scene);
   const provider = CLASS_PROVIDERS[pc?.classId];
   const level = pc?.level ?? 0;
@@ -26,6 +39,17 @@ export function legal({ pc, scene }) {
     }
   }
   return actions;
+}
+
+const INCAPACITATING = new Set(['incapacitated', 'paralyzed', 'petrified', 'stunned', 'unconscious']);
+
+function incapacitatingConditions(pc) {
+  const list = pc?.conditions ?? [];
+  return list.filter((c) => INCAPACITATING.has(c));
+}
+
+function incapacitatedActions(blockers) {
+  return [{ id: 'wait', label: `Incapacitated (${blockers.join(', ')})`, cost: 'free' }];
 }
 
 function baseActions(scene) {

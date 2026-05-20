@@ -1,6 +1,7 @@
 import { rollDie, roll as rollDice, rollExplosive } from './dice.js';
 import { modFromScore } from './checks.js';
 import { DEFAULT_RULES } from './rules.js';
+import { attackStance } from './conditions.js';
 
 /**
  * Initiative is mechanically just `d20 + DEX mod`, but it lives in
@@ -28,13 +29,32 @@ export function rollInitiative({ dexterity }, rng = Math.random) {
  * Custom packs (Pathfinder-style 19–20, Champion Fighter's
  * Improved Critical) override the arrays.
  */
-export function attackRoll({ attackBonus, ac }, rng = Math.random, rules = DEFAULT_RULES) {
-  const d20 = rollDie(20, rng);
+export function attackRoll({ attackBonus, ac, attacker, target, attackerDistanceFt }, rng = Math.random, rules = DEFAULT_RULES) {
+  // Compute stance from attacker/target conditions, if either is
+  // passed. Most callers pass neither (a bare attack roll); only
+  // hosts that want SRD-correct advantage/disadvantage from
+  // conditions need to provide them.
+  let stance = 'normal';
+  if (attacker || target) {
+    stance = attackStance({
+      attacker: attacker ?? {},
+      target: target ?? {},
+      attackerDistanceFt: attackerDistanceFt ?? 0
+    });
+  }
+  let d20;
+  if (stance === 'advantage') {
+    d20 = Math.max(rollDie(20, rng), rollDie(20, rng));
+  } else if (stance === 'disadvantage') {
+    d20 = Math.min(rollDie(20, rng), rollDie(20, rng));
+  } else {
+    d20 = rollDie(20, rng);
+  }
   const critical = rules.critOn.includes(d20);
   const fumble = rules.fumbleOn.includes(d20);
   const total = d20 + attackBonus;
   const hit = critical || (!fumble && total >= ac);
-  return { d20, attackBonus, total, ac, hit, critical, fumble };
+  return { d20, attackBonus, total, ac, hit, critical, fumble, stance };
 }
 
 /**

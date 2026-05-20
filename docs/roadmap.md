@@ -5,12 +5,13 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-20: `0.6.0`, pre-release. **All 12 SRD 5.2
-> base classes** at levels 1–5 with one subclass each; full
-> Phase A/B/C plugin systems; forensically inspectable randomness;
-> character-sheet derivation; encounter system; spellcasting
-> mechanics; class-aware movesets; 384 tests at 100 / 100 / 100
-> coverage. GitHub-tagged through `v0.6.0`.
+> Status as of 2026-05-20: `0.7.0`, pre-release. All 12 SRD 5.2
+> base classes at levels 1–5; full Phase A/B/C plugin systems;
+> forensically inspectable randomness; character-sheet derivation;
+> encounter system; spellcasting mechanics; **condition effects**
+> (advantage/disadvantage from conditions, condition-aware
+> movesets); 407 tests at 100 / 100 / 100 coverage. GitHub-tagged
+> through `v0.7.0`.
 
 ## Vision
 
@@ -224,16 +225,24 @@ All 12 SRD 5.2 base classes at levels 1–5 with one subclass each.
   its signature chips (Rage, Bardic Inspiration, Cunning Action,
   Wild Shape, Eldritch Blast, etc.).
 
-### `0.7.0` — Condition effects
+### `0.7.0` — Condition effects ✅ shipped
 
-Today conditions are *tracked*; their mechanical effects are
-documented in comments but not enforced.
+Mechanical effects baked into the math; condition-aware movesets.
 
-- **Bake effects into the math.** `Blinded → disadvantage on
-  attacks`, `Restrained → speed 0`, `Stunned → automatic fail on
-  STR/DEX saves`, etc.
-- **Condition-aware moveset.** A stunned actor's moveset is empty;
-  a prone one's moveset adds "stand up (half movement)".
+- **CONDITION_EFFECTS table**: each SRD condition declares its flags
+  (`ownAttackDisadvantage`, `targetAdvantage`, `speedZero`,
+  `autoFailStrDexSaves`, `critIfAttackerWithin5`, `cantSee`,
+  `cantHear`, `incapacitates`, `proneOnTarget`, …).
+- **`Conditions.effectsFor(actor)`** unions flags across all active
+  conditions (boolean OR).
+- **`Conditions.attackStance({ attacker, target, attackerDistanceFt })`**
+  computes the advantage/disadvantage stance — adv+dis cancel.
+- **`Combat.attackRoll`** now accepts optional `attacker`, `target`,
+  `attackerDistanceFt` and rolls advantage/disadvantage accordingly;
+  the result surfaces `stance` for UI labelling.
+- **Condition-aware movesets**: incapacitating conditions collapse
+  the chip set to a `wait` affordance; prone replaces it with
+  `stand-up`.
 
 ### `0.8.0` — Beat runtime v2
 
