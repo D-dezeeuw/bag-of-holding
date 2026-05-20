@@ -51,7 +51,18 @@ export default {
       id: 'life-domain',
       name: 'Life Domain',
       features: {
-        3: ['Disciple of Life', 'Preserve Life']
+        3: ['Disciple of Life', 'Preserve Life'],
+        6: ['Blessed Healer'],
+        10: ['Divine Strike'],
+        14: ['Supreme Healing']
+      },
+      mechanics: {
+        // Disciple of Life: healing spells restore an extra
+        // 2 + spell level HP to the target.
+        discipleOfLife: (actor, args) => {
+          const spellLevel = args?.spellLevel ?? 1;
+          return { bonusHealing: 2 + spellLevel, actor };
+        }
       }
     }
   },

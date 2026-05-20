@@ -78,7 +78,19 @@ export default {
       name: 'Circle of the Land',
       features: {
         2: ['Cantrip', 'Land Stride'],
-        3: ['Circle Spells']
+        3: ['Circle Spells'],
+        6: ["Land's Aid"],
+        10: ['Nature\'s Ward'],
+        14: ['Nature\'s Sanctuary']
+      },
+      mechanics: {
+        // Land's Aid: each long rest, can spend a spell slot to
+        // restore HP equal to slot level + WIS mod to nearby creatures.
+        landsAid: (actor, args) => {
+          const slotLevel = args?.slotLevel ?? 1;
+          const wisMod = Math.floor(((actor.abilityScores?.wis ?? 10) - 10) / 2);
+          return { ok: true, healing: slotLevel + wisMod, actor };
+        }
       }
     }
   },

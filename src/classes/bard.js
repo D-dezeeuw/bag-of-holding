@@ -50,7 +50,19 @@ export default {
       id: 'college-of-lore',
       name: 'College of Lore',
       features: {
-        3: ['Bonus Proficiencies', 'Cutting Words']
+        3: ['Bonus Proficiencies', 'Cutting Words'],
+        6: ['Magical Discoveries'],
+        10: ['Peerless Skill'],
+        14: ['Improved Cutting Words']
+      },
+      mechanics: {
+        // Cutting Words: reaction, spend Bardic Inspiration to subtract
+        // the rolled inspiration die from an enemy's roll. Returns the
+        // die size the host rolls; the host applies the penalty.
+        cuttingWords: (actor, args) => {
+          const dieSize = args?.inspirationDie ?? 6;
+          return { ok: true, dieSize, actor };
+        }
       }
     }
   },

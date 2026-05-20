@@ -54,7 +54,19 @@ export default {
       id: 'open-hand',
       name: 'Warrior of the Open Hand',
       features: {
-        3: ['Open Hand Technique']
+        3: ['Open Hand Technique'],
+        6: ['Wholeness of Body'],
+        11: ['Fleet Step'],
+        17: ['Quivering Palm']
+      },
+      mechanics: {
+        // Open Hand Technique: on a Flurry of Blows hit, optionally
+        // knock prone, push 15 ft, or impose disadvantage. Pure
+        // dispatch — host applies the chosen rider.
+        openHandTechnique: (actor, args) => {
+          const choice = args?.choice ?? 'prone';
+          return { ok: true, rider: choice, actor };
+        }
       }
     }
   },

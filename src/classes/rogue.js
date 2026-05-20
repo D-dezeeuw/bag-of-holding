@@ -4,6 +4,26 @@ export default {
   hitDie: 8,
   primaryAbility: 'dex',
   savingThrowProficiencies: ['dex', 'int'],
+  subclasses: {
+    thief: {
+      id: 'thief',
+      name: 'Thief',
+      features: {
+        3: ['Fast Hands', 'Second-Story Work'],
+        9: ['Supreme Sneak'],
+        13: ['Use Magic Device'],
+        17: ['Thief\'s Reflexes']
+      },
+      mechanics: {
+        // Fast Hands: bonus action to use thieves' tools, sleight of
+        // hand, or use an object. Returns the dispatched action.
+        fastHands: (actor, args) => {
+          const action = args?.action ?? 'use-object';
+          return { ok: true, bonusActionUsed: action, actor };
+        }
+      }
+    }
+  },
   // Sneak Attack scales: 1d6 at L1, +1d6 every 2 levels (rounded).
   sneakAttackDice: { 1: 1, 3: 2, 5: 3, 7: 4, 9: 5 },
   features: {

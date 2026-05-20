@@ -42,7 +42,18 @@ export default {
       id: 'oath-of-devotion',
       name: 'Oath of Devotion',
       features: {
-        3: ['Oath Spells', 'Channel Divinity: Sacred Weapon']
+        3: ['Oath Spells', 'Channel Divinity: Sacred Weapon'],
+        7: ['Aura of Devotion'],
+        15: ['Smite of Protection'],
+        20: ['Holy Nimbus']
+      },
+      mechanics: {
+        // Sacred Weapon: spend Channel Divinity to enchant a weapon
+        // with +CHA mod to attack and emit bright light for 10 min.
+        sacredWeapon: (actor) => {
+          const chaMod = Math.floor(((actor.abilityScores?.cha ?? 10) - 10) / 2);
+          return { ok: true, attackBonus: Math.max(1, chaMod), durationMinutes: 10, actor };
+        }
       }
     }
   },
