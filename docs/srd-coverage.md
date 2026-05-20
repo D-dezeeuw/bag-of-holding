@@ -193,8 +193,8 @@ boxes are always the live worklist.
 - [x] Cantrip scaling tiers (L5/11/17) *(v0.5.0)*
 - [x] Prep-caster count + validation *(v0.5.0)*
 - [x] **Auto-drop concentration** on incapacitating conditions (incapacitated / stunned / paralyzed / unconscious / petrified) — engine's bound `Conditions.apply` calls `endConcentration` when the condition's `incapacitates` flag is set *(v1.5.0)*
-- [ ] **`spell.concentration` flag** on spell records + auto-`startConcentration` on cast
-- [ ] **One leveled spell per turn rule** *(SRD § Spells — Casting a Spell — "you can cast only one leveled spell on a turn")*
+- [x] **`spell.concentration` flag** + auto-`startConcentration` on cast via `castSpell` *(v1.8.0)*
+- [x] **One leveled spell per turn rule** — `castSpell({ alreadyCastLeveledThisTurn: true })` refuses leveled spells; cantrips exempt *(v1.8.0)*
 - [ ] **Casting from a slot of higher level** — handler receives `castLevel`; spell records carry `upcast` deltas *(SRD § Spells — Casting at a Higher Level)*
 
 ## 11. Spellcasting — components & casting modes
@@ -203,13 +203,13 @@ boxes are always the live worklist.
 
 **Planned:** [v1.8.0](roadmap.md#180--spellcasting-completion); spell scrolls + wands tie into [v1.9.0](roadmap.md#190--magic-items-system) magic-item charges.
 
-- [ ] **Verbal component** flag + silenced / muted check *(SRD § Spells — Verbal Components)*
-- [ ] **Somatic component** flag + free-hand check *(SRD § Spells — Somatic Components)*
-- [ ] **Material component** flag, optional cost + consumed *(SRD § Spells — Material Components)*
-- [ ] **Component pouch / spellcasting focus** substitution *(SRD § Spells — Material Components — Focus)*
-- [ ] **Ritual casting** — `castAsRitual(spell, caster)`, +10 min, no slot, prepared-only *(SRD § Spells — Ritual)*
-- [ ] **Casting time variants** — 1 action, bonus, reaction (trigger), 1 minute, 10 minutes, 1 hour *(SRD § Spells — Casting Time)*
-- [ ] **Spell scrolls** — `castFromScroll(spell, caster)` *(SRD § Magic Items — Spell Scrolls)*
+- [x] **Verbal component** flag + `actor.silenced` gate via `castSpell` *(v1.8.0)*
+- [x] **Somatic component** flag + `actor.somaticBlocked` gate via `castSpell` *(v1.8.0)*
+- [x] **Material component** flag with optional `cost` + `consumed`; `actor.materials[spellId]` gate via `castSpell` *(v1.8.0)*
+- [ ] **Component pouch / spellcasting focus** substitution — left to host's `materials` map shape until a real consumer needs the detail
+- [x] **Ritual casting** — `castAsRitual(actor, spell)`; engine consumes no slot, requires the spell to be prepared *(v1.8.0)*
+- [ ] **Casting time variants** — `spell.castingTime` field is host-readable but no engine-side scheduling yet; defer until 1.x consumer
+- [ ] **Spell scrolls** — `castFromScroll(spell, caster)` *(SRD § Magic Items — Spell Scrolls)* — rides with [v1.9.0](roadmap.md#190--magic-items-system)
 - [ ] **Wands** — charge tracking, recharge at dawn *(SRD § Magic Items — Wands)*
 
 ## 12. Spellcasting — targeting & effects
@@ -218,13 +218,13 @@ boxes are always the live worklist.
 
 **Planned:** [v1.8.0](roadmap.md#180--spellcasting-completion).
 
-- [ ] **Area-of-effect shapes** — cone, line, sphere, cube, cylinder, emanation *(SRD § Spells — Areas of Effect)*
-- [ ] **`castSpellSave(spell, targets, dc)`** — rolls each target's save, tags half-damage / failure outcome
-- [ ] **`saveForHalf` outcome shape** — standardised result for half-damage-on-save spells *(SRD many spells)*
-- [ ] **Evasion / Magic Resistance / Sculpt Spells** modifiers on save outcomes *(SRD § Classes — Rogue / Monk; § Monsters — Magic Resistance)*
-- [ ] **Higher-level effect deltas** — spell records carry `upcastDelta(level)` *(SRD § Spells per-spell "At Higher Levels")*
-- [ ] **Reaction-cast canonical wiring** — Shield (have), Counterspell, Absorb Elements, Hellish Rebuke, Silvery Barbs *(SRD § Spells)*
-- [ ] **Counterspell timing** — a reaction that interrupts a cast; requires a "spell being cast" event in the loop
+- [x] **Area-of-effect shapes** — `targetsInArea({ origin, shape, size, direction?, width? })` supports sphere / cube / cylinder / emanation / cone / line *(v1.8.0)*
+- [x] **`castSpellSave(results, { halfOnSuccess? })`** — packages per-target outcomes uniformly *(v1.8.0)*
+- [x] **`saveForHalf` outcome shape** — exposed as the default `halfOnSuccess: true` in `castSpellSave` *(v1.8.0)*
+- [ ] **Evasion / Magic Resistance / Sculpt Spells** modifiers on save outcomes — host applies via existing reroll patterns from [v1.14.0](roadmap.md#1140--saves--edge-mechanics)
+- [x] **Higher-level effect deltas** — `spell.upcast(level)` function returns the per-cast-level delta; `castSpell` surfaces it on the result *(v1.8.0)*
+- [~] **Reaction-cast canonical wiring** — `onCast` hook fires before slot consumption and can short-circuit via `cancelled: true` (Counterspell intercept) *(v1.8.0)*; per-spell wrappers (Counterspell / Absorb Elements / Hellish Rebuke / Silvery Barbs) wait on host-side spell handlers
+- [x] **Counterspell timing** — `onCast` payload carries `{ actor, spell, args }` so a reaction handler can decide before the cast consumes resources *(v1.8.0)*
 
 ## 13. Classes — base mechanics
 
@@ -416,7 +416,7 @@ boxes are always the live worklist.
 - [x] **Phase C (hooks)** — beforeAttack, afterDamage, onLevelUp, onConditionApplied, onDeath *(v0.3.0)*
 - [ ] **onTurnStart / onTurnEnd** hooks — needed for save-at-end-of-turn effects (§ 9), Sneak Attack reset (§ 13), spell-duration tick (§ 9)
 - [ ] **onLongRest / onShortRest** hooks — plugin extension point for rest-based class features
-- [ ] **onCast** hook — fires before slot consumption; enables Counterspell-style reaction-cast wiring
+- [x] **onCast** hook — fires before slot consumption; enables Counterspell-style reaction-cast wiring *(v1.6.0 event added, v1.8.0 wired into castSpell / castAsRitual)*
 - [ ] **extraResources** plugin contribution — let custom classes register resource shapes generically
 - [ ] **extraMechanics** plugin contribution — class-feature handlers contributable without forking the class def
 

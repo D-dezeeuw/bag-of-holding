@@ -681,7 +681,7 @@ Closes [§ 3 Combat actions menu](srd-coverage.md#3-combat-actions-menu)
 and the surprise + tiebreak rows of
 [§ 2](srd-coverage.md#2-combat-math-attacks-damage-criticals).
 
-### `1.8.0` — Spellcasting completion
+### `1.8.0` — Spellcasting completion ✅ shipped
 
 Components, ritual, casting time variants, area-of-effect targeting,
 save-for-half outcomes, upcast deltas, reaction-cast canonical
