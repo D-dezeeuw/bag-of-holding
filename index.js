@@ -36,8 +36,8 @@ const _default = createEngine();
 export default _default;
 
 export const {
-  Dice, Checks, Combat, Conditions, XP, Movesets, Beats,
-  species, classes, backgrounds, feats, spells, items
+  Dice, Checks, Combat, Conditions, XP, Movesets, Beats, Spellcasting,
+  species, classes, backgrounds, feats, spells, items, monsters
 } = _default;
 
 // Character — exposed as a namespace so module-level callers can
@@ -54,7 +54,7 @@ export const Character = Object.freeze({
 // Back-compat `SRD` namespace: groups the data registries the way
 // pre-Phase-A consumers imported them. New code can read the
 // registries directly off the default export or an engine instance.
-export const SRD = Object.freeze({ species, classes, backgrounds, feats, spells, items });
+export const SRD = Object.freeze({ species, classes, backgrounds, feats, spells, items, monsters });
 
 // `Classes` was historically exported as the class-definition map.
 // Kept for compatibility — same content as `_default.classes`, just

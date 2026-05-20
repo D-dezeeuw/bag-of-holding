@@ -155,16 +155,16 @@ test('rejects unknown armor / shield / weapon ids in equipment', () => {
   const engine = createEngine();
   const valid = loadFixture('fighter-l3.record.json');
   assert.throws(
-    () => engine.deriveSheet({ ...valid, equipment: { ...valid.equipment, armorId: 'plate' } }),
-    /equipment\.armorId 'plate' not registered with engine/
+    () => engine.deriveSheet({ ...valid, equipment: { ...valid.equipment, armorId: 'no-such-armor' } }),
+    /equipment\.armorId 'no-such-armor' not registered with engine/
   );
   assert.throws(
     () => engine.deriveSheet({ ...valid, equipment: { ...valid.equipment, shieldId: 'tower-shield' } }),
     /equipment\.shieldId 'tower-shield' not registered with engine/
   );
   assert.throws(
-    () => engine.deriveSheet({ ...valid, equipment: { ...valid.equipment, weaponIds: ['warhammer'] } }),
-    /equipment\.weaponIds entry 'warhammer' not registered with engine/
+    () => engine.deriveSheet({ ...valid, equipment: { ...valid.equipment, weaponIds: ['no-such-weapon'] } }),
+    /equipment\.weaponIds entry 'no-such-weapon' not registered with engine/
   );
 });
 

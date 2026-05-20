@@ -9,6 +9,22 @@ import { abilityCheck, savingThrow } from './checks.js';
 import { attackRoll, damageRoll, rollInitiative } from './combat.js';
 import { DEFAULT_RULES, buildRules } from './rules.js';
 
+// Mock-actor pair that produces the requested stance when fed into
+// attackRoll. The base attackRoll uses these to draw the correct
+// number of d20s during replay (advantage → 2 dice keep-max;
+// disadvantage → 2 dice keep-min; normal → 1 die).
+function stanceActors(stance) {
+  if (stance === 'advantage') {
+    // invisible attacker gives ownAttackAdvantage.
+    return { attacker: { conditions: ['invisible'] }, target: {} };
+  }
+  if (stance === 'disadvantage') {
+    // blinded attacker gives ownAttackDisadvantage.
+    return { attacker: { conditions: ['blinded'] }, target: {} };
+  }
+  return { attacker: undefined, target: undefined };
+}
+
 const arraysEqual = (a, b) =>
   Array.isArray(a) && Array.isArray(b)
     && a.length === b.length
@@ -82,7 +98,18 @@ export function verifyLog({ seed, log, rules: rulesOpt }) {
         }
         break;
       case 'attackRoll':
-        actual = attackRoll({ attackBonus: entry.attackBonus, ac: entry.ac }, rng, rules);
+        // A `beforeAttack` hook may have short-circuited this entry
+        // (cancelled: true, d20 logged as 0). Skip — no dice were
+        // rolled.
+        if (entry.cancelled === true) break;
+        // The logged entry carries the post-hook `ac` and the
+        // resulting `hit`/`critical`/`fumble`. Replay reconstructs
+        // those by passing the same ac and rules, drawing the same
+        // number of d20s via the synthetic stance actors.
+        actual = attackRoll({
+          attackBonus: entry.attackBonus, ac: entry.ac,
+          ...stanceActors(entry.stance ?? 'normal')
+        }, rng, rules);
         if (actual.d20 !== entry.d20 || actual.hit !== entry.hit) {
           return { ok: false, divergedAt: i, expected: entry, actual };
         }
@@ -93,7 +120,10 @@ export function verifyLog({ seed, log, rules: rulesOpt }) {
           damageMod: entry.damageMod,
           critical: entry.critRolls.length > 0
         }, rng, rules);
-        if (actual.total !== entry.total || !arraysEqual(actual.baseRolls, entry.baseRolls)) {
+        // Verify the physical dice (baseRolls + critRolls). `total`
+        // may have been transformed by an `afterDamage` hook —
+        // that's not part of the determinism contract.
+        if (!arraysEqual(actual.baseRolls, entry.baseRolls) || !arraysEqual(actual.critRolls, entry.critRolls)) {
           return { ok: false, divergedAt: i, expected: entry, actual };
         }
         break;

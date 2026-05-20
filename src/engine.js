@@ -46,6 +46,7 @@ import defaultBackgrounds from './srd/backgrounds.js';
 import defaultFeats       from './srd/feats.js';
 import defaultSpells      from './srd/spells.js';
 import defaultItems       from './srd/items.js';
+import defaultMonsters    from './srd/monsters.js';
 
 const REGISTRY_VALIDATORS = {
   species:     { required: ['id', 'name', 'size', 'speed'], arrayFields: ['traits'] },
@@ -53,7 +54,8 @@ const REGISTRY_VALIDATORS = {
   backgrounds: { required: ['id', 'name', 'abilityScores', 'skillProficiencies', 'originFeat'] },
   feats:       { required: ['id', 'name', 'category'] },
   spells:      { required: ['id', 'name', 'level', 'school'] },
-  items:       { required: ['id', 'name', 'type'] }
+  items:       { required: ['id', 'name', 'type'] },
+  monsters:    { required: ['id', 'name', 'ac', 'hp', 'abilityScores'], arrayFields: ['attacks', 'traits'] }
 };
 
 /**
@@ -215,6 +217,7 @@ export function createEngine(opts = {}) {
   const feats       = mergeRegistry('feats',       defaultFeats,       opts.extraFeats);
   const spells      = mergeRegistry('spells',      defaultSpells,      opts.extraSpells);
   const items       = mergeRegistry('items',       defaultItems,       opts.extraItems);
+  const monsters    = mergeRegistry('monsters',    defaultMonsters,    opts.extraMonsters);
 
   const ConditionsBoundBase = buildConditions(opts.extraConditions);
 
@@ -361,11 +364,20 @@ export function createEngine(opts = {}) {
       // delta. No `??` fallback needed.
       const pre = hooks.fire('beforeAttack', { ...args, context });
       if (pre.cancelled === true) {
-        const cancelled = { d20: 0, attackBonus: args.attackBonus, total: 0, ac: pre.ac, hit: false, critical: false, fumble: false, cancelled: true };
+        const cancelled = { d20: 0, attackBonus: args.attackBonus, total: 0, ac: pre.ac, hit: false, critical: false, fumble: false, stance: 'normal', cancelled: true };
         record('attackRoll', cancelled, context);
         return cancelled;
       }
-      const result = CombatBase.attackRoll({ attackBonus: pre.attackBonus, ac: pre.ac }, rng, rules);
+      // Forward attacker/target/distance so condition-aware
+      // advantage/disadvantage flows through. CombatBase.attackRoll
+      // computes the stance and rolls the right number of d20s.
+      const result = CombatBase.attackRoll({
+        attackBonus: pre.attackBonus,
+        ac: pre.ac,
+        attacker: pre.attacker,
+        target: pre.target,
+        attackerDistanceFt: pre.attackerDistanceFt
+      }, rng, rules);
       record('attackRoll', result, context);
       return result;
     },
@@ -388,8 +400,18 @@ export function createEngine(opts = {}) {
     // Bound here rather than as a separate top-level namespace so
     // the encounter functions share the engine's rng and rules
     // without the caller threading them per call.
-    startEncounter: (participants) => EncounterBase.startEncounter(participants, rng),
-    rollOrder: (participants) => EncounterBase.rollOrder(participants, rng),
+    // Every initiative draw is logged so the encounter's stochastic
+    // surface flows into the same rollLog the rest of the engine
+    // populates — replay verification then covers an entire combat
+    // session end-to-end.
+    startEncounter: (participants) => EncounterBase.startEncounter(
+      participants, rng,
+      ({ dexterity, value }) => record('rollInitiative', { dexterity, value })
+    ),
+    rollOrder: (participants) => EncounterBase.rollOrder(
+      participants, rng,
+      ({ dexterity, value }) => record('rollInitiative', { dexterity, value })
+    ),
     currentActor: EncounterBase.currentActor,
     endTurn: EncounterBase.endTurn,
     removeParticipant: EncounterBase.removeParticipant,
@@ -419,7 +441,7 @@ export function createEngine(opts = {}) {
 
   return {
     // Data registries — plain objects, mutate at your own risk.
-    species, classes, backgrounds, feats, spells, items,
+    species, classes, backgrounds, feats, spells, items, monsters,
     // Math + helpers (bound to this engine's data + rng + rules).
     Dice: DiceBound,
     Checks: ChecksBound,

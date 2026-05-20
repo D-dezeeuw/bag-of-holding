@@ -60,10 +60,15 @@ export function freshBudget(speed) {
  * order even when initiatives tie. RNG cascades from the caller so
  * the whole encounter stays reproducible.
  */
-export function rollOrder(participants, rng = Math.random) {
+export function rollOrder(participants, rng = Math.random, onInitiativeRoll) {
   const rolled = participants.map((p) => {
     const d20 = rollDie(20, rng);
-    return { ...p, initiative: d20 + modFromScore(p.dexterity), initiativeD20: d20 };
+    const initiative = d20 + modFromScore(p.dexterity);
+    // Optional per-roll callback — engine wrapper passes one that
+    // appends a `rollInitiative` entry to the engine's roll log so
+    // the encounter's dice draws are replay-verifiable.
+    if (onInitiativeRoll) onInitiativeRoll({ id: p.id, dexterity: p.dexterity, value: initiative });
+    return { ...p, initiative, initiativeD20: d20 };
   });
   rolled.sort((a, b) => {
     if (b.initiative !== a.initiative) return b.initiative - a.initiative;
@@ -83,7 +88,7 @@ export function rollOrder(participants, rng = Math.random) {
  * subsequent step is `step…` functions below, which return the
  * new state object. Pure throughout.
  */
-export function startEncounter(participants, rng = Math.random) {
+export function startEncounter(participants, rng = Math.random, onInitiativeRoll) {
   if (!Array.isArray(participants) || participants.length === 0) {
     throw new Error('startEncounter requires at least one participant');
   }
@@ -101,7 +106,7 @@ export function startEncounter(participants, rng = Math.random) {
       throw new Error(`Participant ${p.id}: speed must be a non-negative integer`);
     }
   }
-  const order = rollOrder(participants, rng);
+  const order = rollOrder(participants, rng, onInitiativeRoll);
   const budgets = {};
   for (const p of order) budgets[p.id] = freshBudget(p.speed);
   return {

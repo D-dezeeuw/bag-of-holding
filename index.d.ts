@@ -123,6 +123,24 @@ export interface Item {
   heals?: string;
 }
 
+/** SRD 5.2 monster stat block. Carries the fields a host needs to
+ *  wire a creature into the encounter system: AC, HP, abilities,
+ *  speed, attacks, CR. Plugins extend the registry via
+ *  `createEngine({ extraMonsters })`. */
+export interface Monster {
+  id: string;
+  name: string;
+  cr: number;
+  ac: number;
+  hp: number;
+  size: Size;
+  speed: number;
+  abilityScores: Record<Ability, number>;
+  attacks?: Array<{ name: string; attackBonus: number; damage: string; damageType?: string }>;
+  traits?: string[];
+  skills?: Record<string, number>;
+}
+
 // ============================================================
 // Dice
 // ============================================================
@@ -826,6 +844,7 @@ export interface EngineOptions {
   extraFeats?: Record<string, Feat>;
   extraSpells?: Record<string, Spell>;
   extraItems?: Record<string, Item>;
+  extraMonsters?: Record<string, Monster>;
   extraConditions?: string[];
   extraMastery?: Record<string, MasteryHandler>;
   /** Custom RNG. Default `Math.random`. Pass `Dice.seededRng(seed)`
@@ -900,6 +919,7 @@ export interface Engine {
   feats: Record<string, Feat>;
   spells: Record<string, Spell>;
   items: Record<string, Item>;
+  monsters: Record<string, Monster>;
   Dice: DiceNamespace;
   Checks: ChecksNamespace;
   Combat: CombatNamespace;
@@ -944,6 +964,7 @@ export const Conditions: ConditionsNamespace;
 export const XP: XPNamespace;
 export const Movesets: MovesetsNamespace;
 export const Beats: BeatsNamespace;
+export const Spellcasting: SpellcastingNamespace;
 export const Character: CharacterNamespace;
 
 export const species: Record<string, Species>;
@@ -952,6 +973,7 @@ export const backgrounds: Record<string, Background>;
 export const feats: Record<string, Feat>;
 export const spells: Record<string, Spell>;
 export const items: Record<string, Item>;
+export const monsters: Record<string, Monster>;
 
 /** Grouped data registries — convenience alias matching the
  *  pre-Phase-A namespace shape. */
@@ -962,6 +984,7 @@ export const SRD: {
   feats: Record<string, Feat>;
   spells: Record<string, Spell>;
   items: Record<string, Item>;
+  monsters: Record<string, Monster>;
 };
 
 /** Legacy alias for the class-definition map. Same content as

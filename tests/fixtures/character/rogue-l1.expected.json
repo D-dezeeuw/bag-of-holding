@@ -54,7 +54,7 @@
       "damageMod": 3,
       "damageType": "piercing",
       "masteryProperty": "nick",
-      "properties": ["finesse", "thrown"]
+      "properties": ["finesse", "light", "thrown"]
     }
   ],
   "spellcasting": null,

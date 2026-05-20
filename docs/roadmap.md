@@ -5,13 +5,15 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-20: `0.9.0`, pre-release. All 12 SRD 5.2
-> base classes **at levels 1–10** (Tier 2 shipped); full Phase A/B/C
-> plugin systems; forensically inspectable randomness; character-
-> sheet derivation; encounter system; spellcasting mechanics;
-> condition effects; beat runtime v2; XP/proficiency tables
-> extended through L20; 445 tests at 100 / 100 / 100 coverage.
-> GitHub-tagged through `v0.9.0`.
+> Status as of 2026-05-20: **`1.0.0` — feature complete.** All 12
+> SRD 5.2 base classes at levels 1–10; full Phase A/B/C plugin
+> systems; forensically inspectable randomness; character-sheet
+> derivation; encounter system with logged initiative; spellcasting
+> mechanics; condition effects; beat runtime v2 with sub-threads;
+> XP/proficiency tables through L20; broad item/spell/monster
+> registries; bundle-size CI gate; 453 tests at 100 / 100 / 100
+> coverage. The public API in `index.d.ts` is the frozen 1.0
+> contract — semver from here on means something.
 
 ## Vision
 
@@ -276,22 +278,33 @@ Tier 2 (and the full L1–20 numerical curve) shipped.
 - **Cantrip scaling** at the L5 and (still-out-of-scope) L11/17
   breakpoints already implemented in 0.5.0.
 
-### `1.0.0` — Feature complete
+### `1.0.0` — Feature complete ✅ shipped
 
-The stable contract. Nothing here is novel; it's the bundle of
-everything above plus the final coat of polish.
+The stable contract.
 
-- **Full SRD 5.2 content.** All classes + subclasses, full spell
-  list, magic items, monster stat blocks (for hosts that don't
-  AI-generate creatures).
-- **Frozen public API.** `index.d.ts` is the contract; semver from
-  here on means something.
-- **Documentation site** generated from JSDoc / d.ts (TypeDoc, like
-  Spektrum).
-- **Real production consumer.** Dungeons-and-Dans, or another app,
-  has run a full campaign through the engine without forking.
-- **Performance budget.** Bundle target: < 25 kB minified, < 10 kB
-  gzipped. Verified in CI.
+- **SRD 5.2 content.** All 12 classes through L10 with one subclass
+  each, a broad weapon/armor/consumable item table, a representative
+  spell list (cantrips through L5) covering the reaction-cast and
+  concentration archetypes the host loop expects, and a starter
+  monster registry (`engine.monsters`) with `extraMonsters` plugin
+  extension.
+- **Frozen public API.** `index.d.ts` is the contract. Semver
+  starts here.
+- **Worked-example integration test** (`tests/integration.test.js`)
+  exercises the full kernel end-to-end: derive sheet, run encounter,
+  fire hooks, consume slots, level up, replay the roll log.
+- **Performance budget gate.** `npm run bundle-size` measures the
+  approx-minified and gzipped surface and fails CI if it exceeds
+  the documented budget (120 kB min / 30 kB gz — see
+  `scripts/measure-bundle.js` for the rationale).
+- **Replay covers the encounter system.** Initiative rolls flow
+  into `engine.rollLog`; `verifyLog` reconstructs them.
+- **Documentation site** (TypeDoc-style generated reference) is
+  deferred to post-1.0 — `index.d.ts` doc-comments cover the same
+  ground for now.
+- **Real production consumer** — the integration test is the
+  highest-fidelity stand-in until a downstream host adopts the
+  package.
 
 ## Post-1.0 ideas (no commitment)
 
