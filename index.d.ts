@@ -64,7 +64,40 @@ export interface ClassDef {
     preparation?: 'prepared' | 'known';
   };
   features?: Record<number, string[]>;
+  /** Class resource specs (since 1.3.0). Keys are resource ids
+   *  (`secondWind`, `rage`, `bardicInspiration`, …); each entry
+   *  declares the max (number or function-of-level) and refresh
+   *  contract. */
+  resources?: Record<string, { max: number | ((level: number) => number); refreshes: RefreshKind }>;
+  /** Class mechanic handlers (since 1.3.0). Keys are the same as
+   *  `resources` plus any non-resource per-turn mechanics. Each
+   *  handler is invoked through `engine.Mechanics.apply(actor, id,
+   *  args, context)`. */
+  mechanics?: Record<string, ClassMechanicHandler>;
 }
+
+/** Refresh contract for a class resource. Long Rest is a superset
+ *  of Short Rest per SRD 5.2 § Long Rest. */
+export type RefreshKind = 'short' | 'long' | 'day';
+
+/** A resource counter on an actor. */
+export interface Resource {
+  used: number;
+  max: number;
+  refreshes: RefreshKind;
+}
+
+export interface ClassMechanicContext {
+  rng: RNG;
+  rollDie: (sides: number, rng?: RNG) => number;
+  modFromScore: (score: number) => number;
+}
+
+export type ClassMechanicHandler = (
+  actor: Actor,
+  args: Record<string, unknown>,
+  ctx: ClassMechanicContext
+) => unknown;
 
 export interface OriginFeatRef {
   id: string;
@@ -464,6 +497,9 @@ export interface Actor {
   id?: string;
   conditions?: ConditionName[];
   exhaustion?: number;
+  /** Class-feature resource counters (since 1.3.0). Keyed by
+   *  resource id (`secondWind`, `rage`, …). */
+  resources?: Record<string, Resource>;
   [extra: string]: unknown;
 }
 
@@ -971,7 +1007,8 @@ export interface SpellcastingNamespace {
 
 /** Rest namespace (since 1.2.0). SRD 5.2 § Short Rest / § Long Rest.
  *  `spendHitDie` is engine-bound (its die roll flows into rollLog
- *  for replay-determinism); `longRest` is deterministic. */
+ *  for replay-determinism); `longRest` and `shortRest` are
+ *  deterministic. */
 export interface RestNamespace {
   /** Roll one Hit Die + the actor's Constitution modifier (min 1)
    *  and apply it as healing, capped at `hpMax`. Decrements
@@ -985,8 +1022,34 @@ export interface RestNamespace {
   };
   /** Apply one Long Rest: HP to max, half Hit Dice back (per the
    *  `longRestHitDiceRecovery` rule), death-save tracker cleared,
-   *  Exhaustion -1, spell slots refilled. */
+   *  Exhaustion -1, spell slots refilled, class resources reset. */
   longRest(actor: Actor): Actor;
+  /** Apply one Short Rest: warlock pact slots refill, short-tagged
+   *  class resources refill. Hit Dice spending is host-driven and
+   *  uses `spendHitDie` separately. */
+  shortRest(actor: Actor): Actor;
+}
+
+/** Mechanics namespace (since 1.3.0). Resource bookkeeping and
+ *  per-class feature dispatch. SRD 5.2 § Classes. */
+export interface MechanicsNamespace {
+  readonly REFRESH_KINDS: readonly RefreshKind[];
+  /** Build a single resource counter at full capacity. */
+  freshResource(spec: { max: number; refreshes: RefreshKind }): Resource;
+  /** Build the full resource map for an actor of `classDef` at
+   *  `level`. Returns `{}` for classes without a resources table. */
+  freshResources(classDef: ClassDef | null | undefined, level: number): Record<string, Resource>;
+  /** Spend `amount` from `actor.resources[id]`. */
+  spendResource(actor: Actor, id: string, amount?: number):
+    | { ok: true; actor: Actor }
+    | { ok: false; reason: string };
+  /** Refresh every counter matching `kind`. Long Rest refreshes
+   *  both short- and long-tagged resources; `'all'` also resets
+   *  day-tagged. */
+  refreshResources(actor: Actor, kind: 'short' | 'long' | 'all'): Actor;
+  /** Dispatch a class mechanic by id. Looks up the actor's class
+   *  from the engine's registry. */
+  apply(actor: Actor, id: string, args?: Record<string, unknown>, context?: unknown): unknown;
 }
 
 export interface Engine {
@@ -1006,6 +1069,7 @@ export interface Engine {
   Beats: BeatsNamespace;
   Spellcasting: SpellcastingNamespace;
   Rest: RestNamespace;
+  Mechanics: MechanicsNamespace;
   /** Compute a frozen derived sheet from a host-owned character
    *  record. Pure — call as often as state changes. See
    *  docs/character-sheet.md. */
@@ -1044,6 +1108,7 @@ export const Movesets: MovesetsNamespace;
 export const Beats: BeatsNamespace;
 export const Spellcasting: SpellcastingNamespace;
 export const Rest: RestNamespace;
+export const Mechanics: MechanicsNamespace;
 export const Character: CharacterNamespace;
 
 export const species: Record<string, Species>;

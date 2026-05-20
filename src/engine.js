@@ -38,6 +38,7 @@ import * as Character from './character.js';
 import * as EncounterBase from './encounter.js';
 import * as Spellcasting from './spellcasting.js';
 import * as RestBase from './rest.js';
+import * as MechanicsBase from './mechanics.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -492,7 +493,54 @@ export function createEngine(opts = {}) {
       }
       return result;
     },
-    longRest: (actor) => RestBase.longRest(actor, rules)
+    longRest: (actor) => RestBase.longRest(actor, rules),
+    shortRest: RestBase.shortRest
+  };
+
+  // === Class mechanics (since 1.3.0) ===
+  //
+  // Looks the class up from the engine's `classes` registry so the
+  // host doesn't have to thread it explicitly. Falls back to a
+  // module-level dispatch when the actor carries `classId` and the
+  // class is registered. Plugin-contributed classes (via
+  // `extraClasses`) are looked up the same way.
+  //
+  // Any feature handler that rolls dice should call ctx.rollDie with
+  // ctx.rng (the engine's rng) — this is what the handler defaults
+  // wire in. The bound dispatcher logs rolls via `record('rollDie',
+  // ...)` by intercepting `ctx.rollDie`.
+  const MechanicsBound = {
+    freshResource: MechanicsBase.freshResource,
+    freshResources: MechanicsBase.freshResources,
+    spendResource: MechanicsBase.spendResource,
+    refreshResources: MechanicsBase.refreshResources,
+    REFRESH_KINDS: MechanicsBase.REFRESH_KINDS,
+    /**
+     * Dispatch a class mechanic for an actor whose `classId` is
+     * registered. Returns whatever the handler returns. Throws on
+     * unknown classes or unknown mechanics so a typo at the host
+     * surfaces immediately rather than silently no-op'ing.
+     */
+    apply: (actor, id, args, context) => {
+      const classDef = classes[actor.classId];
+      if (!classDef) throw new Error(`Unknown class for mechanic dispatch: ${actor.classId}`);
+      const handlers = classDef.mechanics;
+      if (!handlers || !handlers[id]) {
+        throw new Error(`Unknown class mechanic: ${classDef.id}.${id}`);
+      }
+      // Intercept rollDie so the engine's audit trail captures any
+      // dice rolled inside the handler.
+      const ctx = {
+        rng,
+        rollDie: (sides) => {
+          const value = Dice.rollDie(sides, rng);
+          record('rollDie', { sides, value }, context);
+          return value;
+        },
+        modFromScore: Checks.modFromScore
+      };
+      return handlers[id](actor, args ?? {}, ctx);
+    }
   };
 
   return {
@@ -512,6 +560,10 @@ export function createEngine(opts = {}) {
     // so its die roll flows into rollLog; `longRest` runs against
     // the engine's resolved rules so the recovery-mode knob applies.
     Rest: RestBound,
+    // Class mechanics (since 1.3.0). Foundation for resource-bearing
+    // class features (Second Wind, Action Surge, Sneak Attack, etc.)
+    // Per-class handlers live on the class def under `mechanics`.
+    Mechanics: MechanicsBound,
     // Character derivation — turns a host-owned record into a
     // frozen sheet. See docs/character-sheet.md.
     deriveSheet: (record) => Character.deriveSheet(record, characterRegistries),
