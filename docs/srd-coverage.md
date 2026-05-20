@@ -338,17 +338,17 @@ boxes are always the live worklist.
 
 - [x] Monster registry — 9 entries *(v0.6.0)*
 - [x] CR field on records *(v0.6.0)*
-- [ ] **Multiattack** schema (`{ attacks: ['claw', 'claw', 'bite'] }`)
-- [ ] **Legendary Actions** — uses per turn, refreshed at start of monster's turn *(SRD § Monsters — Legendary Actions)*
-- [ ] **Lair Actions** — initiative-count 20 trigger, `inLair` boolean *(SRD § Monsters — Lair Actions)*
-- [ ] **Mythic Actions** *(SRD § Monsters — Mythic Actions)*
-- [ ] **Innate Spellcasting** — `{ atWill: [...], 3day: [...], 1day: [...] }` shape *(SRD § Monsters — Innate Spellcasting)*
-- [ ] **Senses** — darkvision range, blindsight, tremorsense, truesight *(SRD § Monsters — Senses)*
-- [ ] **Damage resistance / vulnerability / immunity** arrays per monster
-- [ ] **Condition immunity** array per monster
-- [ ] **Saving-throw proficiency table** per monster (`{ str: +6, ... }`)
-- [ ] **Languages** per monster
-- [ ] **Legendary Resistance** — N uses/day, "convert a failed save to a success" *(SRD § Monsters — Legendary Resistance)*
+- [x] **Multiattack** — `Monsters.multiattackSequence(monster)` returns the ordered attack list *(v1.10.0)*
+- [x] **Legendary Actions** — `useLegendaryAction(actor, monster, optionId, cost?)` + `refreshLegendaryActions(actor)` at turn start *(v1.10.0)*
+- [x] **Lair Actions** — `lairActionAvailable(monster, { initiativeCount, inLair })` + `fireLairAction(monster, optionId)` *(v1.10.0)*
+- [ ] **Mythic Actions** *(SRD § Monsters — Mythic Actions)* — same schema as Legendary; defer until a Mythic monster ships in the registry
+- [x] **Innate Spellcasting** — `castInnate(actor, monster, spellId)` + `freshInnateState` + `refreshInnateSpells` for per-day counters *(v1.10.0)*
+- [x] **Senses** — `Monsters.senses(monster)` accessor; schema documented on the record *(v1.10.0)*
+- [x] **Damage resistance / vulnerability / immunity** arrays per monster — consumed by 1.4.0 damage pipeline; monster records expose the fields *(v1.10.0 schema)*
+- [x] **Condition immunity** array per monster — consumed by 1.5.0 `Conditions.apply` immunity filter *(v1.10.0 schema)*
+- [x] **Saving-throw bonus accessor** — `Monsters.saveBonus(monster, ability)` reads `monster.saves[ability]` with ability-mod fallback *(v1.10.0)*
+- [~] **Languages** per monster — schema slot on the record; no engine-side consumer yet
+- [x] **Legendary Resistance** — `useLegendaryResistance(actor, monster)` converts a failed save to a success *(v1.10.0)*
 - [ ] **Monster registry depth** — *SRD ships hundreds; we ship 9*
 
 ## 20. Encounter design

@@ -742,10 +742,11 @@ Items were pure data before; this release adds the lifecycle.
 
 Closes [§ 18 Magic items](srd-coverage.md#18-magic-items).
 
-### `1.10.0` — Monster stat block depth
+### `1.10.0` — Monster stat block depth ✅ shipped
 
-Monster records get the structural fields needed to run them as
-opponents rather than reference data.
+Monster records gain the structural fields needed to run them as
+opponents — Multiattack, Legendary / Lair / Mythic Actions,
+Legendary Resistance, Innate Spellcasting, senses, save bonuses.
 
 - **Multiattack** — `monster.multiattack: { attacks: AttackRef[] }`
   resolves in order on a single Attack action.
