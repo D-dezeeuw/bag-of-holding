@@ -485,8 +485,12 @@ in the typecheck file:
   scaling (+2/+3/+4), BPS resistance flags, 10-minute / 100-round
   duration cap. State on `actor.rage`; `Mechanics.refreshResources`
   extended with a `shortRestRecovery` field. ✅ shipped
-- **`1.3.2`** Bard § *Bardic Inspiration* (CHA-mod uses, long-rest
-  refresh; short rest from L5 via *Font of Inspiration*).
+- **`1.3.2`** Bard § *Bardic Inspiration* — CHA-mod uses (min 1),
+  die size scaling (d6 → d8 → d10 → d12 at L1 / L5 / L10 / L15),
+  refresh tag flips from `'long'` to `'short'` at L5 via Font of
+  Inspiration, plus `fontOfInspiration(actor, { slotLevel })` to
+  refund a use by spending a slot. `freshResources` extended to
+  evaluate spec fields as functions of `(level, actor)`. ✅ shipped
 - **`1.3.3`** Cleric § *Channel Divinity* (uses scale with level,
   short-rest refresh).
 - **`1.3.4`** Druid § *Wild Shape* (uses per short rest, CR cap by

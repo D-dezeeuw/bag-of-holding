@@ -70,22 +70,31 @@ export function freshResource({ max, refreshes, shortRestRecovery = 0 }) {
 
 /**
  * Build the resource map for a character of a given class and level.
- * Reads `classDef.resources`, evaluating any `max` that's a function
- * of level (e.g. Lay on Hands = `5 * level`). Returns `{}` for
- * classes without resources — Wizards before Arcane Recovery wires
- * in, for instance, just have an empty map.
+ * Reads `classDef.resources`, evaluating any field that's a function
+ * with `(level, actor)`. The optional `actor` argument is forwarded
+ * to spec functions that need it — Bardic Inspiration's `max` reads
+ * the actor's CHA modifier, for instance — but classes whose
+ * resources are level-only (Fighter Second Wind, Paladin Lay on
+ * Hands) ignore the extra argument and work fine without an actor.
+ *
+ * Returns `{}` for classes without resources — Wizards before Arcane
+ * Recovery wires in, for instance, just have an empty map.
  */
-export function freshResources(classDef, level) {
+export function freshResources(classDef, level, actor) {
   const out = {};
   const table = classDef?.resources;
   if (!table) return out;
+  const evaluate = (field, fallback) => {
+    if (field === undefined) return fallback;
+    return typeof field === 'function' ? field(level, actor) : field;
+  };
   for (const [id, spec] of Object.entries(table)) {
-    const max = typeof spec.max === 'function' ? spec.max(level) : spec.max;
+    const max = evaluate(spec.max, 0);
     if (max > 0) {
       out[id] = freshResource({
         max,
-        refreshes: spec.refreshes,
-        shortRestRecovery: spec.shortRestRecovery ?? 0
+        refreshes: evaluate(spec.refreshes, 'long'),
+        shortRestRecovery: evaluate(spec.shortRestRecovery, 0)
       });
     }
   }
