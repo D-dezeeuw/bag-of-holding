@@ -510,8 +510,11 @@ in the typecheck file:
   bonus-action heal-from-pool, long-rest refresh) and § *Divine
   Smite* (now a 2024 spell — 2d8 radiant at slot 1, +1d8 per slot
   above 1, +1d8 vs Fiend/Undead; one free cast per Long Rest). ✅ shipped
-- **`1.3.7`** Ranger § *Hunter's Mark* binding, § *Favored Enemy*
-  free-cast accounting.
+- **`1.3.7`** Ranger § *Favored Enemy* + § *Hunter's Mark* — free
+  Hunter's Mark casts per Long Rest scaling with PB (2/3/4/5/6),
+  `actor.huntersMark = { targetId, castLevel }` binding, slot-spend
+  fallback when free casts exhausted, 1d6 force damage rider vs the
+  marked target. ✅ shipped
 - **`1.3.8`** Sorcerer § *Sorcery Points* + § *Metamagic* — the
   convert-slot↔point loop.
 - **`1.3.9`** Warlock § *Eldritch Invocations* selection and
