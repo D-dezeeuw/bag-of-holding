@@ -243,7 +243,7 @@ boxes are always the live worklist.
 - [x] **Druid:** Wild Shape — 2 uses, long full / short 1; CR cap (1/4 / 1/2 / 1 at L2/L4/L8); swim unlocked L4, fly L8; revert + caps helpers *(SRD § Druid — Wild Shape / Beast Shapes)* *(v1.3.4)*
 - [x] **Monk:** Focus Points pool (= level from L2, short refresh), Martial Arts die scaling, Flurry of Blows / Patient Defense / Step of the Wind handlers covering both free and FP-spend modes *(SRD § Monk — Focus Points / Martial Arts)* *(v1.3.5)*
 - [x] **Paladin:** Lay on Hands (HP pool = 5 × level), Divine Smite (2024 spell — 2d8 radiant + 1d8/slot-above-1 + 1d8 vs Fiend/Undead, one free cast per Long Rest) *(SRD § Paladin — Lay on Hands / Divine Smite)* *(v1.3.6)*
-- [ ] **Ranger:** Hunter's Mark slot binding, Favored Enemy free-cast accounting *(SRD § Ranger — Hunter's Mark / Favored Enemy)* — *roadmap 1.3.7*
+- [x] **Ranger:** Favored Enemy free-cast pool (scales with PB), Hunter's Mark cast with free-cast preference + slot fallback, target binding on `actor.huntersMark`, 1d6 force damage rider, status helper *(SRD § Ranger — Favored Enemy / Hunter's Mark)* *(v1.3.7)*
 - [ ] **Sorcerer:** Sorcery Points + Metamagic conversion loop *(SRD § Sorcerer — Sorcery Points / Metamagic)* — *roadmap 1.3.8*
 - [ ] **Warlock:** Eldritch Invocations registry + selection / validation *(SRD § Warlock — Eldritch Invocations)* — *roadmap 1.3.9*
 - [ ] **Wizard:** Arcane Recovery — slot levels = ⌈½ wizard level⌉, once per long rest, on a short rest *(SRD § Wizard — Arcane Recovery)* — *roadmap 1.3.10*
