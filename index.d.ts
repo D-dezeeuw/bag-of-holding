@@ -831,6 +831,10 @@ export interface EngineRules {
   /** Successes / failures required to stabilise or die. SRD 5.2
    *  default `3`. */
   deathSaveSuccessesRequired?: number;
+  /** Hit Dice recovered on a Long Rest. `'half'` matches SRD 5.2 §
+   *  Long Rest (default); `'all'` for heroic packs; `'none'` for
+   *  gritty packs (DMG Slow Natural Healing). */
+  longRestHitDiceRecovery?: 'half' | 'all' | 'none';
 }
 
 /** Resolved (frozen, defaults-merged) rules surface exposed on an
@@ -845,6 +849,7 @@ export interface ResolvedRules {
   proficiencyByLevel: Readonly<Record<number, number>> | null;
   deathSaveDC: number;
   deathSaveSuccessesRequired: number;
+  longRestHitDiceRecovery: 'half' | 'all' | 'none';
 }
 
 /**
@@ -964,6 +969,26 @@ export interface SpellcastingNamespace {
   }): { valid: true } | { valid: false; reason: string };
 }
 
+/** Rest namespace (since 1.2.0). SRD 5.2 § Short Rest / § Long Rest.
+ *  `spendHitDie` is engine-bound (its die roll flows into rollLog
+ *  for replay-determinism); `longRest` is deterministic. */
+export interface RestNamespace {
+  /** Roll one Hit Die + the actor's Constitution modifier (min 1)
+   *  and apply it as healing, capped at `hpMax`. Decrements
+   *  `hitDiceUsed`. */
+  spendHitDie(actor: Actor, context?: unknown): {
+    die?: number;
+    conMod?: number;
+    healed: number;
+    hpAfter: number;
+    actor: Actor;
+  };
+  /** Apply one Long Rest: HP to max, half Hit Dice back (per the
+   *  `longRestHitDiceRecovery` rule), death-save tracker cleared,
+   *  Exhaustion -1, spell slots refilled. */
+  longRest(actor: Actor): Actor;
+}
+
 export interface Engine {
   species: Record<string, Species>;
   classes: Record<string, ClassDef>;
@@ -980,6 +1005,7 @@ export interface Engine {
   Movesets: MovesetsNamespace;
   Beats: BeatsNamespace;
   Spellcasting: SpellcastingNamespace;
+  Rest: RestNamespace;
   /** Compute a frozen derived sheet from a host-owned character
    *  record. Pure — call as often as state changes. See
    *  docs/character-sheet.md. */
@@ -1017,6 +1043,7 @@ export const XP: XPNamespace;
 export const Movesets: MovesetsNamespace;
 export const Beats: BeatsNamespace;
 export const Spellcasting: SpellcastingNamespace;
+export const Rest: RestNamespace;
 export const Character: CharacterNamespace;
 
 export const species: Record<string, Species>;

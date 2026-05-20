@@ -393,7 +393,7 @@ loop bottoms out at "actor.hp === 0" with no engine handling. The
 `onDeath` hook surface exists but only fires from exhaustion; this
 wires the second pathway.
 
-### `1.2.0` — Rest mechanics (HP recovery + hit-dice spending)
+### `1.2.0` — Rest mechanics (HP recovery + hit-dice spending) ✅ shipped
 
 `Spellcasting.longRest` and `Spellcasting.shortRest` currently only
 refill spell slots. SRD 5.2 § *Short Rest* and § *Long Rest* both

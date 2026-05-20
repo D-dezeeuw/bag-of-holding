@@ -37,6 +37,7 @@ import * as Classes from './classes/index.js';
 import * as Character from './character.js';
 import * as EncounterBase from './encounter.js';
 import * as Spellcasting from './spellcasting.js';
+import * as RestBase from './rest.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -474,6 +475,26 @@ export function createEngine(opts = {}) {
     species, classes, backgrounds, feats, items, XP: XPBound
   };
 
+  // === Rest mechanics (since 1.2.0) ===
+  //
+  // Bound so the Hit Die roll on a Short Rest flows into rollLog
+  // (same replay-determinism contract as every other stochastic
+  // surface). `longRest` is deterministic — no log entry needed.
+  const RestBound = {
+    spendHitDie: (actor, context) => {
+      const result = RestBase.spendHitDie(actor, rng);
+      // Log the raw die face so `verifyLog` can replay-validate. The
+      // `healed` field on the returned result is a derivation (die +
+      // CON mod, capped at hpMax) — re-deriving from a logged die
+      // face and the same actor reproduces it.
+      if (result.die !== undefined) {
+        record('rollDie', { sides: actor.hitDie, value: result.die }, context);
+      }
+      return result;
+    },
+    longRest: (actor) => RestBase.longRest(actor, rules)
+  };
+
   return {
     // Data registries — plain objects, mutate at your own risk.
     species, classes, backgrounds, feats, spells, items, monsters,
@@ -487,6 +508,10 @@ export function createEngine(opts = {}) {
     // Spellcasting: pure module, no engine binding needed (slot
     // tables are static; concentration state lives on the actor).
     Spellcasting,
+    // Rest mechanics (since 1.2.0). `spendHitDie` is engine-bound
+    // so its die roll flows into rollLog; `longRest` runs against
+    // the engine's resolved rules so the recovery-mode knob applies.
+    Rest: RestBound,
     // Character derivation — turns a host-owned record into a
     // frozen sheet. See docs/character-sheet.md.
     deriveSheet: (record) => Character.deriveSheet(record, characterRegistries),
