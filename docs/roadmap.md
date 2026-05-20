@@ -5,15 +5,22 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-20: **`1.0.0` — feature complete.** All 12
-> SRD 5.2 base classes at levels 1–10; full Phase A/B/C plugin
-> systems; forensically inspectable randomness; character-sheet
-> derivation; encounter system with logged initiative; spellcasting
-> mechanics; condition effects; beat runtime v2 with sub-threads;
-> XP/proficiency tables through L20; broad item/spell/monster
-> registries; bundle-size CI gate; 453 tests at 100 / 100 / 100
-> coverage. The public API in `index.d.ts` is the frozen 1.0
-> contract — semver from here on means something.
+> Status as of 2026-05-20: **`1.0.0` — feature complete** for the
+> kernel surface (dice, slots, conditions, XP, character derivation,
+> beats, plugins). All 12 SRD 5.2 base classes at levels 1–10; full
+> Phase A/B/C plugin systems; forensically inspectable randomness;
+> character-sheet derivation; encounter system with logged initiative;
+> spellcasting mechanics; condition effects; beat runtime v2 with
+> sub-threads; XP/proficiency tables through L20; broad item/spell/
+> monster registries; bundle-size CI gate; 453 tests at 100 / 100 / 100
+> coverage. The public API in `index.d.ts` is the frozen 1.0 contract
+> — semver from here on means something.
+>
+> **SRD coverage is not yet complete**: death saves, rest-based HP
+> recovery, hit-dice spending, and class-feature *mechanics* (vs the
+> current metadata) are tracked under [SRD 5.2 completeness](#srd-52-completeness)
+> below. A handful of math bugs against the published rule text are
+> queued for `1.0.1`.
 
 ## Vision
 
@@ -305,6 +312,171 @@ The stable contract.
 - **Real production consumer** — the integration test is the
   highest-fidelity stand-in until a downstream host adopts the
   package.
+
+## SRD 5.2 completeness
+
+Gaps and bugs identified by reading the engine against the published
+[SRD 5.2 (2025)](https://www.dndbeyond.com/srd) text. Unlike the
+parking lot below these are tracked commitments — the kernel is not
+honestly "SRD 5.2 compliant" until they land.
+
+### `1.0.1` — SRD math fixes (patch)
+
+Three handlers return values that diverge from the published rule
+text. Patch-level because public signatures are unchanged; only the
+numbers move (and the fixtures pinning the buggy values).
+
+- **Topple save DC double-counts proficiency** (`src/combat.js:164–167`).
+  SRD 5.2 § *Weapon Mastery Properties — Topple*: the Constitution
+  save DC is **8 + the attacker's ability modifier + their
+  proficiency bonus**. The handler computes
+  `8 + result.attackBonus + attacker.proficiencyBonus`, but
+  `attackBonus` already includes proficiency, so it's added twice. A
+  L5 Fighter (+4 STR, +3 prof) currently produces DC 18; the SRD
+  value is 15. Fix: split the inputs at the handler boundary — pass
+  the raw ability modifier alongside the composite `attackBonus`, or
+  recover it as `attackBonus − proficiencyBonus` when only the
+  composite is available. Pin a fixture covering the L5 Fighter
+  case.
+- **Graze damage uses full attack bonus instead of ability modifier**
+  (`src/combat.js:133`). SRD 5.2 § *Weapon Mastery Properties —
+  Graze*: "the target takes damage equal to **the ability modifier
+  you used to make the attack roll**." The handler returns
+  `result.attackBonus`, inflating graze by the proficiency bonus.
+  Same boundary change as Topple — the handler needs the ability
+  modifier separately. A L5 STR-16 Fighter should graze for 3, not 6.
+- **DC clamp ceiling: 25 → 30 (or document the deviation)**
+  (`src/checks.js:8`). SRD 5.2 § *Ability Checks — Typical
+  Difficulty Classes* lists DC 30 as **Nearly Impossible**; clamping
+  at 25 silently rewrites it to Very Hard. Either raise `MAX_DC` to
+  30 (matches the table) or rename the constant to
+  `AI_SANITY_DC_CEILING` and document the deviation in `spec.md` so
+  consumers reading the SRD don't get surprised by the silent
+  rewrite.
+
+*Why first:* All three are quietly wrong against published text. The
+fix is small, the blast radius is contained (each is one handler /
+one constant), and shipping them as 1.0.1 keeps semver honest before
+any feature work lands on top.
+
+### `1.1.0` — Death saving throws
+
+The 0-HP-to-dead pipeline is entirely absent. SRD 5.2 § *Death
+Saving Throws* and § *Damage at 0 Hit Points* still apply: at 0 HP a
+creature falls Unconscious and rolls a DC 10 d20 on each of its
+turns; three successes stabilise, three failures kill; a natural 1
+counts as two failures, a natural 20 restores 1 HP and consciousness;
+damage taken while at 0 HP counts as a failed save (two if a crit),
+and damage ≥ HP max while at 0 is instant death.
+
+- **`Combat.deathSave(actor, rng?, rules?)`** — pure function,
+  returns `{ d20, outcome: 'success' | 'failure' | 'stable' | 'dead'
+  | 'revived', actor: nextActor }`. Tracks state on
+  `actor.deathSaves: { successes, failures, stable, dead }`,
+  immutably.
+- **`Combat.applyDamageWhileDown(actor, damageTaken, { critical })`**
+  — encodes the failed-save-on-damage rule from § *Damage at 0 Hit
+  Points*, including the massive-damage instant-death threshold.
+- **`Combat.dropToZero(actor)`** — applies the Unconscious condition,
+  zeroes HP, initialises the death-save tracker. Fires the existing
+  `onConditionApplied` hook.
+- **`Combat.stabilize(actor)`** and **`Combat.reviveTo(actor, hp)`**
+  — for healing-word, spare-the-dying, and Medicine-check
+  stabilise paths. `reviveTo` clears the tracker and removes
+  Unconscious.
+- **Rules knobs:** `deathSaveDC: number` (default 10) and
+  `deathSaveSuccessesRequired: number` (default 3) for gritty /
+  heroic packs.
+
+*Why now:* Hosts cannot run a real session without this — the HP
+loop bottoms out at "actor.hp === 0" with no engine handling. The
+`onDeath` hook surface exists but only fires from exhaustion; this
+wires the second pathway.
+
+### `1.2.0` — Rest mechanics (HP recovery + hit-dice spending)
+
+`Spellcasting.longRest` and `Spellcasting.shortRest` currently only
+refill spell slots. SRD 5.2 § *Short Rest* and § *Long Rest* both
+touch HP and hit dice.
+
+- **Short rest, SRD § *Short Rest*:** `Character.spendHitDie(actor,
+  rng?)` rolls one Hit Die + CON modifier (minimum 1 per the rule)
+  and restores that HP, decrementing the actor's hit-dice pool. The
+  host decides how many to spend in one rest; the engine resolves
+  one die at a time.
+- **Long rest, SRD § *Long Rest*:** add `Character.longRest(actor)`
+  that:
+  - restores HP to max,
+  - restores **half the actor's total Hit Dice** (rounded down,
+    minimum 1) per the SRD text,
+  - resets the death-save tracker from 1.1,
+  - reduces one level of Exhaustion (delegates to
+    `exhaustion.reduce`),
+  - refills spell slots (delegates to existing `Spellcasting.longRest`).
+- **Hit-dice pool on the record.** Extend `CharacterRecord` with
+  `hitDiceTotal` and `hitDiceUsed`; derive `hitDiceRemaining` on
+  the sheet. Document the additions in `docs/character-sheet.md` and
+  update the golden fixtures.
+- **Rules knob:** `longRestHitDiceRecovery: 'half' | 'all' | 'none'`
+  for gritty (`'none'`) and heroic (`'all'`) variants.
+
+*Why now:* Spells refill on rest, HP doesn't — asymmetric and
+visibly broken in any extended session. 1.1's "back to 1 HP" pathway
+needs a "back to max HP" counterpart to close the loop.
+
+### `1.3.0` — Class feature mechanics
+
+Class definitions currently expose features as strings
+(`features: { 1: ['Second Wind', 'Action Surge', ...] }`). The
+engine *names* features but doesn't enforce them. SRD 5.2 § *Classes*
+specifies the mechanics for each; implementing them is the long tail.
+
+Scope this milestone to **resource-bearing features** (the ones that
+consume a counter and need engine bookkeeping). Purely narrative
+features stay with the host. For each base class, ship handlers +
+actor-state shape + rest-reset wiring:
+
+- **Barbarian** § *Rage* — per-day uses, advantage on STR
+  checks/saves, +damage by level, resistance to
+  bludgeoning/piercing/slashing.
+- **Bard** § *Bardic Inspiration* — CHA-mod uses, long-rest refresh
+  (short rest from L5 per *Font of Inspiration*).
+- **Cleric** § *Channel Divinity* — uses scale with level, short-rest
+  refresh.
+- **Druid** § *Wild Shape* — uses per short rest, CR cap by level.
+- **Fighter** § *Second Wind* (`1d10 + level` HP, per short rest) and
+  § *Action Surge* (extra action, per short/long rest).
+- **Monk** § *Martial Arts* dice and § *Focus Points* (replaces Ki in
+  the 2024 SRD): point pool, point-spend handlers, short-rest
+  refresh.
+- **Paladin** § *Divine Sense*, § *Lay on Hands* (pool = 5 × level),
+  § *Divine Smite* (consume a spell slot, add radiant dice scaled
+  per slot level).
+- **Ranger** § *Hunter's Mark* binding to a slot, § *Favored Enemy*
+  free-cast accounting.
+- **Rogue** § *Sneak Attack* (1d6 per two levels, once per turn,
+  finesse/ranged + advantage *or* qualifying ally adjacent).
+- **Sorcerer** § *Sorcery Points* and § *Metamagic* — the
+  convert-slot↔point loop.
+- **Warlock** § *Eldritch Invocations* — selection and validation
+  (pact magic itself already ships).
+- **Wizard** § *Arcane Recovery* — recover spell-slot levels equal to
+  ½ wizard level (rounded up), once per long rest, on a short rest.
+
+Shape contract: each handler is a pure function
+`(actor, args?, rng?) → { actor: nextActor, result }` registered on
+the class def under a `mechanics` map, so a custom-class plugin can
+ship its own without forking. Resource counters all live on
+`actor.resources[<id>]` with a normalized
+`{ used, max, refreshes: 'short' | 'long' | 'day' }` shape so 1.2's
+rest functions reset them generically.
+
+*Why now:* Without this, the "12 SRD 5.2 base classes" claim
+overstates what the engine actually enforces. Metadata is fine for
+chip rendering; class *mechanics* are what the rules-kernel boundary
+promises. Largest milestone here — likely split into per-class
+sub-releases (`1.3.1`, `1.3.2`, …) once a real consumer drives the
+priority order.
 
 ## Post-1.0 ideas (no commitment)
 
