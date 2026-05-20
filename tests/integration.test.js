@@ -135,14 +135,17 @@ test('integration: monster registry is queryable by id', () => {
 test('integration: extraMonsters plugin extension works', () => {
   const engine = createEngine({
     extraMonsters: {
-      'mind-flayer': {
-        id: 'mind-flayer', name: 'Mind Flayer', cr: 7, ac: 15, hp: 71,
+      // Homebrew creature; deliberately invented (not from any
+      // published product) — this test demonstrates the plugin
+      // extension surface itself.
+      'void-thrall': {
+        id: 'void-thrall', name: 'Void Thrall', cr: 7, ac: 15, hp: 71,
         size: 'medium', speed: 30,
         abilityScores: { str: 11, dex: 12, con: 12, int: 19, wis: 17, cha: 17 }
       }
     }
   });
-  assert.equal(engine.monsters['mind-flayer'].cr, 7);
+  assert.equal(engine.monsters['void-thrall'].cr, 7);
   // Defaults still present.
   assert.ok(engine.monsters.goblin);
 });

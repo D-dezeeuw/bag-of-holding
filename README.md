@@ -160,6 +160,8 @@ validation behaviour, and merge semantics.
 - [docs/boundary.md](docs/boundary.md) — what the engine **won't** do.
 - [docs/beat-schema.md](docs/beat-schema.md) — the story-beat shape
   and runtime.
+- [docs/legal.md](docs/legal.md) — what we can and can't reference
+  from D&D / Wizards of the Coast; SRD 5.2 vs Product Identity.
 
 ## Requirements
 
