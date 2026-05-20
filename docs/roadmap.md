@@ -5,13 +5,13 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-20: `0.7.0`, pre-release. All 12 SRD 5.2
+> Status as of 2026-05-20: `0.8.0`, pre-release. All 12 SRD 5.2
 > base classes at levels 1–5; full Phase A/B/C plugin systems;
 > forensically inspectable randomness; character-sheet derivation;
-> encounter system; spellcasting mechanics; **condition effects**
-> (advantage/disadvantage from conditions, condition-aware
-> movesets); 407 tests at 100 / 100 / 100 coverage. GitHub-tagged
-> through `v0.7.0`.
+> encounter system; spellcasting mechanics; condition effects;
+> **beat runtime v2** (branching successors, conditional gates,
+> nested sub-threads); 419 tests at 100 / 100 / 100 coverage.
+> GitHub-tagged through `v0.8.0`.
 
 ## Vision
 
@@ -244,18 +244,19 @@ Mechanical effects baked into the math; condition-aware movesets.
   the chip set to a `wait` affordance; prone replaces it with
   `stand-up`.
 
-### `0.8.0` — Beat runtime v2
+### `0.8.0` — Beat runtime v2 ✅ shipped
 
-The beat schema already accepts `successors[]`; the runtime ignores
-it.
+The beat schema's `successors[]` is now walked by the runtime.
 
-- **Branching threads.** `advance()` walks a graph instead of a
-  list; the host (or the AI's classifier) picks the next beat from
-  the current beat's successors.
-- **Conditional successors.** Successors can be gated by flag
-  predicates so the same beat fans out differently per playthrough.
-- **Nested threads.** A beat can spawn a sub-thread (a side quest,
-  a flashback) that completes back into the parent.
+- **Branching threads.** `advance(thread, state, { chooseSuccessor })`
+  walks a graph instead of a list. With no picker, the first ready
+  successor is taken (deterministic for previewing).
+- **Conditional successors.** Successors are filtered by their own
+  `prerequisites[]` against `state.flags` before being offered to
+  the picker.
+- **Nested threads.** `Beats.pushSubThread(thread, beats)` pushes a
+  sub-thread; the runtime walks it transparently and pops on
+  completion. Tracked via `Beats.subThreadDepth(thread)`.
 
 ## Late-term: completeness and ecosystem
 

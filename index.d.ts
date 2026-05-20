@@ -515,7 +515,24 @@ export interface Beat {
 export interface Thread {
   beats: Beat[];
   currentIndex: number;
+  /** Map of beat id → index, populated by `createThread` for O(1)
+   *  successor lookups. */
+  byId: Record<string, number>;
+  /** Sub-thread stack. Empty = no nested thread; non-empty = the
+   *  topmost entry is the currently-active sub-thread. */
+  stack: Thread[];
 }
+
+/** Successor-picker callback for branching threads. Called with the
+ *  candidate successor ids (filtered by their prerequisites against
+ *  `state.flags`) plus the current state. Must return one of the
+ *  candidate ids; returning anything else causes `advance` to
+ *  refuse with a clear reason. */
+export type SuccessorChooser = (args: {
+  candidates: string[];
+  state: { flags?: Record<string, boolean> };
+  currentBeat: Beat;
+}) => string;
 
 export interface AdvanceResult {
   thread: Thread;
@@ -537,7 +554,17 @@ export interface BeatsNamespace {
   currentBeat(thread: Thread): Beat | null;
   isReady(beat: Beat | null, state: { flags?: Record<string, boolean> }): boolean;
   isComplete(beat: Beat | null, state: { flags?: Record<string, boolean> }): boolean;
-  advance(thread: Thread, state: { flags?: Record<string, boolean> }): AdvanceResult;
+  advance(
+    thread: Thread,
+    state: { flags?: Record<string, boolean> },
+    opts?: { chooseSuccessor?: SuccessorChooser }
+  ): AdvanceResult;
+  /** Push a nested sub-thread (side quest, flashback). The runtime
+   *  walks the sub-thread to completion, auto-pops, then returns to
+   *  the parent's current beat. */
+  pushSubThread(thread: Thread, beats: Beat[]): Thread;
+  /** Read-only depth of the sub-thread stack (0 = none active). */
+  subThreadDepth(thread: Thread): number;
   castArchetypes(
     beat: Beat,
     opts: { entityProvider: (slot: ArchetypeSlot) => unknown }

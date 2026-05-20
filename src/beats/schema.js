@@ -78,3 +78,7 @@ export function makeEmptyBeat(id) {
     successors: []
   };
 }
+
+// Re-export thread surface so beats/index.js gets pushSubThread
+// and subThreadDepth without explicit listing here. The runtime
+// pieces live in thread.js; schema.js stays the data shape.
