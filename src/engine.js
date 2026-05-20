@@ -428,7 +428,42 @@ export function createEngine(opts = {}) {
     effectiveAc: EncounterBase.effectiveAc,
     rangeBand: EncounterBase.rangeBand,
     ACTION_COSTS: EncounterBase.ACTION_COSTS,
-    COVER_BONUSES: EncounterBase.COVER_BONUSES
+    COVER_BONUSES: EncounterBase.COVER_BONUSES,
+
+    // === Death saves (since 1.1.0) ===
+    //
+    // Bound so the d20 from each save flows into the same rollLog as
+    // attack rolls and so `onDeath` fires consistently. Exhaustion
+    // already fires `onDeath` via the Conditions binding; these are
+    // the second and third pathways (failed death save, damage at 0).
+    //
+    // `dropToZero` delegates the Unconscious add to `ConditionsBound`
+    // (declared below in the same closure) so the existing
+    // `onConditionApplied` hook fires through one code path.
+    freshDeathSaves: CombatBase.freshDeathSaves,
+    dropToZero: (actor) => {
+      const withUnconscious = ConditionsBound.apply(actor, 'unconscious');
+      return { ...withUnconscious, hp: 0, deathSaves: CombatBase.freshDeathSaves() };
+    },
+    deathSave: (actor, context) => {
+      const result = CombatBase.deathSave(actor, rng, rules);
+      if (result.d20 !== 0) {
+        record('deathSave', { d20: result.d20, outcome: result.outcome }, context);
+      }
+      if (result.outcome === 'dead') {
+        hooks.fire('onDeath', { actor: result.actor, cause: 'deathSave', previous: actor });
+      }
+      return result;
+    },
+    applyDamageWhileDown: (actor, damageTaken, args) => {
+      const result = CombatBase.applyDamageWhileDown(actor, damageTaken, args ?? {}, rules);
+      if (result.outcome === 'dead' && (actor.deathSaves?.dead ?? false) === false) {
+        hooks.fire('onDeath', { actor: result.actor, cause: 'damageWhileDown', previous: actor });
+      }
+      return result;
+    },
+    stabilize: CombatBase.stabilize,
+    reviveTo: CombatBase.reviveTo
   };
 
   // Engine view passed to character derivation. Built once here so

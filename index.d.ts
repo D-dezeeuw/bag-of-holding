@@ -194,7 +194,8 @@ export type RollEntry =
   | { index: number; op: 'attackRoll';       d20: number; attackBonus: number; total: number; ac: number; hit: boolean; critical: boolean; fumble: boolean; context?: unknown }
   | { index: number; op: 'damageRoll';       damageDice: string; baseRolls: number[]; critRolls: number[]; damageMod: number; total: number;     context?: unknown }
   | { index: number; op: 'abilityCheck';     abilityScore: number; proficient: boolean; proficiencyBonus: number; d20: number; mod: number; total: number; dc: number; success: boolean; context?: unknown }
-  | { index: number; op: 'savingThrow';      abilityScore: number; proficient: boolean; proficiencyBonus: number; d20: number; mod: number; total: number; dc: number; success: boolean; context?: unknown };
+  | { index: number; op: 'savingThrow';      abilityScore: number; proficient: boolean; proficiencyBonus: number; d20: number; mod: number; total: number; dc: number; success: boolean; context?: unknown }
+  | { index: number; op: 'deathSave';        d20: number; outcome: DeathSaveOutcome;                                                                 context?: unknown };
 
 export interface VerifyLogArgs {
   seed: number;
@@ -410,6 +411,49 @@ export interface CombatNamespace {
     'in-range-normal' | 'in-range-long' | 'out-of-range';
   readonly ACTION_COSTS: readonly string[];
   readonly COVER_BONUSES: Readonly<Record<CoverName, number | null>>;
+
+  // === Death saves (since 1.1.0) ===
+  /** Fresh, zeroed death-save tracker. SRD 5.2 § Damage and
+   *  Healing — Death Saving Throws. */
+  freshDeathSaves(): DeathSaveTracker;
+  /** Drop an actor to 0 HP: applies Unconscious, initialises the
+   *  death-save tracker. Fires `onConditionApplied`. */
+  dropToZero(actor: Actor): Actor;
+  /** Roll one death save. Returns the new actor (with the tracker
+   *  advanced) and the outcome. Logs the d20 face to `rollLog` and
+   *  fires `onDeath` on the third failure. */
+  deathSave(actor: Actor, context?: unknown): DeathSaveResult;
+  /** Apply damage to an actor already at 0 HP. Counts as one failed
+   *  save (two on a critical hit, or instant death if `damageTaken
+   *  >= hpMax`). Fires `onDeath` on the killing blow. */
+  applyDamageWhileDown(
+    actor: Actor,
+    damageTaken: number,
+    args?: { critical?: boolean; hpMax?: number }
+  ): { outcome: DeathSaveOutcome; actor: Actor };
+  /** Stabilise the actor (Medicine check, spare-the-dying). Stays
+   *  at 0 HP and Unconscious; tracker resets and is flagged stable. */
+  stabilize(actor: Actor): Actor;
+  /** Revive the actor to a positive HP. Clears the tracker and
+   *  removes Unconscious. Throws if `hp < 1`. */
+  reviveTo(actor: Actor, hp: number): Actor;
+}
+
+/** Tracker stored on the actor while at 0 HP. */
+export interface DeathSaveTracker {
+  successes: number;
+  failures: number;
+  stable: boolean;
+  dead: boolean;
+}
+
+export type DeathSaveOutcome =
+  | 'success' | 'failure' | 'stable' | 'dead' | 'revived' | 'noop';
+
+export interface DeathSaveResult {
+  d20: number;
+  outcome: DeathSaveOutcome;
+  actor: Actor;
 }
 
 // ============================================================
@@ -781,6 +825,12 @@ export interface EngineRules {
   /** Override map of `level → proficiency bonus`. `null` (or
    *  omitted) uses the SRD 5.2 table. */
   proficiencyByLevel?: Record<number, number> | null;
+  /** DC of a death saving throw. SRD 5.2 default `10`. Heroic packs
+   *  lower it; gritty packs raise it. */
+  deathSaveDC?: number;
+  /** Successes / failures required to stabilise or die. SRD 5.2
+   *  default `3`. */
+  deathSaveSuccessesRequired?: number;
 }
 
 /** Resolved (frozen, defaults-merged) rules surface exposed on an
@@ -793,6 +843,8 @@ export interface ResolvedRules {
   explodingDamageDice: boolean;
   xpThresholds: Readonly<Record<number, number>> | null;
   proficiencyByLevel: Readonly<Record<number, number>> | null;
+  deathSaveDC: number;
+  deathSaveSuccessesRequired: number;
 }
 
 /**

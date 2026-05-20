@@ -46,7 +46,15 @@ export const DEFAULT_RULES = Object.freeze({
 
   /** Override map of `level → proficiency bonus`. `null` means use
    *  the SRD 5.2 table from `xp.js`. */
-  proficiencyByLevel: null
+  proficiencyByLevel: null,
+
+  /** DC of a death saving throw. SRD 5.2 § Death Saving Throws sets
+   *  this at 10. Gritty packs raise it; heroic packs lower it. */
+  deathSaveDC: 10,
+
+  /** Number of successes / failures required to stabilise / die.
+   *  SRD 5.2 uses three of each. */
+  deathSaveSuccessesRequired: 3
 });
 
 const isIntegerInRange = (v, min, max) =>
@@ -104,6 +112,16 @@ export function buildRules(extras = {}) {
       throw new Error('rules.proficiencyByLevel must be a record of positive integer levels → non-negative integer bonus');
     }
   }
+  if (extras.deathSaveDC !== undefined) {
+    if (!isIntegerInRange(extras.deathSaveDC, 1, 30)) {
+      throw new Error('rules.deathSaveDC must be an integer in [1, 30]');
+    }
+  }
+  if (extras.deathSaveSuccessesRequired !== undefined) {
+    if (!Number.isInteger(extras.deathSaveSuccessesRequired) || extras.deathSaveSuccessesRequired < 1) {
+      throw new Error('rules.deathSaveSuccessesRequired must be a positive integer');
+    }
+  }
 
   return Object.freeze({
     critOn: Object.freeze([...(extras.critOn ?? DEFAULT_RULES.critOn)]),
@@ -111,6 +129,8 @@ export function buildRules(extras = {}) {
     damageFloor: extras.damageFloor ?? DEFAULT_RULES.damageFloor,
     explodingDamageDice: extras.explodingDamageDice ?? DEFAULT_RULES.explodingDamageDice,
     xpThresholds: extras.xpThresholds == null ? DEFAULT_RULES.xpThresholds : Object.freeze({ ...extras.xpThresholds }),
-    proficiencyByLevel: extras.proficiencyByLevel == null ? DEFAULT_RULES.proficiencyByLevel : Object.freeze({ ...extras.proficiencyByLevel })
+    proficiencyByLevel: extras.proficiencyByLevel == null ? DEFAULT_RULES.proficiencyByLevel : Object.freeze({ ...extras.proficiencyByLevel }),
+    deathSaveDC: extras.deathSaveDC ?? DEFAULT_RULES.deathSaveDC,
+    deathSaveSuccessesRequired: extras.deathSaveSuccessesRequired ?? DEFAULT_RULES.deathSaveSuccessesRequired
   });
 }
