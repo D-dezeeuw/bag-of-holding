@@ -506,8 +506,10 @@ in the typecheck file:
   or 1 FP for Disengage + Dodge + 2 MA-die tempHp); Step of the Wind
   (free Dash, or 1 FP for Disengage + Dash + doubled jump + ally
   carry). ✅ shipped
-- **`1.3.6`** Paladin § *Lay on Hands* (pool = 5 × level), § *Divine
-  Smite* (consume a slot, add radiant dice scaled per slot level).
+- **`1.3.6`** Paladin § *Lay on Hands* (HP pool sized to 5 × level,
+  bonus-action heal-from-pool, long-rest refresh) and § *Divine
+  Smite* (now a 2024 spell — 2d8 radiant at slot 1, +1d8 per slot
+  above 1, +1d8 vs Fiend/Undead; one free cast per Long Rest). ✅ shipped
 - **`1.3.7`** Ranger § *Hunter's Mark* binding, § *Favored Enemy*
   free-cast accounting.
 - **`1.3.8`** Sorcerer § *Sorcery Points* + § *Metamagic* — the
