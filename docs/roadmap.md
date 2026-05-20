@@ -1037,21 +1037,25 @@ accrued through 1.21.
 
 Closes [§ 24 Plugin system](srd-coverage.md#24-plugin-system).
 
-### `1.23.0`: Audit / replay surface completion
+### `1.23.0`: Audit / replay surface completion ✅ shipped in v1.25.0
 
-The roll log captures every random event; cross-pack divergence
-becomes visible at the boundary instead of silently.
+The roll log now captures every state-shaping event, not just the
+dice inside.
 
-- **`mechanicApplied` op.** Log resource transitions + result
-  kind, not just the dice inside.
-- **Hook fire log.** Optional `hookFired` entries for
-  plugin-stack debugging.
-- **Rule-knob fingerprint** in the log header (resolved rules
-  hash). Mismatched-pack replays diverge at the boundary entry,
-  not at the first crit / damage-floor-affected roll.
-- **`deathSave` previous-state snapshot.** `previousSuccesses` /
-  `previousFailures` for full reconstructability without external
-  state.
+- **`mechanicApplied` op.** Every `engine.Mechanics.apply` call
+  appends an entry with the dispatched classId, subclassId, mechanic
+  id, and the handler's `ok` field (defaults to `true` when absent).
+- **`hookFired` op.** When `opts.logHooks: true`, every fired hook
+  with at least one registered handler appends a log entry
+  (event name + handler count). Events with no handlers stay silent.
+- **`engine.rulesFingerprint`.** A stable 8-character FNV-1a digest
+  over the resolved rules object. Two engines with identical rule
+  knobs produce identical fingerprints; any knob change reflects in
+  the digest so a replay can flag mismatched-pack divergence at the
+  boundary.
+- **`deathSave` previous-state snapshot.** `previousSuccesses` and
+  `previousFailures` now ride along on each `deathSave` log entry
+  for full reconstructability without external state.
 
 Closes [§ 23 Audit / replay surface](srd-coverage.md#23-audit--replay-surface).
 
