@@ -13,7 +13,12 @@ name: Pages
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
+      # Temporary: also fire on the milestone-checklist feature
+      # branch so we can verify the deploy end-to-end before merge.
+      # Remove after the first successful main-branch deploy.
+      - claude/milestone-checklist-pHM6y
   workflow_dispatch:
 
 permissions:
