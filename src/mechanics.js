@@ -44,15 +44,28 @@ import { modFromScore } from './checks.js';
  */
 export const REFRESH_KINDS = Object.freeze(['short', 'long', 'day']);
 
-/** Build a fresh resource counter at full capacity. */
-export function freshResource({ max, refreshes }) {
+/** Build a fresh resource counter at full capacity.
+ *
+ * `shortRestRecovery` is an optional partial-recovery amount applied
+ * when a `'long'`-tagged resource is touched by a Short Rest. The
+ * canonical example is the 2024 Barbarian's Rage: full refresh on
+ * Long Rest, recovers one use on a Short Rest. Defaults to 0
+ * (no partial recovery), and is ignored entirely for resources whose
+ * `refreshes` is already `'short'` (those refresh fully).
+ */
+export function freshResource({ max, refreshes, shortRestRecovery = 0 }) {
   if (!Number.isInteger(max) || max < 0) {
     throw new Error('freshResource: max must be a non-negative integer');
   }
   if (!REFRESH_KINDS.includes(refreshes)) {
     throw new Error(`freshResource: refreshes must be one of ${REFRESH_KINDS.join(', ')}`);
   }
-  return { used: 0, max, refreshes };
+  if (!Number.isInteger(shortRestRecovery) || shortRestRecovery < 0) {
+    throw new Error('freshResource: shortRestRecovery must be a non-negative integer');
+  }
+  const counter = { used: 0, max, refreshes };
+  if (shortRestRecovery > 0) counter.shortRestRecovery = shortRestRecovery;
+  return counter;
 }
 
 /**
@@ -68,7 +81,13 @@ export function freshResources(classDef, level) {
   if (!table) return out;
   for (const [id, spec] of Object.entries(table)) {
     const max = typeof spec.max === 'function' ? spec.max(level) : spec.max;
-    if (max > 0) out[id] = freshResource({ max, refreshes: spec.refreshes });
+    if (max > 0) {
+      out[id] = freshResource({
+        max,
+        refreshes: spec.refreshes,
+        shortRestRecovery: spec.shortRestRecovery ?? 0
+      });
+    }
   }
   return out;
 }
@@ -125,9 +144,20 @@ export function refreshResources(actor, kind) {
     if (shouldReset && r.used > 0) {
       next[id] = { ...r, used: 0 };
       changed = true;
-    } else {
-      next[id] = r;
+      continue;
     }
+    // Partial recovery on Short Rest for `'long'`-tagged resources
+    // that declare a `shortRestRecovery` count (Barbarian Rage,
+    // future Bard Font of Inspiration, etc.).
+    if (kind === 'short' && r.refreshes === 'long' && r.shortRestRecovery && r.used > 0) {
+      const reduced = Math.max(0, r.used - r.shortRestRecovery);
+      if (reduced !== r.used) {
+        next[id] = { ...r, used: reduced };
+        changed = true;
+        continue;
+      }
+    }
+    next[id] = r;
   }
   return changed ? { ...actor, resources: next } : actor;
 }

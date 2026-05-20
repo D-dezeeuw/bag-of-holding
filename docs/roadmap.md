@@ -480,8 +480,11 @@ Each sub-release adds one class's resource-bearing mechanics on top
 of the 1.3.0 foundation, with full test coverage and a smoke entry
 in the typecheck file:
 
-- **`1.3.1`** Barbarian § *Rage* (per-day uses, STR check/save
-  advantage, +damage by level, BPS resistance).
+- **`1.3.1`** Barbarian § *Rage* — uses per long rest (with 1
+  recovered on a short rest, per 2024 SRD), Rage Damage bonus
+  scaling (+2/+3/+4), BPS resistance flags, 10-minute / 100-round
+  duration cap. State on `actor.rage`; `Mechanics.refreshResources`
+  extended with a `shortRestRecovery` field. ✅ shipped
 - **`1.3.2`** Bard § *Bardic Inspiration* (CHA-mod uses, long-rest
   refresh; short rest from L5 via *Font of Inspiration*).
 - **`1.3.3`** Cleric § *Channel Divinity* (uses scale with level,
