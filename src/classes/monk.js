@@ -74,7 +74,11 @@ export default {
     13: ['Deflect Energy'],
     14: ['Disciplined Survivor'],
     15: ['Perfect Focus'],
-    16: ['Ability Score Improvement']
+    16: ['Ability Score Improvement'],
+    17: ['Subclass Feature'],
+    18: ['Empty Body'],
+    19: ['Epic Boon'],
+    20: ['Body and Mind']
   },
   // Resource-bearing features (since 1.3.5). Focus Points refresh
   // fully on a Short Rest — the canonical short-rest resource.

@@ -22,7 +22,11 @@ export default {
     13: ['Subclass Feature'],
     14: ['Devious Strikes'],
     15: ['Slippery Mind'],
-    16: ['Ability Score Improvement']
+    16: ['Ability Score Improvement'],
+    17: ['Subclass Feature'],
+    18: ['Elusive'],
+    19: ['Epic Boon'],
+    20: ['Stroke of Luck']
   },
   mechanics: {
     /**

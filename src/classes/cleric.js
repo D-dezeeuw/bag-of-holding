@@ -71,7 +71,11 @@ export default {
     13: [],
     14: ['Improved Blessed Strikes'],
     15: [],
-    16: ['Ability Score Improvement']
+    16: ['Ability Score Improvement'],
+    17: ['Subclass Feature'],
+    18: ['Divine Intervention Improvement'],
+    19: ['Epic Boon'],
+    20: ['Greater Divine Intervention']
   },
   // Resource-bearing features (since 1.3.3). Channel Divinity in
   // 2024 SRD: full refresh on Long Rest, one use back on Short Rest.

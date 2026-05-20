@@ -86,7 +86,11 @@ export default {
     13: ['Improved Brutal Strike'],
     14: ['Subclass Feature'],
     15: ['Persistent Rage'],
-    16: ['Ability Score Improvement']
+    16: ['Ability Score Improvement'],
+    17: ['Subclass Feature'],
+    18: ['Indomitable Might'],
+    19: ['Epic Boon'],
+    20: ['Primal Champion']
   },
   // Resource-bearing features (since 1.3.1). Rage refreshes on Long
   // Rest with one use recovered on Short Rest per SRD 5.2 § Barbarian

@@ -976,15 +976,20 @@ are complete.
 
 Closes the L11-L16 row of [§ 14 Classes, subclasses and tier 3/4](srd-coverage.md#14-classes--subclasses-and-tier-34).
 
-### `1.20.0`: Tier 4 class features (L17-L20) + Epic Boons
+### `1.20.0`: Tier 4 class features (L17-L20) + Epic Boons ✅ shipped in v1.22.0
 
-The capstone tier.
+The capstone tier ships across every class.
 
-- Per class: L17 / L18 / L20 signature features (e.g. Barbarian
-  Primal Champion, Sorcerer Spell Bombardment).
-- L19 Epic Boon slot, feat-like records.
-- Cantrip-scaling L17 breakpoint wired into derived sheets for
-  casters.
+- All 12 classes carry `features[17..20]` strings with the SRD
+  signature names (Primal Champion, Words of Creation, Eldritch
+  Master, Signature Spells, ...).
+- Fighter `extraAttacks[20] = 3`, surfacing a fourth attack through
+  `attacksPerAction`.
+- L19 Epic Boon row populated on every class.
+- 11 Epic Boon feats added to the feats registry with
+  `category: 'epic-boon'` (Combat Prowess, Dimensional Travel,
+  Energy Resistance, Fate, Fortitude, Irresistible Offense,
+  Recovery, Skill, Spell Recall, Night Spirit, Truesight).
 
 Closes the L17-L20 row of [§ 14](srd-coverage.md#14-classes--subclasses-and-tier-34)
 and the Epic Boons row of [§ 16](srd-coverage.md#16-species-backgrounds-feats).

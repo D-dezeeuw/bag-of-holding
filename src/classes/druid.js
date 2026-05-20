@@ -98,7 +98,11 @@ export default {
     13: [],
     14: ['Subclass Feature'],
     15: [],
-    16: ['Ability Score Improvement']
+    16: ['Ability Score Improvement'],
+    17: ['Subclass Feature'],
+    18: ['Beast Spells'],
+    19: ['Epic Boon'],
+    20: ['Archdruid']
   },
   // Resource-bearing features (since 1.3.4). Wild Shape refreshes
   // fully on Long Rest with one use back on Short Rest per SRD 5.2.

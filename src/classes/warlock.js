@@ -200,7 +200,11 @@ export default {
     13: ['Mystic Arcanum (7th level)'],
     14: ['Subclass Feature'],
     15: ['Mystic Arcanum (8th level)'],
-    16: ['Ability Score Improvement']
+    16: ['Ability Score Improvement'],
+    17: ['Subclass Feature'],
+    18: ['Mystic Arcanum (9th level)'],
+    19: ['Epic Boon'],
+    20: ['Eldritch Master']
   },
   mechanics: {
     /**

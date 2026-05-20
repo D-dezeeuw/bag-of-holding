@@ -64,7 +64,11 @@ export default {
     13: ['Relentless Hunter'],
     14: ['Nature\'s Veil'],
     15: ['Subclass Feature'],
-    16: ['Ability Score Improvement']
+    16: ['Ability Score Improvement'],
+    17: ['Subclass Feature'],
+    18: ['Feral Senses'],
+    19: ['Epic Boon'],
+    20: ['Foe Slayer']
   },
   // Resource-bearing features (since 1.3.7). Free Hunter's Mark
   // casts refresh on Long Rest only.

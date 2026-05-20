@@ -52,7 +52,11 @@ export default {
     13: [],
     14: ['Subclass Feature'],
     15: [],
-    16: ['Ability Score Improvement']
+    16: ['Ability Score Improvement'],
+    17: ['Subclass Feature'],
+    18: ['Spell Mastery'],
+    19: ['Epic Boon'],
+    20: ['Signature Spells']
   },
   // Resource-bearing features (since 1.3.10). Arcane Recovery is one
   // use per Long Rest — the use itself refunds slot levels.
