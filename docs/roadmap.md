@@ -317,13 +317,17 @@ The stable contract.
 
 Gaps and bugs identified by reading the engine against the published
 [SRD 5.2 (2025)](https://www.dndbeyond.com/srd) text. Unlike the
-parking lot below these are tracked commitments — the kernel is not
-honestly "SRD 5.2 compliant" until they land.
+parking lot at the bottom of this file these are tracked
+commitments — the kernel is not honestly "SRD 5.2 compliant" until
+they all land.
 
 The full line-by-line worklist lives in
-[docs/srd-coverage.md](srd-coverage.md). The milestones below carve
-out the first few releases; everything else from that checklist
-lands in subsequent ones.
+[docs/srd-coverage.md](srd-coverage.md); each milestone below
+references the checklist section(s) it closes. The version numbering
+runs `1.0.1 → 1.24.0`, with data-only registry growth folded in as
+parallel patch releases (`1.x.y`). `2.0.0` is reserved for any
+breaking-change cleanup once SRD coverage is closed; it may not be
+needed at all.
 
 ### `1.0.1` — SRD math fixes (patch) ✅ shipped
 
@@ -498,20 +502,513 @@ in the typecheck file:
   levels equal to ⌈½ wizard level⌉, once per long rest, on a short
   rest.
 
-## Post-1.0 ideas (no commitment)
+### `1.4.0` — Damage pipeline
 
-- **Optional rules variants** — gritty resting, slow natural healing,
-  flanking, called shots — each as a shippable plugin.
-- **Encounter builder helpers** — CR/XP budgets, difficulty estimates
-  per party composition.
-- **Localizable strings** — class names, condition labels, etc., for
-  hosts that target non-English campaigns.
+`damageRoll` returns a number; the resistance / immunity /
+vulnerability layer between that number and applied HP loss doesn't
+exist. Until it does, monster immunities, magic-item resistances,
+spell save-for-half outcomes, and class-feature resistances all have
+nowhere to plug in.
+
+- **`Combat.applyDamage(actor, { amount, type, critical?, source? })`** —
+  canonical entry point. Applies modifiers in SRD order
+  (adjustments → Resistance → Vulnerability), zeros on Immunity,
+  delegates to `dropToZero` when crossing 0.
+- **Damage-type propagation** — `damageRoll` result carries a
+  `damageType` field sourced from the weapon / spell record.
+- **Temporary HP** — `actor.tempHp`, `Combat.grantTempHp(actor,
+  amount)` (non-stacking, replace if larger, lost on Long Rest);
+  absorbed before HP on damage.
+- **`Combat.heal(actor, amount)`** — generic healing capped at
+  hpMax; removes Unconscious when HP rises above 0.
+
+*Why first after `1.3.x`:* almost every other section blocks on
+this. Closes [§ 5 Damage pipeline](srd-coverage.md#5-damage-pipeline)
+and unblocks rows in §§ 11, 18, 19, 22.
+
+### `1.5.0` — Condition system completion
+
+`CONDITION_EFFECTS` declares flags that the math layer doesn't yet
+fully consume; this release wires the remaining branches.
+
+- **Condition immunity** — `actor.conditionImmunities: ConditionName[]`,
+  filtered on `Conditions.apply`. Monster stat blocks consume the
+  same field.
+- **Auto-fail STR/DEX saves** under paralyzed / stunned / petrified /
+  unconscious — `Checks.savingThrow` reads the flag and returns
+  `{ success: false, autoFailed: true }`.
+- **Auto-crit from within 5 ft** on paralyzed / unconscious /
+  petrified / stunned — `Combat.attackRoll` checks the target's
+  flag plus attacker distance.
+- **Concentration auto-drop** on incapacitating conditions —
+  Conditions binding fires `endConcentration` when an
+  `incapacitates`-flagged condition lands.
+- **Per-application metadata** — conditions become `{ name, source?,
+  dc?, saveAbility?, endsOn? }`; the existing boolean-string API
+  stays as a shorthand.
+
+Closes [§ 4 Conditions](srd-coverage.md#4-conditions) and the
+concentration half of
+[§ 10](srd-coverage.md#10-spellcasting--slots--concentration).
+
+### `1.6.0` — Turn lifecycle hooks + time tracking
+
+Save-at-end-of-turn effects, spell durations, dawn timers, and the
+1.7+ reaction-cast wiring all need a turn clock and scene clock.
+
+- **New hook events:** `onTurnStart`, `onTurnEnd`, `onLongRest`,
+  `onShortRest`, `onCast`, `onDamageApplied`, `onHpChanged`.
+- **Round-scoped timers** — `actor.timers: [{ spellId, kind,
+  remainingRounds }]`, decremented on `onTurnEnd`; expiry events
+  fire.
+- **Save-at-end-of-turn** — applied condition with `endsOn:
+  'turnEnd'` triggers an auto-save before the timer ticks; passing
+  removes the condition.
+- **Scene clock** — `engine.advanceTime({ minutes, hours })` emits
+  `dawn` / `dusk` events at boundary crossings.
+- **Spell-duration ticker** — spell records' `duration` field parses
+  into rounds / minutes / hours; self-applied buffs auto-register.
+- **Stable creatures regain 1 HP after 1d4 hours** — wired via the
+  scene clock.
+
+*Why now:* every spell with a duration string is mute until this
+ships; the action menu in 1.7 needs `onTurnStart`/`onTurnEnd` for
+Dodge / Ready / Help expiry.
+
+Closes [§ 9 Time and duration
+tracking](srd-coverage.md#9-time-and-duration-tracking), the
+Concentration auto-drop dependency in
+[§ 10](srd-coverage.md#10-spellcasting--slots--concentration), and
+the "Stable creatures regain 1 HP" row of
+[§ 6](srd-coverage.md#6-healing--death).
+
+### `1.7.0` — Combat actions menu
+
+The encounter system spends a generic `'action'` budget today but
+knows none of the action semantics. This release adds the SRD action
+verbs and re-derives `opportunityAttack`'s `disengaged` flag
+properly.
+
+- **Dash, Disengage, Dodge, Help, Hide, Ready, Search, Study,
+  Influence** — each as a verb on `engine.Combat`: consumes a
+  budget, returns a state delta. Dodge tags
+  `dodgeUntilNextTurn` (consumed by attack stance / DEX saves);
+  Disengage sets the flag `opportunityAttack` already reads.
+- **Grapple, Shove** — fixed-DC `8 + STR + prof` per the 2024
+  single-roll change. Grapple applies `grappled` + binds the target;
+  Shove offers `prone` or push-5-ft.
+- **Two-Weapon Fighting** — `Combat.offHandAttack(state, attacker,
+  weapon)`: bonus-action gated, no ability mod on damage; interacts
+  with the existing Nick mastery rider.
+- **Improvised attacks** — d4 default; proficiency suppressed.
+- **Surprise on initiative** — disadvantage on the initiative roll
+  per the 2024 change (no more skip-turn).
+- **Initiative tiebreak chain** — DEX, then random.
+- **Mounted combat** — `actor.mountedOn` linkage; opportunity
+  attacks redirect appropriately.
+- **Object interaction** — free, one per turn, registered with the
+  budget.
+
+Closes [§ 3 Combat actions menu](srd-coverage.md#3-combat-actions-menu)
+and the surprise + tiebreak rows of
+[§ 2](srd-coverage.md#2-combat-math-attacks-damage-criticals).
+
+### `1.8.0` — Spellcasting completion
+
+Components, ritual, casting time variants, area-of-effect targeting,
+save-for-half outcomes, upcast deltas, reaction-cast canonical
+wiring. Big release; bundled because the spell record contract
+shifts in one coherent step.
+
+- **Components** — `spell.components: { v?, s?, m?: { cost?,
+  consumed? } }`; `castSpell` enforces silenced-vs-V, free-hand-vs-S,
+  focus / pouch substitution for non-cost M.
+- **Ritual casting** — `Spellcasting.castAsRitual(spell, caster)`:
+  +10 minutes, no slot, prepared-only.
+- **Casting time variants** — `spell.castingTime: 'action' | 'bonus'
+  | 'reaction' | { minutes } | { hours }` typed on records.
+- **Concentration auto-bind** — `spell.concentration: true` triggers
+  `startConcentration` on cast (paired with 1.5's auto-drop).
+- **One leveled spell per turn** — `castSpell` enforces SRD § *Spells
+  — Casting a Spell* ("only one leveled spell per turn").
+- **Area-of-effect targeting** — `Spellcasting.targetsInArea({
+  origin, shape, size, facing }, candidates)`. Shapes: cone, line,
+  sphere, cube, cylinder, emanation.
+- **`Spellcasting.castSpellSave(spell, targets, dc, { halfOnSuccess
+  })`** — per-target save outcomes packaged uniformly.
+- **Higher-level slot deltas** — `spell.upcast(level)` returns the
+  per-slot-level delta the engine merges with the base effect.
+- **Reaction-cast canonical wiring** — Shield is shipped; this
+  release adds Counterspell (the `onCast` interception path),
+  Absorb Elements, Hellish Rebuke, and Silvery Barbs as worked
+  examples.
+
+Closes
+[§ 11 Spellcasting — components & casting modes](srd-coverage.md#11-spellcasting--components--casting-modes),
+[§ 12 Spellcasting — targeting & effects](srd-coverage.md#12-spellcasting--targeting--effects),
+and the unfinished rows of
+[§ 10](srd-coverage.md#10-spellcasting--slots--concentration).
+
+### `1.9.0` — Magic items system
+
+Items are pure data today. This release gives them a lifecycle.
+
+- **Rarity bands** — `item.rarity: 'common' | 'uncommon' | 'rare' |
+  'veryRare' | 'legendary' | 'artifact'`.
+- **Attunement** — `item.requiresAttunement?: { classId?,
+  spellcaster?, abilityMin? }`; `actor.attunedItems: string[]` capped
+  at 3; attunement requires a Short Rest.
+- **Charges + dawn recharge** — `item.charges?: { max, recovers,
+  rechargesOn }`; per-actor charge state; the dawn event from 1.6
+  drives the recovery handler.
+- **Cursed items** — `item.cursed?: true | { effect }`; cannot
+  voluntarily un-attune; Remove Curse clears.
+- **Identify / known properties** — `actor.identifiedItems`; default
+  perception lists name + AC bonus only; full properties after
+  Identify or attunement.
+- **Magic item resilience** — `item.savingThrow?: { type, dc }` for
+  forced destruction attempts.
+- **Sentient items** — `{ intelligence, wisdom, charisma, alignment,
+  communication, will }`; conflict-resolution save against the
+  attuned creature.
+
+Closes [§ 18 Magic items](srd-coverage.md#18-magic-items).
+
+### `1.10.0` — Monster stat block depth
+
+Monster records get the structural fields needed to run them as
+opponents rather than reference data.
+
+- **Multiattack** — `monster.multiattack: { attacks: AttackRef[] }`
+  resolves in order on a single Attack action.
+- **Legendary Actions** — `{ uses, refreshOn: 'turnStart', options:
+  [...] }`; 2024 each costs 1 use. Engine offers them at the right
+  moments.
+- **Lair Actions** — `{ triggersOnInitiative: 20, options: [...] }`;
+  fires automatically at initiative count 20 when `inLair`.
+- **Mythic Actions** — analogous schema.
+- **Innate Spellcasting** — `{ atWill, 3day, 1day }`; per-day
+  counter resets on long rest.
+- **Senses** — `{ darkvision?, blindsight?, tremorsense?,
+  truesight?, passivePerception }` (ft for ranged senses).
+- **Resistance / Vulnerability / Immunity / Condition Immunity**
+  arrays per monster — consumed by 1.4's damage pipeline.
+- **Saving-throw proficiencies** — `monster.saves: { dex: +6, ... }`.
+- **Languages** — `monster.languages: string[]`.
+- **Legendary Resistance** — N uses/day, "convert a failed save to
+  a success" helper.
+
+Closes the mechanics half of
+[§ 19 Monsters](srd-coverage.md#19-monsters); data expansion is
+parallel work tracked under `1.x.y`.
+
+### `1.11.0` — Movement modes + vision
+
+The single `speed` number expands to per-mode + environment-aware,
+and the vision layer comes online.
+
+- **Per-mode speeds** — species / monster records carry `speeds: {
+  walk, fly?, swim?, climb?, burrow? }`. Sheet derivation surfaces
+  the full map.
+- **Difficult terrain** — `Combat.spend(state, id, 'movement', feet,
+  { difficult: true })` doubles cost.
+- **Falling damage** — `Combat.fall(actor, distanceFt)` →
+  `1d6 per 10 ft` (max 20d6), applies `prone`.
+- **Jumping** — `Combat.longJump(actor)`, `Combat.highJump(actor)`
+  returning feet.
+- **Crawling** — double-cost movement while prone.
+- **Light levels** — `LIGHT_LEVELS = ['bright', 'dim', 'darkness']`;
+  combat math reads the active level for sight-dependent rules.
+- **Special senses** — darkvision range converts dim → bright /
+  darkness → dim; blindsight, tremorsense, truesight as flags.
+- **Obscured** — heavily obscured = effectively blinded; lightly
+  obscured = Perception disadvantage.
+- **Line of sight / line of effect** —
+  `Combat.hasLineOfSight(observer, target, obstacles)`, separate
+  from cover.
+
+Closes the movement + vision halves of
+[§ 8 Movement, vision, exploration](srd-coverage.md#8-movement-vision-exploration);
+travel pace is 1.18.
+
+### `1.12.0` — Character creation pipeline
+
+`deriveSheet` works on a hand-built record; this release supplies
+the path to *build* the record.
+
+- **Multiclass record shape** — `record.classes: { fighter: 3,
+  rogue: 2 }`. Single-class shorthand still works as a single-key map.
+- **Multiclass prerequisites** —
+  `Character.canMulticlassInto(record, classId, registries)` enforces
+  SRD § *Multiclassing — Prerequisites*.
+- **Multiclass spell-slot table** — derived from per-class caster
+  levels (full = 1, half = ½, third = ⅓).
+- **Languages** — `record.languages`; background contributions
+  merged.
+- **Tool proficiencies** — `record.tools`; `Checks.toolCheck` +
+  proficiency-with-tool advantage helper.
+- **Origin feat auto-application** — backgrounds carry `originFeat`;
+  derivation merges the feat's mechanical effects (proficiencies,
+  ability bumps, mechanic registrations).
+- **Starting equipment** —
+  `Character.applyStartingPackage(record, classId, backgroundId,
+  choices)`.
+
+Closes [§ 15 Character creation
+pipeline](srd-coverage.md#15-character-creation-pipeline).
+
+### `1.13.0` — Species traits as mechanics
+
+Species records carry `traits: string[]` today; this release turns
+them into actionable mechanics.
+
+- **Darkvision range** derivation onto the sheet's senses block.
+- **Stonecunning, Lucky, Fey Ancestry, Trance, Brave** as effect
+  flags read by 1.6 hooks.
+- **Half movement modes** — Aarakocra fly, Triton swim, etc., surfaced
+  through the `speeds` map.
+- **Resistances** — Tiefling fire, Dragonborn elemental — feed the
+  1.4 damage pipeline.
+- **Cantrip-from-species** — High Elf cantrip slot becomes a real
+  spell entry on the sheet.
+
+Closes the trait-mechanics half of
+[§ 16 Species, backgrounds, feats](srd-coverage.md#16-species-backgrounds-feats);
+content expansion is parallel `1.x.y` work.
+
+### `1.14.0` — Saves & edge mechanics
+
+Reroll-on-save patterns and group/help skill semantics.
+
+- **Heroic Inspiration** — `actor.inspiration: boolean`;
+  `Inspiration.grant(actor)`, `Inspiration.spend(actor)`.
+- **Halfling Lucky** — auto-reroll-on-1 hook on D20 Tests.
+- **Indomitable** — Fighter L9 reroll-once-per-long-rest.
+- **Diamond Soul / Stillness of Mind / Magic Resistance** —
+  patterned reroll handlers using the same hook surface.
+- **Group checks** — `Checks.groupCheck(checks)` succeeds if half
+  or more pass.
+- **Working together** — Help variant: advantage on a skill check
+  if a single ally is proficient.
+
+Closes [§ 21 Saves & edge
+mechanics](srd-coverage.md#21-saves--edge-mechanics).
+
+### `1.15.0` — Hazards & environment
+
+Disease, poison, environmental damage.
+
+- **Disease registry** — onset save + per-stage save DC progression.
+- **Poison registry** — contact / ingested / inhaled / injury
+  vectors; matching DC + duration.
+- **Suffocation** — CON-mod-rounds breath-hold; HP=0 + can't recover
+  until breathing.
+- **Starvation / Thirst** — exhaustion accrual past the daily cap.
+- **Extreme heat / cold** — saves + exhaustion.
+- **Underwater combat** — disadvantage / immunity table.
+
+Closes [§ 22 Diseases, poisons, environmental
+hazards](srd-coverage.md#22-diseases-poisons-environmental-hazards).
+
+### `1.16.0` — Encounter design tools
+
+XP and treasure scaffolding for DMs.
+
+- **`Encounter.xpForCR(cr)`** — full SRD § *Monsters — CR* table.
+- **`Encounter.budget(partyLevels, difficulty)`** — low / moderate /
+  high XP bands per the 2024 simplified table.
+- **`Encounter.classify(monsters, partyLevels)`** — inverse: given
+  a monster mix, returns the difficulty band.
+- **Treasure tables** by hoard CR band — pure data.
+- **Random encounter scaffolding** — weighted pick over a
+  tier-bucket list.
+
+Closes [§ 20 Encounter design](srd-coverage.md#20-encounter-design).
+
+### `1.17.0` — Equipment depth
+
+Armor mechanics, tools, and the long tail of mundane gear.
+
+- **Encumbrance variant** — `Character.encumbranceLevel(actor)`
+  returns `'none' | 'encumbered' | 'heavily-encumbered'`.
+- **Armor donning / doffing time** — fields + helper.
+- **Stealth disadvantage on heavy armor** — applied to the derived
+  Stealth skill.
+- **STR-requirement speed penalty** — heavy armor below the STR
+  requirement reduces speed by 10 ft.
+- **Tools as proficiency** — `record.tools`; `Checks.toolCheck`.
+- **Adventuring gear / services / lifestyle / trade goods** as
+  registry entries — pure data.
+
+Closes [§ 17 Equipment & inventory](srd-coverage.md#17-equipment--inventory).
+
+### `1.18.0` — Travel & exploration
+
+Out-of-combat time finally has rules attached.
+
+- **Travel pace** — slow / normal / fast tables (per-hour mileage,
+  perception modifiers).
+- **Forced march** — exhaustion saves per hour past 8.
+- **Resting in dangerous terrain** — interruption probability
+  handler.
+- **Foraging / Navigation** — DC tables.
+
+Closes the exploration half of
+[§ 8 Movement, vision, exploration](srd-coverage.md#8-movement-vision-exploration).
+
+### `1.19.0` — Tier 3 class features (L11–L16)
+
+Each base class's tier-3 mechanics implemented behind the existing
+`mechanics` contract.
+
+- Per class: the signature L11 feature (e.g. Barbarian Relentless
+  Rage, Fighter Indomitable, Sorcerer Sorcerous Restoration, Wizard
+  Empowered Evocation).
+- Ability Score Improvements at L12.
+- Per-subclass L11 / L14 features.
+
+Closes the L11–L16 row of [§ 14 Classes — subclasses and tier 3/4](srd-coverage.md#14-classes--subclasses-and-tier-34).
+
+### `1.20.0` — Tier 4 class features (L17–L20) + Epic Boons
+
+The capstone tier.
+
+- Per class: L17 / L18 / L20 signature features (e.g. Barbarian
+  Primal Champion, Sorcerer Spell Bombardment).
+- L19 Epic Boon slot — feat-like records.
+- Cantrip-scaling L17 breakpoint wired into derived sheets for
+  casters.
+
+Closes the L17–L20 row of [§ 14](srd-coverage.md#14-classes--subclasses-and-tier-34)
+and the Epic Boons row of [§ 16](srd-coverage.md#16-species-backgrounds-feats).
+
+### `1.21.0` — Subclass handler maps
+
+Each of the 12 base subclasses ships its own `mechanics` map and
+resource specs.
+
+- Berserker (Barb), College of Lore (Bard), Life Domain (Cleric).
+- Circle of the Land (Druid), Champion (Fighter), Way of the Open
+  Hand (Monk).
+- Oath of Devotion (Paladin), Hunter (Ranger), Thief (Rogue).
+- Draconic Sorcery (Sorcerer), Fiend Patron (Warlock), Evoker
+  (Wizard).
+
+Closes the subclass-handlers row of
+[§ 14](srd-coverage.md#14-classes--subclasses-and-tier-34).
+
+### `1.22.0` — Plugin surface expansion
+
+The Phase A/B/C plugin contract grows to match the engine surface
+accrued through 1.21.
+
+- **`extraResources`** plugin contribution — custom resource shapes
+  for homebrew classes.
+- **`extraMechanics`** — class mechanics contributable without
+  forking a class def.
+- **`extraSenses`** / **`extraLightLevels`** — for homebrew vision
+  systems.
+- **Standardised Phase D hook events** — the new events from 1.6
+  (`onTurnStart`, `onTurnEnd`, `onLongRest`, `onShortRest`,
+  `onCast`, `onDamageApplied`, `onHpChanged`) become first-class
+  in the plugin contract docs.
+
+Closes [§ 24 Plugin system](srd-coverage.md#24-plugin-system).
+
+### `1.23.0` — Audit / replay surface completion
+
+The roll log captures every random event; cross-pack divergence
+becomes visible at the boundary instead of silently.
+
+- **`mechanicApplied` op** — log resource transitions + result
+  kind, not just the dice inside.
+- **Hook fire log** — optional `hookFired` entries for
+  plugin-stack debugging.
+- **Rule-knob fingerprint** in the log header — resolved rules
+  hash. Mismatched-pack replays diverge at the boundary entry,
+  not at the first crit / damage-floor-affected roll.
+- **`deathSave` previous-state snapshot** — `previousSuccesses` /
+  `previousFailures` for full reconstructability without external
+  state.
+
+Closes [§ 23 Audit / replay surface](srd-coverage.md#23-audit--replay-surface).
+
+### `1.24.0` — Documentation & host-contract sweep
+
+Bring the docs back in sync with the engine surface after a year
+of releases.
+
+- **`character-sheet.md`** schema additions for everything added
+  since 1.0 (hp / hpMax / hitDie / hitDiceTotal / hitDiceUsed /
+  deathSaves / resources / concentration / spellSlots / per-class
+  flags).
+- **`recipes.md`** worked examples for each major release — Death
+  Saves flow, Rest flow, Mechanics dispatch, plugin-contribute a
+  class, action menu, magic-item attunement.
+- **`spec.md`** plugin contract — new rule knobs, resource-spec
+  shape, mechanic handler signature, Phase D hooks.
+- **Kernel-boundary checklist** doc — what the engine claims to
+  enforce vs. what's host-owned, at a glance.
+- **TypeDoc-style reference site** — generated from `index.d.ts`
+  doc comments (deferred from 1.0.0).
+
+Closes [§ 25 Documentation & host
+contracts](srd-coverage.md#25-documentation--host-contracts).
+
+### `1.x.y` — Content registry expansion (parallel)
+
+Pure-data work, no engine surface change. Drops in as patch
+releases between minor versions whenever a contributor has time. The
+engine doesn't require any of these to be complete to ship a feature
+release; they're additive throughout the 1.x line.
+
+- **Spells** — `33 → ~370` (SRD 5.2 § Spells A–Z).
+- **Monsters** — `9 → hundreds` (SRD 5.2 § Monsters A–Z).
+- **Items + magic items** — `44 → full SRD list` (Equipment + Magic
+  Items chapters).
+- **Backgrounds** — current registry → all 16 SRD backgrounds.
+- **Feats** — `3 → full SRD list` (origin, general, fighting style,
+  epic boon).
+
+Closes the registry-depth rows of
+[§ 16](srd-coverage.md#16-species-backgrounds-feats),
+[§ 17](srd-coverage.md#17-equipment--inventory),
+[§ 18](srd-coverage.md#18-magic-items), and
+[§ 19](srd-coverage.md#19-monsters).
+
+### `2.0.0` — SRD-complete kernel (held in reserve)
+
+Reserved for the breaking-change cleanup that may or may not be
+necessary once `1.4 → 1.24` SRD coverage closes:
+
+- Any consolidation that requires breaking the frozen 1.0 contract
+  (e.g. CharacterRecord shape collapse after multiclassing lands;
+  `Actor` field reorganisation if `resources` / `timers` /
+  `deathSaves` / `concentration` warrant a sub-namespace).
+- Default-engine memory footprint review — anything that should
+  become lazy-loaded.
+- Doc-site v1 cut with migration notes from 1.x.
+
+If 1.4 → 1.24 lands non-breakingly, the SRD-complete badge is what
+ships *with* 1.24.0 and 2.0.0 is unnecessary.
+
+## Post-SRD ideas (no commitment)
+
+Out-of-scope-for-SRD-compliance work that may or may not be worth
+doing afterwards. Items that *were* on this list and have since
+moved into the SRD-completeness plan have been removed.
+
+- **Optional rules variants beyond rule knobs** — flanking, called
+  shots, lingering injuries, herbalism-as-mechanic — each as a
+  shippable plugin.
+- **Localizable strings** — class names, condition labels, etc.,
+  for hosts that target non-English campaigns.
 - **Code splitting** — separate entry points for `bag-of-holding/srd`
-  (data only) and `bag-of-holding/engine` (math only), so a tiny app
-  that only needs dice + checks can ship < 5 kB.
-- **Streaming spell rules** — a community contribution channel for
-  community-authored class/subclass plugins, vetted against the
-  validation surface the engine already ships.
+  (data only) and `bag-of-holding/engine` (math only), so a tiny
+  app that only needs dice + checks can ship < 5 kB.
+- **Community content channel** — a vetted contribution path for
+  community-authored class/subclass plugins, validated against the
+  plugin surface.
 
 ## What we will deliberately *not* build
 

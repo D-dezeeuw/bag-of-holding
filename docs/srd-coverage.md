@@ -6,12 +6,21 @@ this file as the **single source of truth for what's left** — when
 something ships, check it here and reference the release in the
 parenthetical.
 
+Every section also names the release that's *planned* to close it,
+linking back into [docs/roadmap.md](roadmap.md). The roadmap is the
+chronological plan; this file is the topical reference. The two stay
+in sync.
+
 ## Legend
 
 - `- [x]` — shipped and tested (100/100/100). Followed by `(vX.Y.Z)`.
 - `- [~]` — partial / foundation only. Sub-bullet calls out the gap.
 - `- [ ]` — not started.
 - *(SRD § X)* — pointer back into the [official SRD 5.2 PDF](https://media.dndbeyond.com/compendium-images/srd/5.2/SRD_CC_v5.2.pdf).
+- **Planned: vX.Y.Z** — under each section heading, names the
+  release that's expected to close the remaining boxes in that
+  section. Empty when the section is fully shipped or is parallel
+  work.
 
 When a sub-release closes a row, **update the line** rather than
 appending a new "done" list — the file's value is that the unchecked
@@ -22,6 +31,8 @@ boxes are always the live worklist.
 ## 1. Core math: dice, checks, DCs
 
 *(SRD § Playing the Game — The D20 Test, Difficulty Classes)*
+
+**Planned:** fully shipped through v1.0.1; passive-check helper deferred until a real consumer needs it.
 
 - [x] `Dice.roll('XdY±Z')` with parsed result *(v0.0.0)*
 - [x] Single-die and explicit explosion `Dice.rollDie`, `Dice.rollExplosive` *(v0.2.0)*
@@ -38,6 +49,8 @@ boxes are always the live worklist.
 ## 2. Combat math: attacks, damage, criticals
 
 *(SRD § Playing the Game — Combat; § Equipment — Weapons)*
+
+**Planned:** Surprise + initiative tiebreak land with [v1.7.0](roadmap.md#170--combat-actions-menu); hidden/unseen attacker bookkeeping deferred until a host needs full stealth state.
 
 - [x] `Combat.attackRoll` with stance from conditions *(v0.7.0)*
 - [x] `Combat.damageRoll` with crit (double dice, single modifier) *(v0.0.0)*
@@ -57,6 +70,8 @@ boxes are always the live worklist.
 ## 3. Combat actions menu
 
 *(SRD § Playing the Game — Combat — Actions)*
+
+**Planned:** [v1.7.0](roadmap.md#170--combat-actions-menu).
 
 - [x] Attack (resolves via `attackRoll`) *(v0.0.0)*
 - [x] Cast a Spell (resolves via `Spellcasting` — slot consumption side) *(v0.5.0)*
@@ -80,6 +95,8 @@ boxes are always the live worklist.
 
 *(SRD § Playing the Game — Conditions)*
 
+**Planned:** [v1.5.0](roadmap.md#150--condition-system-completion); save-at-end-of-turn binding rides on [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking).
+
 - [x] 14 boolean conditions: blinded, charmed, deafened, frightened, grappled, incapacitated, invisible, paralyzed, petrified, poisoned, prone, restrained, stunned, unconscious *(v0.0.0)*
 - [x] Numeric Exhaustion 0–6 (−2/level on D20 Tests, −5 ft/level on Speed, death at 6) *(v0.0.0)*
 - [x] Mechanical effect map (`CONDITION_EFFECTS`) folded into attack stance *(v0.7.0)*
@@ -94,6 +111,8 @@ boxes are always the live worklist.
 
 *(SRD § Playing the Game — Damage and Healing)*
 
+**Planned:** [v1.4.0](roadmap.md#140--damage-pipeline).
+
 - [ ] **Resistance** — halve damage of a tagged type *(SRD § Damage and Healing — Resistance)*
 - [ ] **Vulnerability** — double damage of a tagged type *(SRD § Damage and Healing — Vulnerability)*
 - [ ] **Immunity** — zero damage of a tagged type / no condition application *(SRD § Damage and Healing — Immunity)*
@@ -105,6 +124,8 @@ boxes are always the live worklist.
 ## 6. Healing & death
 
 *(SRD § Playing the Game — Damage and Healing — Healing / Death Saving Throws)*
+
+**Planned:** generic `Combat.heal` lands with [v1.4.0](roadmap.md#140--damage-pipeline); stable creatures regaining 1 HP rides on [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking)'s scene clock.
 
 - [x] Death save mechanic (`Combat.deathSave`) — DC 10, 3/3 threshold, nat 1 = two failures, nat 20 = revive *(v1.1.0)*
 - [x] `Combat.dropToZero` — applies Unconscious + tracker *(v1.1.0)*
@@ -119,6 +140,8 @@ boxes are always the live worklist.
 
 *(SRD § Playing the Game — Short Rest, Long Rest)*
 
+**Planned:** core mechanics shipped through v1.3.0; dawn/dusk timers + interrupted-rest semantics ride on [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking) and [v1.18.0](roadmap.md#1180--travel--exploration) respectively.
+
 - [x] `Rest.spendHitDie(actor)` — die + CON mod, min 1, caps at hpMax *(v1.2.0)*
 - [x] `Rest.longRest(actor)` — full HP, half hit dice back, exhaustion -1, slot refill, death-save reset *(v1.2.0)*
 - [x] `Rest.shortRest(actor)` — warlock pact slots + short-tagged resources *(v1.3.0)*
@@ -130,6 +153,8 @@ boxes are always the live worklist.
 ## 8. Movement, vision, exploration
 
 *(SRD § Playing the Game — Movement; § Adventuring — Vision and Light)*
+
+**Planned:** movement modes + vision in [v1.11.0](roadmap.md#1110--movement-modes--vision); travel pace + forced march in [v1.18.0](roadmap.md#1180--travel--exploration).
 
 - [x] Single `speed` value derived (post-condition / exhaustion) *(v0.7.0)*
 - [ ] **Per-mode speeds** — walk / fly / swim / climb / burrow *(SRD § Adventuring — Special Types of Movement)*
@@ -148,6 +173,8 @@ boxes are always the live worklist.
 
 *(cross-cutting; SRD § Adventuring — Time)*
 
+**Planned:** [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking).
+
 - [ ] **Round timer** — start-of-turn tick that expires `1 round` effects
 - [ ] **Save-at-end-of-turn** — applied effect carries `{ saveAbility, saveDC, endsOn: 'turnEnd' }`
 - [ ] **Minute / hour / day clocks** — scene clock the host can advance
@@ -157,6 +184,8 @@ boxes are always the live worklist.
 ## 10. Spellcasting — slots & concentration
 
 *(SRD § Spells — Casting Spells, Components, Concentration)*
+
+**Planned:** concentration auto-drop in [v1.5.0](roadmap.md#150--condition-system-completion); concentration auto-binding + one-leveled-spell-per-turn + upcast deltas in [v1.8.0](roadmap.md#180--spellcasting-completion).
 
 - [x] Full / half / Warlock pact slot tables L1–20 *(v0.5.0)*
 - [x] `consumeSlot` with auto-upcasting *(v0.5.0)*
@@ -174,6 +203,8 @@ boxes are always the live worklist.
 
 *(SRD § Spells — Components, Ritual)*
 
+**Planned:** [v1.8.0](roadmap.md#180--spellcasting-completion); spell scrolls + wands tie into [v1.9.0](roadmap.md#190--magic-items-system) magic-item charges.
+
 - [ ] **Verbal component** flag + silenced / muted check *(SRD § Spells — Verbal Components)*
 - [ ] **Somatic component** flag + free-hand check *(SRD § Spells — Somatic Components)*
 - [ ] **Material component** flag, optional cost + consumed *(SRD § Spells — Material Components)*
@@ -187,6 +218,8 @@ boxes are always the live worklist.
 
 *(SRD § Spells — Targets, Areas of Effect, Saving Throws)*
 
+**Planned:** [v1.8.0](roadmap.md#180--spellcasting-completion).
+
 - [ ] **Area-of-effect shapes** — cone, line, sphere, cube, cylinder, emanation *(SRD § Spells — Areas of Effect)*
 - [ ] **`castSpellSave(spell, targets, dc)`** — rolls each target's save, tags half-damage / failure outcome
 - [ ] **`saveForHalf` outcome shape** — standardised result for half-damage-on-save spells *(SRD many spells)*
@@ -198,6 +231,8 @@ boxes are always the live worklist.
 ## 13. Classes — base mechanics
 
 *(SRD § Classes — per class)*
+
+**Planned:** [v1.3.1 → v1.3.10](roadmap.md#13x--per-class-feature-rollout), one class per sub-release.
 
 - [x] **Foundation:** resource shape, `freshResources`, `spendResource`, `refreshResources`, `Mechanics.apply` *(v1.3.0)*
 - [x] **Fighter:** Second Wind, Action Surge *(v1.3.0)*
@@ -217,6 +252,8 @@ boxes are always the live worklist.
 
 *(SRD § Classes — Subclasses; § Classes — Levels 11–20)*
 
+**Planned:** L11–16 features in [v1.19.0](roadmap.md#1190--tier-3-class-features-l11l16); L17–20 + Epic Boons in [v1.20.0](roadmap.md#1200--tier-4-class-features-l17l20--epic-boons); 12 subclass handler maps in [v1.21.0](roadmap.md#1210--subclass-handler-maps).
+
 - [x] Class metadata strings for L1–L10 *(v0.9.0)*
 - [ ] **Subclass handler maps** for the 12 base subclasses
   - [ ] Berserker (Barbarian), College of Lore (Bard), Life Domain (Cleric)
@@ -229,6 +266,8 @@ boxes are always the live worklist.
 ## 15. Character creation pipeline
 
 *(SRD § Character Creation; § Character Origins)*
+
+**Planned:** [v1.12.0](roadmap.md#1120--character-creation-pipeline).
 
 - [x] Hand-built `CharacterRecord` → `DerivedSheet` *(v0.1.5)*
 - [x] Ability-score derivation (background bonuses) *(v0.1.5)*
@@ -247,6 +286,8 @@ boxes are always the live worklist.
 
 *(SRD § Character Origins)*
 
+**Planned:** species trait *mechanics* in [v1.13.0](roadmap.md#1130--species-traits-as-mechanics); fighting styles ride in with [v1.7.0](roadmap.md#170--combat-actions-menu) or the related class subrelease; Epic Boons in [v1.20.0](roadmap.md#1200--tier-4-class-features-l17l20--epic-boons); registry *depth* tracked under [v1.x.y](roadmap.md#1xy--content-registry-expansion-parallel).
+
 - [x] 9 species, 16 backgrounds (data only), 3 feats *(v0.0.0)*
 - [x] Species `speed`, `size`, `traits[]` strings *(v0.0.0)*
 - [ ] **Species traits as mechanics** — Darkvision range, Stonecunning, Lucky, Fey Ancestry, etc.
@@ -259,6 +300,8 @@ boxes are always the live worklist.
 ## 17. Equipment & inventory
 
 *(SRD § Equipment)*
+
+**Planned:** [v1.17.0](roadmap.md#1170--equipment-depth); registry depth tracked under [v1.x.y](roadmap.md#1xy--content-registry-expansion-parallel).
 
 - [x] Items registry — 44 entries, weapon mastery linked *(v0.0.0)*
 - [x] Carrying capacity (STR × 15 × size multiplier) *(v0.1.5)*
@@ -276,6 +319,8 @@ boxes are always the live worklist.
 
 *(SRD § Magic Items)*
 
+**Planned:** mechanics in [v1.9.0](roadmap.md#190--magic-items-system); item A–Z catalogue depth in [v1.x.y](roadmap.md#1xy--content-registry-expansion-parallel).
+
 - [ ] **Rarity bands** field on item records *(SRD § Magic Items — Rarity)*
 - [ ] **Attunement** field + 3-slot cap on actors *(SRD § Magic Items — Attunement)*
 - [ ] **Attunement Short Rest gate** *(SRD § Magic Items — Attunement)*
@@ -290,6 +335,8 @@ boxes are always the live worklist.
 ## 19. Monsters
 
 *(SRD § Monsters)*
+
+**Planned:** stat-block mechanics in [v1.10.0](roadmap.md#1100--monster-stat-block-depth); registry depth in [v1.x.y](roadmap.md#1xy--content-registry-expansion-parallel).
 
 - [x] Monster registry — 9 entries *(v0.6.0)*
 - [x] CR field on records *(v0.6.0)*
@@ -310,6 +357,8 @@ boxes are always the live worklist.
 
 *(SRD § Gameplay Toolbox — Combat Encounters)*
 
+**Planned:** [v1.16.0](roadmap.md#1160--encounter-design-tools).
+
 - [ ] **`xpForCR(cr)`** lookup *(SRD § Monsters — CR)*
 - [ ] **Encounter budget per party level** — low / moderate / high bands *(SRD § Gameplay Toolbox)*
 - [ ] **Treasure tables** — by hoard CR band *(SRD § Gameplay Toolbox — Treasure)*
@@ -318,6 +367,8 @@ boxes are always the live worklist.
 ## 21. Saves & edge mechanics
 
 *(SRD § Playing the Game — Saving Throws + per-feature)*
+
+**Planned:** [v1.14.0](roadmap.md#1140--saves--edge-mechanics).
 
 - [x] `Checks.savingThrow` *(v0.0.0)*
 - [ ] **Inspiration / Heroic Inspiration** — actor flag + grant / spend helpers *(SRD § Character Creation — Heroic Inspiration)*
@@ -331,6 +382,8 @@ boxes are always the live worklist.
 
 *(SRD § Adventuring — Diseases / Poisons / Environment)*
 
+**Planned:** [v1.15.0](roadmap.md#1150--hazards--environment).
+
 - [ ] Disease registry + onset timer + per-stage save DC
 - [ ] Poison registry — contact, ingested, inhaled, injury *(SRD § Equipment — Poisons)*
 - [ ] Drowning / Suffocation — CON-based hold-breath rounds *(SRD § Adventuring — Suffocation)*
@@ -340,6 +393,8 @@ boxes are always the live worklist.
 ## 23. Audit / replay surface
 
 *(non-SRD; engine-internal)*
+
+**Planned:** [v1.23.0](roadmap.md#1230--audit--replay-surface-completion).
 
 - [x] Append-only `engine.rollLog` *(v0.1.0)*
 - [x] `verifyLog` with seed + rules *(v0.1.0)*
@@ -356,6 +411,8 @@ boxes are always the live worklist.
 
 *(non-SRD; engine architecture)*
 
+**Planned:** [v1.22.0](roadmap.md#1220--plugin-surface-expansion). Phase D hook events are emitted as their feature releases land; this milestone consolidates them as a documented contract.
+
 - [x] **Phase A (content)** — extraSpecies / Classes / Backgrounds / Feats / Spells / Items / Conditions / Mastery / Monsters *(v0.0.0 → v0.6.0)*
 - [x] **Phase B (rules)** — critOn, fumbleOn, damageFloor, explodingDamageDice, xpThresholds, proficiencyByLevel, deathSaveDC, deathSaveSuccessesRequired, longRestHitDiceRecovery *(v0.2.0 → v1.2.0)*
 - [x] **Phase C (hooks)** — beforeAttack, afterDamage, onLevelUp, onConditionApplied, onDeath *(v0.3.0)*
@@ -368,6 +425,8 @@ boxes are always the live worklist.
 ## 25. Documentation & host contracts
 
 *(non-SRD; project hygiene)*
+
+**Planned:** [v1.24.0](roadmap.md#1240--documentation--host-contract-sweep).
 
 - [x] `docs/why.md`, `docs/boundary.md`, `docs/spec.md`, `docs/recipes.md`, `docs/roadmap.md`, `docs/character-sheet.md`, `docs/beat-schema.md`
 - [x] `docs/srd-coverage.md` *(this file)*
