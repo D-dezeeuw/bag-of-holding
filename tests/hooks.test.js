@@ -8,7 +8,11 @@ import { seededRng } from '../src/dice.js';
 
 test('HOOK_EVENTS is the frozen canonical list', () => {
   assert.deepEqual([...HOOK_EVENTS], [
-    'beforeAttack', 'afterDamage', 'onLevelUp', 'onConditionApplied', 'onDeath'
+    // Phase C (since 0.3.0).
+    'beforeAttack', 'afterDamage', 'onLevelUp', 'onConditionApplied', 'onDeath',
+    // Phase D (since 1.6.0).
+    'onTurnStart', 'onTurnEnd', 'onLongRest', 'onShortRest', 'onCast',
+    'onDamageApplied', 'onHpChanged'
   ]);
   assert.throws(() => HOOK_EVENTS.push('x'));
 });

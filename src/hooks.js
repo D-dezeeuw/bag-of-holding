@@ -34,11 +34,23 @@
  * bug, not a never-firing dead hook).
  */
 export const HOOK_EVENTS = Object.freeze([
+  // Phase C — combat / progression events (since 0.3.0).
   'beforeAttack',
   'afterDamage',
   'onLevelUp',
   'onConditionApplied',
-  'onDeath'
+  'onDeath',
+  // Phase D — turn lifecycle + scene events (since 1.6.0).
+  // Hosts call `engine.Combat.turnStart` / `turnEnd` to fire the
+  // first two; the engine fires the rest from the bound surfaces
+  // (Rest.longRest, Rest.shortRest, Combat.applyDamage, casting).
+  'onTurnStart',
+  'onTurnEnd',
+  'onLongRest',
+  'onShortRest',
+  'onCast',
+  'onDamageApplied',
+  'onHpChanged'
 ]);
 
 /**
