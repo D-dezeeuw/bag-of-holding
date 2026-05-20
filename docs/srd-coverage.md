@@ -242,7 +242,7 @@ boxes are always the live worklist.
 - [x] **Cleric:** Channel Divinity — uses 2/3/4 at L2/L6/L18, long-rest full / short-rest 1, Divine Spark (heal or damage modes) + Turn Undead handlers, spell-save-DC helper *(SRD § Cleric — Channel Divinity / Divine Spark / Turn Undead)* *(v1.3.3)*
 - [x] **Druid:** Wild Shape — 2 uses, long full / short 1; CR cap (1/4 / 1/2 / 1 at L2/L4/L8); swim unlocked L4, fly L8; revert + caps helpers *(SRD § Druid — Wild Shape / Beast Shapes)* *(v1.3.4)*
 - [x] **Monk:** Focus Points pool (= level from L2, short refresh), Martial Arts die scaling, Flurry of Blows / Patient Defense / Step of the Wind handlers covering both free and FP-spend modes *(SRD § Monk — Focus Points / Martial Arts)* *(v1.3.5)*
-- [ ] **Paladin:** Lay on Hands (pool = 5 × level), Divine Smite (consume slot, +radiant dice scaled per slot) *(SRD § Paladin — Lay on Hands / Divine Smite)* — *roadmap 1.3.6*
+- [x] **Paladin:** Lay on Hands (HP pool = 5 × level), Divine Smite (2024 spell — 2d8 radiant + 1d8/slot-above-1 + 1d8 vs Fiend/Undead, one free cast per Long Rest) *(SRD § Paladin — Lay on Hands / Divine Smite)* *(v1.3.6)*
 - [ ] **Ranger:** Hunter's Mark slot binding, Favored Enemy free-cast accounting *(SRD § Ranger — Hunter's Mark / Favored Enemy)* — *roadmap 1.3.7*
 - [ ] **Sorcerer:** Sorcery Points + Metamagic conversion loop *(SRD § Sorcerer — Sorcery Points / Metamagic)* — *roadmap 1.3.8*
 - [ ] **Warlock:** Eldritch Invocations registry + selection / validation *(SRD § Warlock — Eldritch Invocations)* — *roadmap 1.3.9*
