@@ -45,6 +45,7 @@ import * as MonstersBase from './monsters.js';
 import * as MovementBase from './movement.js';
 import * as MulticlassBase from './multiclass.js';
 import * as InspirationBase from './inspiration.js';
+import * as EncounterDesignBase from './encounter-design.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -742,6 +743,12 @@ export function createEngine(opts = {}) {
     // Magic items lifecycle (since 1.9.0). rechargeItem accepts the
     // engine's rng via the binding so dice-based recoveries (e.g.
     // 1d6+4 at dawn) flow into the same replay-deterministic chain.
+    EncounterDesign: Object.freeze({
+      xpForCR: EncounterDesignBase.xpForCR,
+      ENCOUNTER_BUDGETS: EncounterDesignBase.ENCOUNTER_BUDGETS,
+      budgetFor: EncounterDesignBase.budgetFor,
+      classifyEncounter: EncounterDesignBase.classifyEncounter
+    }),
     Inspiration: Object.freeze({
       hasInspiration: InspirationBase.hasInspiration,
       grant: InspirationBase.grantInspiration,

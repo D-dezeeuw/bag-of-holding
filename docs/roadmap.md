@@ -881,9 +881,10 @@ Disease, poison, environmental damage.
 Closes [§ 22 Diseases, poisons, environmental
 hazards](srd-coverage.md#22-diseases-poisons-environmental-hazards).
 
-### `1.16.0` — Encounter design tools
+### `1.16.0` — Encounter design tools ✅ shipped
 
-XP and treasure scaffolding for DMs.
+XP-by-CR table and 2024 simplified encounter difficulty bands.
+Treasure tables deferred to a later content-only patch.
 
 - **`Encounter.xpForCR(cr)`** — full SRD § *Monsters — CR* table.
 - **`Encounter.budget(partyLevels, difficulty)`** — low / moderate /

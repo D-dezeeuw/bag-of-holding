@@ -357,10 +357,11 @@ boxes are always the live worklist.
 
 **Planned:** [v1.16.0](roadmap.md#1160--encounter-design-tools).
 
-- [ ] **`xpForCR(cr)`** lookup *(SRD § Monsters — CR)*
-- [ ] **Encounter budget per party level** — low / moderate / high bands *(SRD § Gameplay Toolbox)*
-- [ ] **Treasure tables** — by hoard CR band *(SRD § Gameplay Toolbox — Treasure)*
-- [ ] **Random encounter generator scaffolding**
+- [x] **`xpForCR(cr)`** — `EncounterDesign.xpForCR` covers fractional CRs and CR 1..30 *(v1.16.0)*
+- [x] **Encounter budget per party level** — `EncounterDesign.budgetFor(partyLevels, difficulty)` + `ENCOUNTER_BUDGETS` table covering L1..L20 / low/moderate/high *(v1.16.0)*
+- [x] **Encounter classification** — `EncounterDesign.classifyEncounter({ monsterCRs, partyLevels })` returns the matched band including `trivial` and `deadly` extremes *(v1.16.0)*
+- [ ] **Treasure tables** — by hoard CR band *(SRD § Gameplay Toolbox — Treasure)* — pure data, parallel 1.x.y patch
+- [ ] **Random encounter generator scaffolding** — deferred until a host needs it
 
 ## 21. Saves & edge mechanics
 
