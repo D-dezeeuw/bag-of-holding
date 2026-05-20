@@ -253,11 +253,11 @@ boxes are always the live worklist.
 **Planned:** L11-16 features in [v1.19.0](roadmap.md#1190--tier-3-class-features-l11l16); L17-20 + Epic Boons in [v1.20.0](roadmap.md#1200--tier-4-class-features-l17l20--epic-boons); 12 subclass handler maps in [v1.21.0](roadmap.md#1210--subclass-handler-maps).
 
 - [x] Class metadata strings for L1-L10 *(v0.9.0)*
-- [ ] **Subclass handler maps** for the 12 base subclasses
-  - [ ] Berserker (Barbarian), College of Lore (Bard), Life Domain (Cleric)
-  - [ ] Circle of the Land (Druid), Champion (Fighter), Way of the Open Hand (Monk)
-  - [ ] Oath of Devotion (Paladin), Hunter (Ranger), Thief (Rogue)
-  - [ ] Draconic Sorcery (Sorcerer), Fiend Patron (Warlock), Evoker (Wizard)
+- [x] **Subclass handler maps** for the 12 base subclasses *(v1.23.0)*
+  - [x] Berserker (Barbarian), College of Lore (Bard), Life Domain (Cleric)
+  - [x] Circle of the Land (Druid), Champion (Fighter), Way of the Open Hand (Monk)
+  - [x] Oath of Devotion (Paladin), Hunter (Ranger), Thief (Rogue)
+  - [x] Draconic Sorcery (Sorcerer), Fiend Patron (Warlock), Evoker (Wizard)
 - [x] **Tier 3 features** L11-L16 per class *(v1.21.0)*. Feature strings + key signature mechanics (Fighter Indomitable + 3rd attack at L11, Rogue Reliable Talent, Barbarian Relentless Rage).
 - [x] **Tier 4 features** L17-L20 per class *(v1.22.0)*. Feature strings + Fighter 4th attack + Epic Boon row.
 - [x] **Epic Boon feats** *(v1.22.0)*. 11 SRD Epic Boons registered with `category: 'epic-boon'`.

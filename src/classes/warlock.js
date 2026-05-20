@@ -180,7 +180,19 @@ export default {
       name: 'Patron: The Fiend',
       features: {
         1: ["Dark One's Blessing", 'Expanded Spell List'],
-        3: ["Dark One's Own Luck"]
+        3: ["Dark One's Own Luck"],
+        6: ['Fiendish Resilience'],
+        10: ['Hurl Through Hell'],
+        14: ['Demonic Soul']
+      },
+      mechanics: {
+        // Dark One's Blessing: gain CHA mod + Warlock level THP when
+        // reducing a hostile to 0 HP.
+        darkOnesBlessing: (actor) => {
+          const chaMod = Math.floor(((actor.abilityScores?.cha ?? 10) - 10) / 2);
+          const level = actor.level ?? 1;
+          return { tempHp: Math.max(1, chaMod + level), actor };
+        }
       }
     }
   },

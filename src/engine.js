@@ -677,8 +677,13 @@ export function createEngine(opts = {}) {
     apply: (actor, id, args, context) => {
       const classDef = classes[actor.classId];
       if (!classDef) throw new Error(`Unknown class for mechanic dispatch: ${actor.classId}`);
-      const handlers = classDef.mechanics;
-      if (!handlers || !handlers[id]) {
+      // Subclass mechanics override class-level handlers when the
+      // actor has a subclassId that matches a registered subclass.
+      const subclassDef = actor.subclassId ? classDef.subclasses?.[actor.subclassId] : null;
+      const subclassHandlers = subclassDef?.mechanics ?? {};
+      const handlers = classDef.mechanics ?? {};
+      const handler = subclassHandlers[id] ?? handlers[id];
+      if (!handler) {
         throw new Error(`Unknown class mechanic: ${classDef.id}.${id}`);
       }
       // Intercept rollDie so the engine's audit trail captures any
@@ -693,7 +698,7 @@ export function createEngine(opts = {}) {
         modFromScore: Checks.modFromScore,
         saver: hazardSaver
       };
-      return handlers[id](actor, args ?? {}, ctx);
+      return handler(actor, args ?? {}, ctx);
     }
   };
 

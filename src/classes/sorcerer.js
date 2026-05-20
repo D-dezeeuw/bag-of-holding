@@ -72,7 +72,22 @@ export default {
       name: 'Draconic Sorcery',
       features: {
         1: ['Draconic Resilience', 'Draconic Ancestry'],
-        3: ['Elemental Affinity']
+        3: ['Elemental Affinity'],
+        6: ['Draconic Wings'],
+        14: ['Dragon Wings'],
+        18: ['Draconic Presence']
+      },
+      mechanics: {
+        // Elemental Affinity: when casting a spell of the ancestry's
+        // damage type, add CHA mod to one damage roll. Pure dispatch.
+        elementalAffinity: (actor, args) => {
+          const chaMod = Math.floor(((actor.abilityScores?.cha ?? 10) - 10) / 2);
+          const ancestryType = actor.draconicAncestryType ?? args?.ancestryType ?? 'fire';
+          if (args?.spellDamageType !== ancestryType) {
+            return { applies: false, bonus: 0, actor };
+          }
+          return { applies: true, bonus: chaMod, actor };
+        }
       }
     }
   },

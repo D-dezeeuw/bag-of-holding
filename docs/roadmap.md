@@ -994,17 +994,26 @@ The capstone tier ships across every class.
 Closes the L17-L20 row of [§ 14](srd-coverage.md#14-classes--subclasses-and-tier-34)
 and the Epic Boons row of [§ 16](srd-coverage.md#16-species-backgrounds-feats).
 
-### `1.21.0`: Subclass handler maps
+### `1.21.0`: Subclass handler maps ✅ shipped in v1.23.0
 
-Each of the 12 base subclasses ships its own `mechanics` map and
-resource specs.
+Each of the 12 base subclasses now ships its own `mechanics` map
+alongside its feature progression through tier 3/4. The engine's
+mechanic dispatcher consults the subclass map first when the actor
+carries a `subclassId`, falling back to the class-level handler
+when the subclass doesn't override it.
 
-- Berserker (Barb), College of Lore (Bard), Life Domain (Cleric).
-- Circle of the Land (Druid), Champion (Fighter), Way of the Open
-  Hand (Monk).
-- Oath of Devotion (Paladin), Hunter (Ranger), Thief (Rogue).
-- Draconic Sorcery (Sorcerer), Fiend Patron (Warlock), Evoker
-  (Wizard).
+- Berserker (Barb): frenzy, mindlessRageImmunities.
+- College of Lore (Bard): cuttingWords.
+- Life Domain (Cleric): discipleOfLife.
+- Circle of the Land (Druid): landsAid.
+- Champion (Fighter, new): improvedCritOn returning [19,20] / [18,20].
+- Way of the Open Hand (Monk): openHandTechnique.
+- Oath of Devotion (Paladin): sacredWeapon.
+- Hunter (Ranger): huntersPrey.
+- Thief (Rogue, new): fastHands.
+- Draconic Sorcery (Sorcerer): elementalAffinity.
+- Fiend Patron (Warlock): darkOnesBlessing.
+- Evoker (Wizard): sculptSpells.
 
 Closes the subclass-handlers row of
 [§ 14](srd-coverage.md#14-classes--subclasses-and-tier-34).

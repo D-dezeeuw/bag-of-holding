@@ -66,7 +66,19 @@ export default {
       id: 'berserker',
       name: 'Path of the Berserker',
       features: {
-        3: ['Frenzy']
+        3: ['Frenzy'],
+        6: ['Mindless Rage'],
+        10: ['Retaliation'],
+        14: ['Intimidating Presence']
+      },
+      mechanics: {
+        // Frenzy: while raging, the Berserker can make a single bonus
+        // weapon attack each turn. Pure metadata flag; the host adds
+        // the extra attack to the encounter bonus-action budget.
+        frenzy: (actor) => ({ ok: true, bonusAttackThisTurn: true, actor }),
+        // Mindless Rage (L6): immune to charmed / frightened while
+        // raging. The host stamps the immunity from this flag.
+        mindlessRageImmunities: (actor) => ({ immune: ['charmed', 'frightened'], actor })
       }
     }
   },

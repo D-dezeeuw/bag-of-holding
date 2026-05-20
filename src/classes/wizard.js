@@ -32,7 +32,19 @@ export default {
       id: 'evoker',
       name: 'Evoker',
       features: {
-        3: ['Evocation Savant', 'Sculpt Spells']
+        3: ['Evocation Savant', 'Sculpt Spells'],
+        6: ['Potent Cantrip'],
+        10: ['Empowered Evocation'],
+        14: ['Overchannel']
+      },
+      mechanics: {
+        // Sculpt Spells: when casting an evocation spell, can shield
+        // allies in the area from damage. Returns the count of allies
+        // that take no damage (1 + spell level).
+        sculptSpells: (_actor, args) => {
+          const spellLevel = args?.spellLevel ?? 1;
+          return { protectedCount: 1 + spellLevel };
+        }
       }
     }
   },

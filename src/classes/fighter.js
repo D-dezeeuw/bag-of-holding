@@ -20,6 +20,28 @@ export default {
   // Extra Attack at L5 / L11: one then two additional attacks per
   // Attack action. Encounter system reads via attacksPerAction.
   extraAttacks: { 5: 1, 11: 2, 20: 3 },
+  subclasses: {
+    champion: {
+      id: 'champion',
+      name: 'Champion',
+      features: {
+        3: ['Improved Critical'],
+        7: ['Remarkable Athlete'],
+        10: ['Additional Fighting Style'],
+        15: ['Superior Critical'],
+        18: ['Survivor']
+      },
+      mechanics: {
+        // Improved Critical: 19-20 crits. The host reads
+        // engine.rules.critOn or this expanded range when computing
+        // the crit threshold.
+        improvedCritOn: (_actor, args) => {
+          const level = args?.level ?? 3;
+          return { critOn: level >= 15 ? [18, 19, 20] : [19, 20] };
+        }
+      }
+    }
+  },
   features: {
     1: ['Fighting Style', 'Second Wind', 'Weapon Mastery'],
     2: ['Action Surge', 'Tactical Mind'],

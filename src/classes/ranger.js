@@ -44,7 +44,18 @@ export default {
       id: 'hunter',
       name: 'Hunter',
       features: {
-        3: ["Hunter's Lore", "Hunter's Prey"]
+        3: ["Hunter's Lore", "Hunter's Prey"],
+        7: ['Defensive Tactics'],
+        11: ['Superior Hunter\'s Defense'],
+        15: ['Superior Hunter\'s Prey']
+      },
+      mechanics: {
+        // Hunter's Prey: marked target takes +1d8 weapon damage once
+        // per turn. Pure dispatch; host adds the bonus die roll.
+        huntersPrey: (actor, args) => {
+          if (!args?.targetMarked) return { ok: false, reason: 'target-not-marked', actor };
+          return { ok: true, bonusDamageDice: '1d8', actor };
+        }
       }
     }
   },
