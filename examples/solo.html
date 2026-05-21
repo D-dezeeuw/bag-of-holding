@@ -899,28 +899,70 @@
         // Log entries are already flat ({seq, kind, ...fields}); pass through as-is.
         const recentLog = state.session.log.slice(-5);
         const recentChat = this.chat.slice(-4);
-        const schema = `One of these JSON shapes (no extra keys):
-{kind:"attack",attackerId,targetId}
-{kind:"cast",casterId,spellId,slotLevel,targetId?}
-{kind:"heal",targetId,amount}
-{kind:"apply-condition",targetId,condition}
-{kind:"remove-condition",targetId,condition}
-{kind:"advance-time",minutes}
-{kind:"short-rest"} | {kind:"long-rest"} | {kind:"end-turn"}
-{kind:"oracle-ask",question,odds}
-{kind:"describe"} | {kind:"talk"} | {kind:"look"}
-{kind:"unknown",reason}`;
-        const systemPrompt = `You convert one solo-D&D player message into ONE structured intent.
-Respond with a SINGLE valid JSON object and nothing else. Do NOT wrap it in markdown code fences. Do NOT add prose before or after. Your entire response must be parseable by JSON.parse.
-${schema}
+        // The classifier's previous schema was TypeScript-style
+        // pseudo-syntax (`kind:"attack"`, `targetId?`, `|` unions).
+        // Models — especially non-OpenAI ones like Tencent's
+        // hy3-preview — mimicked the format and returned unquoted-
+        // key pseudo-JSON that JSON.parse rejected outright. We
+        // now ship the COMPLETE list of valid shapes as concrete
+        // JSON objects + several few-shot input→output pairs.
+        const shapes = [
+          '{"kind": "attack", "attackerId": "<id>", "targetId": "<id>"}',
+          '{"kind": "cast", "casterId": "<id>", "spellId": "<id>", "slotLevel": 0}',
+          '{"kind": "cast", "casterId": "<id>", "spellId": "<id>", "slotLevel": 1, "targetId": "<id>"}',
+          '{"kind": "cast", "casterId": "<id>", "spellId": "<id>", "slotLevel": 2, "targetId": "<id>"}',
+          '{"kind": "heal", "targetId": "<id>", "amount": 5}',
+          '{"kind": "apply-condition", "targetId": "<id>", "condition": "prone"}',
+          '{"kind": "remove-condition", "targetId": "<id>", "condition": "prone"}',
+          '{"kind": "advance-time", "minutes": 10}',
+          '{"kind": "short-rest"}',
+          '{"kind": "long-rest"}',
+          '{"kind": "end-turn"}',
+          '{"kind": "oracle-ask", "question": "Is the door locked?", "odds": "fifty-fifty"}',
+          '{"kind": "describe"}',
+          '{"kind": "talk"}',
+          '{"kind": "look"}',
+          '{"kind": "unknown", "reason": "ambiguous: could mean attack or move"}'
+        ];
+        const fewShot = [
+          { in: 'I look around the room.', out: '{"kind": "look"}' },
+          { in: 'Describe the chamber.', out: '{"kind": "describe"}' },
+          { in: 'I scan the room for traps.', out: '{"kind": "look"}' },
+          { in: 'I swing my longsword at the goblin.', out: '{"kind": "attack", "attackerId": "thora", "targetId": "goblin-1"}' },
+          { in: 'Merrick casts Fire Bolt at the orc.', out: '{"kind": "cast", "casterId": "merrick", "spellId": "fire-bolt", "slotLevel": 0, "targetId": "orc-1"}' },
+          { in: 'Oran upcasts Cure Wounds at level 2 on Thora.', out: '{"kind": "cast", "casterId": "oran", "spellId": "cure-wounds", "slotLevel": 2, "targetId": "thora"}' },
+          { in: 'We take a long rest.', out: '{"kind": "long-rest"}' },
+          { in: 'Is the door locked?', out: '{"kind": "oracle-ask", "question": "Is the door locked?", "odds": "fifty-fifty"}' },
+          { in: 'I want to chat with the innkeeper.', out: '{"kind": "talk"}' },
+          { in: 'I push the goblin prone.', out: '{"kind": "apply-condition", "targetId": "goblin-1", "condition": "prone"}' },
+          { in: 'End my turn.', out: '{"kind": "end-turn"}' },
+          { in: 'Wait an hour.', out: '{"kind": "advance-time", "minutes": 60}' }
+        ];
+        const systemPrompt = `You convert ONE solo-D&D player message into ONE structured intent.
+
+Respond with a SINGLE valid JSON object and NOTHING else.
+- No markdown code fences.
+- No prose before or after.
+- All keys are double-quoted strings.
+- All string values are double-quoted.
+- Your reply must parse cleanly via JSON.parse.
+
+Valid intent shapes — your reply MUST be exactly one of these (the angle-bracket placeholders are where you substitute real values; never leave them in the output):
+${shapes.join('\n')}
 
 Rules:
-- Use the IDs in the snapshot (e.g. "thora", "goblin-1"), not display names.
-- spellId must match an id from snapshot.knownSpells.
+- Use the IDs in the snapshot (e.g. "thora", "goblin-1"), not display names. Look up casterId / attackerId / targetId in snapshot.party and snapshot.foes.
+- spellId must match an id from snapshot.knownSpells (e.g. "fire-bolt", "magic-missile", "cure-wounds").
+- slotLevel is an integer. For cantrips it is 0. For leveled spells it is the slot's level (>= the spell's base level).
 - condition must be one of: ${TOGGLEABLE_CONDITIONS.join(', ')}.
 - odds must be one of: certain, near-certain, very-likely, likely, fifty-fifty, unlikely, very-unlikely, near-impossible, impossible.
-- If the player just wants narration or asks about the world, use describe/talk/look.
-- If you cannot map cleanly, use {kind:"unknown",reason:"..."}.`;
+- For exploration / "what do I see" / "describe X" messages, use "describe" or "look".
+- For dialogue / "I say to NPC" messages, use "talk".
+- For binary world-state questions ("does the rope hold?", "is X here?"), use "oracle-ask".
+- If you genuinely cannot map the message to one of the shapes above, use {"kind": "unknown", "reason": "<short reason>"}.
+
+Few-shot examples — replicate this format exactly:
+${fewShot.map(ex => `Message: ${JSON.stringify(ex.in)}\nReply: ${ex.out}`).join('\n\n')}`;
         const userPrompt = JSON.stringify({
           snapshot, recentLog, recentChat, message
         });
@@ -935,7 +977,15 @@ Rules:
           { role: 'user', content: userPrompt }
         ], { temperature: 0.2, maxTokens: 200 });
         const parsed = tryParseJson(resp);
-        if (!parsed) return { kind: 'unknown', reason: 'classifier returned non-JSON' };
+        if (!parsed) {
+          // Surface what the model actually returned so the user can
+          // see whether it was empty, fenced, prose-wrapped, or
+          // pseudo-JSON. Full output goes to the devtools console;
+          // a 120-char excerpt rides on the chat error line.
+          console.warn('GM classifier failed to parse response:', resp);
+          const excerpt = String(resp || '(empty response)').replace(/\s+/g, ' ').trim().slice(0, 120);
+          return { kind: 'unknown', reason: `classifier returned non-JSON — raw: "${excerpt}${(resp ?? '').length > 120 ? '…' : ''}"` };
+        }
         return parsed;
       },
       // === Dispatcher: intent → engine call ===
