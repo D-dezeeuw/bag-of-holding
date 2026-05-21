@@ -86,6 +86,38 @@
       max-height: 200px; border: 1px solid var(--border); color: var(--muted);
     }
     .scene-time { font-family: var(--code); color: var(--accent); }
+
+    /* Sheet detail expand (clickable party row). */
+    tr.actor td.name { cursor: pointer; user-select: none; }
+    tr.actor td.name:hover { color: var(--accent); }
+    tr.actor td.name .caret { display: inline-block; width: 12px; color: var(--muted); transition: transform 0.1s; }
+    tr.actor.expanded td.name .caret { transform: rotate(90deg); color: var(--accent); }
+    tr.sheet-detail td { padding: 8px 12px 12px; background: #0e1012; }
+    .sheet-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px 12px; font-family: var(--code); font-size: 11px; }
+    .sheet-grid .label { color: var(--muted); }
+    .sheet-grid .value { color: var(--fg); }
+    .sheet-block { margin-top: 8px; }
+    .sheet-block h3 { margin: 6px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+    .slot-bar { display: inline-flex; gap: 3px; margin-right: 12px; font-family: var(--code); font-size: 11px; }
+    .slot-bar .slot { width: 18px; height: 18px; border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; }
+    .slot-bar .slot.used { background: var(--hover); color: var(--muted); }
+    .slot-bar .slot.available { background: #1f3a2e; color: var(--good); }
+
+    /* Per-row condition controls. */
+    td.cond-cell { white-space: nowrap; }
+    td.cond-cell select { min-width: 90px; font-size: 11px; padding: 2px 4px; }
+    td.cond-cell button { padding: 2px 6px; font-size: 11px; }
+
+    /* Cast spell panel. */
+    .cast-row { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; margin: 6px 0; }
+    .cast-row label { white-space: nowrap; }
+    .cast-row select { width: 100%; min-width: 0; }
+    .cast-result { font-family: var(--code); font-size: 12px; padding: 4px 8px; border-radius: 4px; margin-top: 6px; }
+    .cast-result.ok { background: #1f3a2e; color: var(--fg); }
+    .cast-result.bad { background: #3a1f1f; color: var(--fg); }
+
+    /* Save/Load indicator. */
+    .save-meta { color: var(--muted); font-size: 11px; font-family: var(--code); margin-left: 8px; }
   </style>
 </head>
 <body>
@@ -109,10 +141,16 @@
         <button id="export-share">Export share</button>
         <button id="verify-share">Verify share</button>
       </div>
+      <div class="row">
+        <button id="save-session">Save to browser</button>
+        <button id="load-session">Load from browser</button>
+        <button id="clear-saved-session">Clear saved</button>
+        <span class="save-meta" id="save-meta">—</span>
+      </div>
     </div>
 
     <div class="panel">
-      <h2>Party</h2>
+      <h2>Party <span class="save-meta">click name → expand sheet</span></h2>
       <table>
         <thead><tr><th>Name</th><th>HP</th><th>AC</th><th>Conditions</th><th></th></tr></thead>
         <tbody id="party-body"></tbody>
@@ -127,7 +165,7 @@
     <div class="panel">
       <h2>Foes</h2>
       <table>
-        <thead><tr><th>Name</th><th>HP</th><th>AC</th><th>Conditions</th></tr></thead>
+        <thead><tr><th>Name</th><th>HP</th><th>AC</th><th>Conditions</th><th></th></tr></thead>
         <tbody id="foes-body"></tbody>
       </table>
     </div>
@@ -147,6 +185,30 @@
         <select id="spawn-monster"></select>
         <button id="do-spawn" title="Rebuilds the encounter with the new foe; initiative is re-rolled.">Restart encounter with new foe</button>
       </div>
+    </div>
+
+    <div class="panel">
+      <h2>Cast a spell</h2>
+      <div class="cast-row">
+        <label>caster</label>
+        <select id="cast-caster"></select>
+      </div>
+      <div class="cast-row">
+        <label>spell</label>
+        <select id="cast-spell"></select>
+      </div>
+      <div class="cast-row">
+        <label>at slot level</label>
+        <select id="cast-slot"></select>
+      </div>
+      <div class="cast-row">
+        <label>target</label>
+        <select id="cast-target"></select>
+      </div>
+      <div class="row">
+        <button class="primary" id="do-cast">Cast</button>
+      </div>
+      <div id="cast-result"></div>
     </div>
   </section>
 
@@ -207,10 +269,23 @@
       session: null,
       oracle: null,
       seed: 2026,
-      foeIds: new Set()
+      foeIds: new Set(),
+      // Which actor's sheet detail is expanded (id), or null.
+      expandedId: null,
+      // Skip auto-save inside render() loops; flipped true after
+      // newSession() finishes and any user-driven mutation calls save().
+      autosave: false
     };
 
     const $ = (sel) => document.querySelector(sel);
+
+    const SAVE_KEY = 'bag-of-holding/solo-session@1';
+    // Conditions the engine ships out of the box; filtered to ones
+    // useful to toggle by hand (incapacitates / advantage flips).
+    const TOGGLEABLE_CONDITIONS = [
+      'blinded', 'charmed', 'frightened', 'grappled', 'invisible',
+      'paralyzed', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious'
+    ];
 
     function classifyHp(actor) {
       const ratio = actor.hp / (actor.hpMax || 1);
@@ -219,19 +294,138 @@
       return 'hp-good';
     }
 
-    function renderActorRow(actor, current) {
+    // Render one actor row + (optionally) an expanded sheet detail
+    // row below it. Returns an array of <tr> elements the caller
+    // appends in order — so the detail row visually sits with the
+    // header row without breaking table semantics.
+    function renderActorRow(actor, current, isPartyMember) {
       const tr = document.createElement('tr');
       tr.className = 'actor';
+      tr.dataset.actorId = actor.id;
       if (actor.hp <= 0) tr.classList.add('down');
       if (current && current.id === actor.id) tr.classList.add('current');
+      const expanded = state.expandedId === actor.id;
+      if (expanded) tr.classList.add('expanded');
       const conds = (actor.conditions || []).map(c => `<span class="badge cond">${c}</span>`).join('');
+      const caret = isPartyMember ? '<span class="caret">▸</span> ' : '';
       tr.innerHTML = `
-        <td>${actor.name || actor.id}</td>
+        <td class="name">${caret}${actor.name || actor.id}</td>
         <td class="${classifyHp(actor)}">${actor.hp}/${actor.hpMax ?? actor.hp}</td>
         <td>${actor.ac ?? '—'}</td>
-        <td>${conds || '—'}</td>
+        <td>${conds || '<span style="color:var(--muted)">—</span>'}</td>
+        <td class="cond-cell">
+          <select data-cond-for="${actor.id}">
+            ${TOGGLEABLE_CONDITIONS.map(c => `<option value="${c}">${c}</option>`).join('')}
+          </select>
+          <button data-cond-apply="${actor.id}" title="Apply selected condition">+</button>
+          <button data-cond-remove="${actor.id}" title="Remove selected condition">−</button>
+        </td>
       `;
-      return tr;
+      if (isPartyMember) {
+        tr.querySelector('td.name').addEventListener('click', () => {
+          state.expandedId = expanded ? null : actor.id;
+          render();
+        });
+      }
+      const rows = [tr];
+      if (isPartyMember && expanded) {
+        const detailTr = document.createElement('tr');
+        detailTr.className = 'sheet-detail';
+        const td = document.createElement('td');
+        td.colSpan = 5;
+        td.appendChild(renderSheetDetail(actor));
+        detailTr.appendChild(td);
+        rows.push(detailTr);
+      }
+      return rows;
+    }
+
+    // Build the expanded sheet detail block: ability mods, saves,
+    // skills, attacks, slots, resources, hit dice. Reads from the
+    // engine-derived sheet so the numbers track equipment changes.
+    function renderSheetDetail(actor) {
+      const record = STARTER_PARTY.find(r => r.id === actor.id);
+      const sheet = state.engine.deriveSheet(record);
+      const wrap = document.createElement('div');
+
+      const grid = document.createElement('div');
+      grid.className = 'sheet-grid';
+      const abilities = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+      grid.innerHTML = abilities.map(a => {
+        const score = sheet.abilityScores.final[a];
+        const mod = sheet.abilityScores.mod[a];
+        return `<div><span class="label">${a.toUpperCase()}</span> <span class="value">${score} (${mod >= 0 ? '+' : ''}${mod})</span></div>`;
+      }).join('');
+      wrap.appendChild(grid);
+
+      // Saves
+      const saves = document.createElement('div');
+      saves.className = 'sheet-block';
+      saves.innerHTML = '<h3>Saves</h3>' + abilities.map(a => {
+        const s = sheet.saves[a];
+        const tag = s.proficient ? ' <span style="color:var(--accent)">●</span>' : '';
+        return `<span class="badge">${a.toUpperCase()} ${s.mod >= 0 ? '+' : ''}${s.mod}${tag}</span>`;
+      }).join('');
+      wrap.appendChild(saves);
+
+      // Skills (only proficient ones — keeps it focused)
+      const profSkills = Object.entries(sheet.skills).filter(([_, s]) => s.proficient);
+      if (profSkills.length > 0) {
+        const skills = document.createElement('div');
+        skills.className = 'sheet-block';
+        skills.innerHTML = '<h3>Proficient skills</h3>' + profSkills.map(([id, s]) => {
+          const exp = s.expertise ? ' ●●' : '';
+          return `<span class="badge">${id} ${s.mod >= 0 ? '+' : ''}${s.mod}${exp}</span>`;
+        }).join('');
+        wrap.appendChild(skills);
+      }
+
+      // Attacks
+      if (sheet.attacks.length > 0) {
+        const atks = document.createElement('div');
+        atks.className = 'sheet-block';
+        atks.innerHTML = '<h3>Attacks</h3>' + sheet.attacks.map(a =>
+          `<span class="badge">${a.name} ${a.attackBonus >= 0 ? '+' : ''}${a.attackBonus} → ${a.damageDice}${a.damageMod ? (a.damageMod >= 0 ? '+' : '') + a.damageMod : ''} ${a.damageType ?? ''}</span>`
+        ).join('');
+        wrap.appendChild(atks);
+      }
+
+      // Spellcasting
+      if (sheet.spellcasting && actor.spellSlots) {
+        const sc = document.createElement('div');
+        sc.className = 'sheet-block';
+        let html = `<h3>Spellcasting <span class="save-meta">${sheet.spellcasting.ability.toUpperCase()} · atk ${sheet.spellcasting.attackBonus >= 0 ? '+' : ''}${sheet.spellcasting.attackBonus} · save DC ${sheet.spellcasting.saveDC}</span></h3>`;
+        for (const slot of actor.spellSlots) {
+          let pips = '';
+          for (let i = 0; i < slot.max; i++) {
+            const used = i < slot.used;
+            pips += `<span class="slot ${used ? 'used' : 'available'}">${used ? '·' : '◆'}</span>`;
+          }
+          html += `<span class="slot-bar">L${slot.level} ${pips}</span>`;
+        }
+        sc.innerHTML = html;
+        wrap.appendChild(sc);
+      }
+
+      // Resources (class features like Second Wind, Channel Divinity, etc.)
+      if (actor.resources && Object.keys(actor.resources).length > 0) {
+        const res = document.createElement('div');
+        res.className = 'sheet-block';
+        res.innerHTML = '<h3>Resources</h3>' + Object.entries(actor.resources).map(([id, r]) =>
+          `<span class="badge">${id} ${r.max - r.used}/${r.max} <span class="save-meta">(${r.refreshes})</span></span>`
+        ).join('');
+        wrap.appendChild(res);
+      }
+
+      // Hit dice
+      const hd = document.createElement('div');
+      hd.className = 'sheet-block';
+      const total = actor.hitDiceTotal ?? actor.level ?? 0;
+      const used = actor.hitDiceUsed ?? 0;
+      hd.innerHTML = `<h3>Hit Dice</h3><span class="badge">d${actor.hitDie ?? 8} · ${total - used}/${total} remaining</span>`;
+      wrap.appendChild(hd);
+
+      return wrap;
     }
 
     function render() {
@@ -248,19 +442,25 @@
       const current = session.currentActor();
       for (const record of STARTER_PARTY) {
         const actor = session.actor(record.id);
-        partyBody.appendChild(renderActorRow({ ...actor, name: record.name }, current));
+        const rows = renderActorRow({ ...actor, name: record.name }, current, true);
+        for (const r of rows) partyBody.appendChild(r);
       }
+      // Wire condition apply/remove buttons in the party table.
+      wireConditionControls(partyBody);
 
       const foesBody = $('#foes-body');
       foesBody.innerHTML = '';
       for (const id of state.foeIds) {
         try {
           const actor = session.actor(id);
-          foesBody.appendChild(renderActorRow(actor, current));
+          const rows = renderActorRow(actor, current, false);
+          for (const r of rows) foesBody.appendChild(r);
         } catch (_) { /* removed */ }
       }
       if (state.foeIds.size === 0) {
-        foesBody.innerHTML = '<tr><td colspan="4" style="color:var(--muted)">(no foes — spawn a monster to start)</td></tr>';
+        foesBody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">(no foes — spawn a monster to start)</td></tr>';
+      } else {
+        wireConditionControls(foesBody);
       }
 
       const attackerSel = $('#attacker');
@@ -272,12 +472,108 @@
       targetSel.innerHTML = allIds.map(({ id, name }) => `<option value="${id}">${name}</option>`).join('');
       if (current && allIds.find(a => a.id === current.id)) attackerSel.value = current.id;
 
+      renderCastPanel(allIds);
+
       // Log
       const logList = $('#log-list');
       logList.innerHTML = '';
       const tail = session.log.slice(-50);
       for (const entry of tail) logList.appendChild(renderLogEntry(entry));
       logList.scrollTop = logList.scrollHeight;
+
+      renderSaveMeta();
+    }
+
+    function wireConditionControls(tbody) {
+      for (const btn of tbody.querySelectorAll('button[data-cond-apply]')) {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.condApply;
+          const sel = tbody.querySelector(`select[data-cond-for="${id}"]`);
+          state.session.applyCondition(id, sel.value);
+          afterMutation();
+        });
+      }
+      for (const btn of tbody.querySelectorAll('button[data-cond-remove]')) {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.condRemove;
+          const sel = tbody.querySelector(`select[data-cond-for="${id}"]`);
+          state.session.removeCondition(id, sel.value);
+          afterMutation();
+        });
+      }
+    }
+
+    // Re-populate the cast-spell selectors. Casters are party
+    // members with a non-empty spellSlots array (or any cantrips,
+    // but we don't differentiate — cantrips work without slots).
+    function renderCastPanel(allIds) {
+      const session = state.session;
+      const casterSel = $('#cast-caster');
+      const spellSel = $('#cast-spell');
+      const slotSel = $('#cast-slot');
+      const targetSel = $('#cast-target');
+
+      const casters = STARTER_PARTY.filter(r => {
+        const sheet = state.engine.deriveSheet(r);
+        return !!sheet.spellcasting;
+      });
+      const prevCaster = casterSel.value;
+      casterSel.innerHTML = casters.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+      if (casters.find(c => c.id === prevCaster)) casterSel.value = prevCaster;
+
+      const casterId = casterSel.value;
+      const casterActor = casterId ? session.actor(casterId) : null;
+      const availableSlotLevels = casterActor?.spellSlots?.filter(s => s.used < s.max).map(s => s.level) ?? [];
+
+      // Spells: every entry in the registry up to L2 (the starter
+      // party's ceiling). Filter cantrips separately so the slot
+      // picker knows the cast doesn't consume a slot.
+      const spells = Object.values(state.engine.spells)
+        .filter(s => s.level <= 2)
+        .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+      const prevSpell = spellSel.value;
+      spellSel.innerHTML = spells.map(s => {
+        const tag = s.level === 0 ? 'cantrip' : `L${s.level}`;
+        const dmg = s.damage ? ` · ${s.damage}` : s.healing ? ` · heal ${s.healing}` : '';
+        const save = s.save ? ` · save ${s.save.toUpperCase()}` : '';
+        return `<option value="${s.id}">${tag} · ${s.name}${dmg}${save}</option>`;
+      }).join('');
+      if (spells.find(s => s.id === prevSpell)) spellSel.value = prevSpell;
+
+      // Slot level options derive from the selected spell + caster.
+      const selectedSpell = state.engine.spells[spellSel.value];
+      const prevSlot = slotSel.value;
+      if (selectedSpell && selectedSpell.level === 0) {
+        slotSel.innerHTML = '<option value="0">— (cantrip)</option>';
+      } else if (selectedSpell) {
+        const usable = availableSlotLevels.filter(l => l >= selectedSpell.level);
+        slotSel.innerHTML = usable.length
+          ? usable.map(l => `<option value="${l}">L${l}${l > selectedSpell.level ? ' (upcast)' : ''}</option>`).join('')
+          : '<option value="" disabled>no slots</option>';
+        if (prevSlot && usable.includes(Number(prevSlot))) slotSel.value = prevSlot;
+      } else {
+        slotSel.innerHTML = '<option>—</option>';
+      }
+
+      const prevTarget = targetSel.value;
+      targetSel.innerHTML = '<option value="">(self / no target)</option>' + allIds.map(({ id, name }) => `<option value="${id}">${name}</option>`).join('');
+      if (allIds.find(a => a.id === prevTarget)) targetSel.value = prevTarget;
+    }
+
+    function renderSaveMeta() {
+      const meta = $('#save-meta');
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) { meta.textContent = 'no saved session'; return; }
+      try {
+        const parsed = JSON.parse(raw);
+        meta.textContent = `saved · seed ${parsed.seed} · ${parsed.log?.length ?? 0} log entries`;
+      } catch (_) { meta.textContent = 'corrupt save'; }
+    }
+
+    // Called after any user-driven mutation to re-render + autosave.
+    function afterMutation() {
+      render();
+      if (state.autosave) saveSession();
     }
 
     function renderLogEntry(entry) {
@@ -391,7 +687,7 @@
     }
 
     function bindEvents() {
-      $('#new-session').addEventListener('click', newSession);
+      $('#new-session').addEventListener('click', () => { newSession(); afterMutation(); });
 
       $('#oracle-ask').addEventListener('click', () => {
         if (!state.session) return;
@@ -400,19 +696,19 @@
         const result = state.oracle.ask(q, odds);
         state.session.record('oracle', result);
         renderOracle(result);
-        render();
+        afterMutation();
       });
       $('#oracle-twist').addEventListener('click', () => {
         if (!state.session) return;
         const t = state.oracle.twist();
         state.session.record('twist', t);
-        render();
+        afterMutation();
       });
       $('#oracle-comp').addEventListener('click', () => {
         if (!state.session) return;
         const c = state.oracle.complication();
         state.session.record('complication', c);
-        render();
+        afterMutation();
       });
 
       document.querySelectorAll('[data-mins]').forEach(btn => {
@@ -420,7 +716,7 @@
           if (!state.session) return;
           const mins = Number(btn.dataset.mins);
           state.session.advanceTime({ minutes: mins });
-          render();
+          afterMutation();
         });
       });
 
@@ -428,9 +724,6 @@
         if (!state.session) return;
         const attackerId = $('#attacker').value;
         const targetId = $('#target').value;
-        // Best-effort attack args: read the actor's primary weapon
-        // from the derived sheet if it's a party member, otherwise
-        // fall back to a generic d6+2 attack at +4.
         const attacker = state.session.actor(attackerId);
         const target = state.session.actor(targetId);
         const record = STARTER_PARTY.find(r => r.id === attackerId);
@@ -451,30 +744,30 @@
           damageMod = m && m[2] ? Number(m[2]) : 0;
         }
         state.session.attack({ attackerId, targetId, attackBonus, damageDice, damageMod, ac: target.ac });
-        render();
+        afterMutation();
       });
 
       $('#end-turn').addEventListener('click', () => {
         if (!state.session) return;
         try { state.session.endTurn(); } catch (e) { console.error(e); }
-        render();
+        afterMutation();
       });
 
       $('#short-rest').addEventListener('click', () => {
         if (!state.session) return;
         state.session.shortRest();
-        render();
+        afterMutation();
       });
       $('#long-rest').addEventListener('click', () => {
         if (!state.session) return;
         state.session.longRest();
-        render();
+        afterMutation();
       });
       $('#heal-target').addEventListener('click', () => {
         if (!state.session) return;
         const targetId = $('#target').value;
         state.session.heal(targetId, 5);
-        render();
+        afterMutation();
       });
 
       $('#do-spawn').addEventListener('click', () => {
@@ -482,7 +775,6 @@
         const baseId = $('#spawn-monster').value;
         const monster = state.engine.monsters[baseId];
         if (!monster) return;
-        // Unique id per spawn so multiples of the same monster are tracked.
         let n = 1;
         let spawnId = `${baseId}-${n}`;
         while (state.foeIds.has(spawnId)) { n++; spawnId = `${baseId}-${n}`; }
@@ -494,8 +786,6 @@
           attacks: monster.attacks ?? []
         };
         state.foeIds.add(spawnId);
-        // Splice into the existing encounter: drop the encounter and
-        // restart with the new roster, preserving party HP.
         const encounter = state.session.encounter;
         const liveParticipants = encounter.order
           .filter(p => {
@@ -503,7 +793,24 @@
           })
           .map(p => ({ ...p, hp: state.session.actor(p.id).hp, hpMax: state.session.actor(p.id).hpMax, ac: state.session.actor(p.id).ac }));
         state.session.startEncounter([...liveParticipants, participant]);
-        render();
+        afterMutation();
+      });
+
+      // === Spellcasting ===
+      // When the selected spell changes, the slot-level dropdown
+      // needs to reshuffle, so re-render the cast panel only.
+      $('#cast-caster').addEventListener('change', render);
+      $('#cast-spell').addEventListener('change', render);
+      $('#do-cast').addEventListener('click', doCast);
+
+      // === Conditions === wired per-row in render(); see wireConditionControls.
+
+      // === Persistence ===
+      $('#save-session').addEventListener('click', () => { saveSession(); renderSaveMeta(); });
+      $('#load-session').addEventListener('click', () => { loadSavedSession(); });
+      $('#clear-saved-session').addEventListener('click', () => {
+        localStorage.removeItem(SAVE_KEY);
+        renderSaveMeta();
       });
 
       $('#export-share').addEventListener('click', () => {
@@ -518,8 +825,133 @@
         const result = state.engine.Replay.verify(payload);
         const msg = result.ok ? `Replay verified clean: ${payload.rollLog.length} rolls.` : `Diverged at index ${result.divergedAt}`;
         state.session.record('verify', { result: msg });
-        render();
+        afterMutation();
       });
+    }
+
+    function doCast() {
+      const session = state.session;
+      const casterId = $('#cast-caster').value;
+      const spellId = $('#cast-spell').value;
+      const targetId = $('#cast-target').value || null;
+      const slotLevel = Number($('#cast-slot').value) || 0;
+      const caster = session.actor(casterId);
+      const spell = state.engine.spells[spellId];
+      const record = STARTER_PARTY.find(r => r.id === casterId);
+      const sheet = state.engine.deriveSheet(record);
+      const out = $('#cast-result');
+
+      // 1. Cast through the engine — consumes slot, fires onCast hook,
+      //    binds concentration, returns the updated actor.
+      const args = spell.level > 0 ? { slotLevel } : {};
+      const castResult = state.engine.Spellcasting.castSpell(caster, spell, args);
+      if (!castResult.ok) {
+        out.className = 'cast-result bad';
+        out.textContent = `Cast failed: ${castResult.reason}`;
+        return;
+      }
+      Object.assign(caster, castResult.actor);
+
+      // 2. Resolve damage / heal / save effects. The engine's surface
+      //    here is intentionally low-level (the host orchestrates the
+      //    effect kind); see docs/recipes.md § Fireball for the
+      //    canonical save-for-half pattern.
+      let summary = `${record.name} cast ${spell.name}${slotLevel > spell.level ? ` (upcast L${slotLevel})` : ''}`;
+      if (spell.healing && targetId) {
+        // Healing specs ship as 'XdY+mod' — substitute mod with the
+        // caster's spellcasting ability mod.
+        const abilityMod = sheet.abilityScores.mod[sheet.spellcasting.ability];
+        const dice = spell.healing.replace(/\+mod$/, '');
+        const upcastDice = spell.level > 0 ? Math.max(1, slotLevel - spell.level) : 0;
+        const fullSpec = dice + (upcastDice > 0 ? `+${0}` : '');   // placeholder
+        const baseRoll = state.engine.Dice.roll(dice);
+        const upcastRoll = upcastDice > 0 ? state.engine.Dice.roll(`${upcastDice}d${baseRoll.spec.split('d')[1].split('+')[0]}`) : { total: 0 };
+        const healed = baseRoll.total + upcastRoll.total + abilityMod;
+        session.heal(targetId, healed);
+        summary += ` → healed ${targetId} for ${healed}`;
+      } else if (spell.damage && targetId) {
+        // Split 'XdY+Z' into dice + flat mod so a crit doesn't
+        // double the modifier (SRD § Critical Hits).
+        const m = String(spell.damage).match(/^(\d+d\d+)([+-]\d+)?$/);
+        const dice = m ? m[1] : spell.damage;
+        const flat = m && m[2] ? Number(m[2]) : 0;
+        let projectiles = spell.projectiles ?? 1;
+        let total = 0;
+        for (let i = 0; i < projectiles; i++) {
+          const dmg = state.engine.Combat.damageRoll({ damageDice: dice, damageMod: flat });
+          total += dmg.total;
+        }
+        // Save-for-half spells: target rolls a save, halve on success.
+        if (spell.save) {
+          const target = session.actor(targetId);
+          const score = target.abilityScores?.[spell.save] ?? 10;
+          const save = state.engine.Checks.savingThrow({
+            abilityScore: score, proficient: false, proficiencyBonus: 0,
+            dc: sheet.spellcasting.saveDC
+          });
+          if (save.success) total = Math.floor(total / 2);
+          summary += ` → ${targetId} save ${save.success ? 'passed' : 'failed'} (${save.total} vs DC ${sheet.spellcasting.saveDC}); ${total} damage`;
+        } else {
+          summary += ` → ${targetId} took ${total}${projectiles > 1 ? ` (${projectiles} hits)` : ''} damage`;
+        }
+        session.applyDamage(targetId, { amount: total, type: spell.damageType ?? 'force', source: casterId });
+      } else if (spell.level > 0) {
+        summary += ` (slot consumed, host resolves narrative effect)`;
+      } else {
+        summary += ` (cantrip — host resolves narrative effect)`;
+      }
+      session.record('cast', { casterId, spellId, slotLevel, targetId, summary });
+      out.className = 'cast-result ok';
+      out.textContent = summary;
+      afterMutation();
+    }
+
+    // === Persistence helpers ===
+    function saveSession() {
+      if (!state.session) return;
+      try {
+        const payload = state.session.serialize();
+        localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+      } catch (e) {
+        console.error('save failed', e);
+      }
+    }
+
+    function loadSavedSession() {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) { renderSaveMeta(); return false; }
+      try {
+        const payload = JSON.parse(raw);
+        const engine = createEngine({ rng: Dice.seededRng(payload.seed ?? Date.now()) });
+        const oracle = engine.Solo.oracle({ rng: Dice.seededRng((payload.seed ?? 0) ^ 0xA5A5A5A5) });
+        const session = engine.Session.restore(payload);
+        // Recompute foeIds from the encounter's participant list,
+        // minus the party. Foes that were dropped from the encounter
+        // before save won't reappear; this matches the save's
+        // semantics ("the world at save time").
+        const partyIdSet = new Set(STARTER_PARTY.map(r => r.id));
+        const foeIds = new Set();
+        if (session.encounter) {
+          for (const p of session.encounter.order) {
+            if (!partyIdSet.has(p.id)) foeIds.add(p.id);
+          }
+        }
+        state.engine = engine;
+        state.oracle = oracle;
+        state.session = session;
+        state.seed = payload.seed ?? state.seed;
+        state.foeIds = foeIds;
+        state.expandedId = null;
+        state.autosave = true;
+        $('#seed-input').value = state.seed;
+        populateMonsterPicker();
+        $('#share-panel').style.display = 'none';
+        render();
+        return true;
+      } catch (e) {
+        console.error('load failed', e);
+        return false;
+      }
     }
 
     function renderOracle(result) {
@@ -532,7 +964,13 @@
     }
 
     bindEvents();
-    newSession();
+    // Boot: try a saved session first; if none, start fresh. Either
+    // way, flip autosave on so subsequent user actions persist.
+    if (!loadSavedSession()) {
+      newSession();
+    }
+    state.autosave = true;
+    renderSaveMeta();
   </script>
 </body>
 </html>
