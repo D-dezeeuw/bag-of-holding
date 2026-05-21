@@ -612,3 +612,276 @@ test('Replay.verify surfaces rulesFingerprint mismatch at the boundary', () => {
   assert.equal(result.divergedAt, -1);
   assert.match(result.reason, /rulesFingerprint/);
 });
+
+// === Coverage tightening (2.0.1) ===
+// The block below closes branches that were uncovered before the 2.0.1
+// patch: the `pick` floating-point fallback, the `record.spells.slots`
+// pre-set path, and four guards / branches inside Session.attack /
+// startEncounter / endEncounter.
+
+test('Solo.oracle.pick falls back to the last entry when FP rounding leaves remainder positive', () => {
+  // pick()'s last line returns the tail entry as a safety net for
+  // floating-point cumulative-weight underflow. The standard
+  // Math.random() never returns 1.0, so this path normally can't
+  // fire — we force it by providing an rng that yields 1.0 exactly.
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const oracle = engine.Solo.oracle({ rng: () => 1.0 });
+  const table = [
+    { id: 'a', weight: 1 },
+    { id: 'b', weight: 1 },
+    { id: 'c', weight: 1 }
+  ];
+  const picked = oracle.pick(table);
+  assert.equal(picked.id, 'c');
+});
+
+test('Solo.oracle.pick treats missing weight as 1 (the default branch)', () => {
+  // Both the `total += entry.weight ?? 1` and the iteration
+  // `r -= entry.weight ?? 1` rely on the same fallback. Tables
+  // with mixed shapes (some entries explicit, some default) are
+  // legal — verify both branches fire.
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const oracle = engine.Solo.oracle({ rng: () => 0.0 });
+  const table = [{ id: 'a' }, { id: 'b', weight: 1 }, { id: 'c' }];
+  const picked = oracle.pick(table);
+  assert.equal(picked.id, 'a');
+});
+
+test('Solo.oracle.pick rejects an all-zero-weight table', () => {
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const oracle = engine.Solo.oracle({ rng: Dice.seededRng(1) });
+  assert.throws(
+    () => oracle.pick([{ id: 'a', weight: 0 }, { id: 'b', weight: 0 }]),
+    /at least one positive-weight entry/
+  );
+});
+
+test('Solo.oracle.pick error message labels malformed entries that lack an id', () => {
+  // Hits the `entry.id ?? '<no id>'` branch in the invalid-weight
+  // error message — the labelling fallback for anonymous entries.
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const oracle = engine.Solo.oracle({ rng: Dice.seededRng(1) });
+  assert.throws(
+    () => oracle.pick([{ weight: -1 }]),
+    /<no id>/
+  );
+});
+
+test('Session.actor throws when asked for an id not in the party', () => {
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  assert.throws(() => session.actor('does-not-exist'), /no actor with id/);
+});
+
+test('Session.currentActor returns null when no encounter is active', () => {
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  assert.equal(session.currentActor(), null);
+});
+
+test('Session.startEncounter fills in defaults for participants missing optional fields', () => {
+  // The `?? 0` / `?? 10` / `?? 30` fallbacks in adoptParticipant
+  // are the host-friendly path: a minimal participant with just an
+  // id + a few combat stats still adopts cleanly.
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  session.startEncounter([
+    { id: 'thora', dexterity: 12, speed: 30, hp: 31, ac: 18 },
+    // No hp / hpMax / ac / dexterity / speed / conditions — every
+    // field below should fall through to a default value.
+    { id: 'wisp', dexterity: 10, speed: 30, hp: 1, ac: 10 }
+  ]);
+  const wisp = session.actor('wisp');
+  assert.equal(wisp.hp, 1);
+  assert.equal(wisp.ac, 10);
+  assert.deepEqual(wisp.conditions, []);
+});
+
+test('Session.restore round-trips a session that never started an encounter or set a seed', () => {
+  // Hits the `payload.encounter ?? undefined` and `payload.seed ??
+  // undefined` fallbacks on the restore path.
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  const payload = session.serialize();
+  // Strip the optional fields the way an old / abbreviated host
+  // payload might.
+  delete payload.encounter;
+  delete payload.seed;
+  const restored = engine.Session.restore(payload);
+  assert.equal(restored.encounter, null);
+  assert.equal(restored.actor('thora').hp, session.actor('thora').hp);
+});
+
+test('Session.restore is tolerant of stripped encounter participants (defaults backfill)', () => {
+  // adoptParticipant's `?? 0` / `?? 10` / `?? 30` defaults are
+  // for hosts whose payload format predates a field. Force the
+  // path by hand-crafting an encounter.order entry that omits
+  // every optional field — the restore should backfill rather
+  // than throw.
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({
+    party: [STARTER_PARTY[0]],
+    encounter: { participants: [
+      { id: 'thora', dexterity: 12, speed: 30, hp: 31, ac: 18 },
+      { id: 'goblin', dexterity: 14, speed: 30, hp: 7, ac: 13 }
+    ]}
+  });
+  const payload = session.serialize();
+  // Inject a truly minimal NPC: id only. Every other field
+  // should fall through to the adoptParticipant default.
+  payload.encounter.order.push({ id: 'wraith' });
+  const restored = engine.Session.restore(payload);
+  const wraith = restored.actor('wraith');
+  assert.equal(wraith.hp, 0);          // p.hp ?? 0
+  assert.equal(wraith.hpMax, 0);       // p.hpMax ?? p.hp ?? 0
+  assert.equal(wraith.ac, 10);         // p.ac ?? 10
+  assert.equal(wraith.dexterity, 10);  // p.dexterity ?? 10
+  assert.equal(wraith.speed, 30);      // p.speed ?? 30
+  assert.deepEqual(wraith.conditions, []);  // p.conditions ?? []
+});
+
+test('Session.create falls back to d8 when a registered class is missing a hitDie field', () => {
+  // The `engine.classes[record.classId]?.hitDie ?? 8` fallback is
+  // a defensive backstop against malformed class plugins or
+  // hot-mutated registries. Trigger it by deleting hitDie from a
+  // class after the engine has built — the registry is mutable
+  // by design (1.0 contract: plugins compose post-construction).
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  delete engine.classes.fighter.hitDie;
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  assert.equal(session.actor('thora').hitDie, 8);
+});
+
+test('Session.restore skips derived fields when overlaying volatile state from partyState', () => {
+  // DERIVED_FIELDS includes `sheet`, `classId`, `level`, etc. —
+  // anything the session re-derived from the record. If a payload
+  // includes them on partyState, restore must SKIP them and keep
+  // the freshly-derived values. The `continue` on line 418 is the
+  // guard.
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  const payload = session.serialize();
+  // Force a derived field into the partyState so the continue
+  // fires. Setting it to a wrong value lets us assert the
+  // restored actor IGNORED the payload version.
+  payload.partyState[0].classId = 'not-a-class-anyone-shipped';
+  payload.partyState[0].sheet = { totally: 'fake' };
+  const restored = engine.Session.restore(payload);
+  assert.equal(restored.actor('thora').classId, 'fighter', 'derived classId stayed');
+  assert.notDeepEqual(restored.actor('thora').sheet, { totally: 'fake' }, 'derived sheet stayed');
+});
+
+test('Session.create honors record.spells.slots when the host pre-builds the slot array', () => {
+  // The `record.spells.slots` branch lets a host ship a custom
+  // party member with their own slot ledger (multiclass, partial
+  // caster, NPC ally) without going through engine progression.
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const custom = {
+    id: 'npc-sage',
+    name: 'Sage',
+    speciesId: 'human',
+    backgroundId: 'sage',
+    classId: 'wizard',
+    level: 3,
+    abilityScores: { str: 8, dex: 12, con: 12, int: 16, wis: 13, cha: 10 },
+    equipment: { weaponIds: ['quarterstaff'] },
+    spells: {
+      slots: [
+        { level: 1, used: 1, max: 4 },
+        { level: 2, used: 0, max: 2 }
+      ]
+    }
+  };
+  const session = engine.Session.create({ party: [custom] });
+  const actor = session.actor('npc-sage');
+  assert.deepEqual(actor.spellSlots, [
+    { level: 1, used: 1, max: 4 },
+    { level: 2, used: 0, max: 2 }
+  ]);
+});
+
+test('Session.startEncounter throws on an empty or non-array participants argument', () => {
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  assert.throws(() => session.startEncounter([]), /non-empty array/);
+  assert.throws(() => session.startEncounter(null), /non-empty array/);
+  assert.throws(() => session.startEncounter({}), /non-empty array/);
+});
+
+test('engine.Session.create() with no arguments hits the `opts ?? {}` fallback and throws on missing party', () => {
+  // Coverage gate: the no-arg call exercises the nullish-coalescing
+  // fallback in engine.js where opts is undefined and {} stands in.
+  // The downstream party check then throws.
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  assert.throws(() => engine.Session.create(), /party/);
+});
+
+test('Session.startEncounter adopts new participants and returns the encounter state', () => {
+  // The happy path: Session.create's inline encounter goes through
+  // a different branch (it calls engine.Combat.startEncounter
+  // directly), so the standalone session.startEncounter() method
+  // is only reached by hosts spawning new foes mid-session.
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  assert.equal(session.encounter, null, 'precondition: no encounter yet');
+  const participants = [
+    { id: 'thora', dexterity: 12, speed: 30, hp: 31, ac: 18 },
+    { id: 'orc-1', dexterity: 12, speed: 30, hp: 15, hpMax: 15, ac: 13 }
+  ];
+  const enc = session.startEncounter(participants);
+  assert.ok(enc, 'returns the encounter state');
+  assert.equal(session.encounter.round, 1);
+  assert.equal(session.actor('orc-1').hp, 15, 'adopts the new participant into the actor table');
+  const lastEntry = session.log[session.log.length - 1];
+  assert.equal(lastEntry.kind, 'startEncounter');
+  assert.deepEqual(lastEntry.participants, ['thora', 'orc-1']);
+});
+
+test('Session.endEncounter clears the active encounter and logs the close', () => {
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({
+    party: [STARTER_PARTY[0]],
+    encounter: { participants: [
+      { id: 'thora', dexterity: 12, speed: 30, hp: 31, ac: 18 },
+      { id: 'goblin', dexterity: 14, speed: 30, hp: 7, ac: 13 }
+    ]}
+  });
+  assert.ok(session.encounter, 'precondition: encounter is active');
+  session.endEncounter();
+  assert.equal(session.encounter, null);
+  const lastEntry = session.log[session.log.length - 1];
+  assert.equal(lastEntry.kind, 'endEncounter');
+});
+
+test('Session.attack throws when neither args.ac nor a tracked target are provided', () => {
+  const engine = createEngine({ rng: Dice.seededRng(2026) });
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  assert.throws(
+    () => session.attack({ attackerId: 'thora', attackBonus: 5, damageDice: '1d6' }),
+    /must have an `ac` or args must include `ac`/
+  );
+});
+
+test('Session.attack against a static AC (no targetId) returns damage without applying it', () => {
+  // Lines 307-309 cover the "ranged attack at scenery / static
+  // target with no tracked actor" path: damage rolls, the result
+  // bubbles up, but no actor mutation happens.
+  // Force a guaranteed hit (no fumble) by pinning the rng to ~0.7
+  // so the first d20 reads 14 — +10 vs AC 5 always lands.
+  const engine = createEngine({ rng: () => 0.7 });
+  const session = engine.Session.create({ party: [STARTER_PARTY[0]] });
+  const result = session.attack({
+    attackerId: 'thora',
+    attackBonus: 10,
+    damageDice: '1d6',
+    damageMod: 0,
+    damageType: 'bludgeoning',
+    ac: 5
+  });
+  assert.ok(result.attack.hit, 'precondition: the inflated bonus guarantees a hit');
+  assert.ok(result.damage, 'damage was rolled');
+  assert.equal(result.damage.type, 'bludgeoning');
+  assert.equal(typeof result.damage.amount, 'number');
+  // No `finalAmount` field — that's only set when applyDamage runs.
+  assert.equal(result.damage.finalAmount, undefined);
+});

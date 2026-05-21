@@ -118,6 +118,32 @@
 
     /* Save/Load indicator. */
     .save-meta { color: var(--muted); font-size: 11px; font-family: var(--code); margin-left: 8px; }
+
+    /* GM chat panel. */
+    .gm-header { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px; font-family: var(--code); }
+    .gm-pill { padding: 2px 8px; border-radius: 10px; background: var(--hover); color: var(--muted); border: 1px solid var(--border); }
+    .gm-pill.ok { background: #1f3a2e; color: var(--good); }
+    .gm-pill.bad { background: #3a1f1f; color: var(--bad); }
+    .gm-pill label { font-size: 11px; color: inherit; }
+    .gm-pill input[type=checkbox] { vertical-align: middle; margin-right: 4px; }
+    #gm-transcript {
+      background: #0e1012; border: 1px solid var(--border); border-radius: 4px;
+      padding: 8px; height: 240px; overflow-y: auto; font-size: 13px; line-height: 1.45;
+    }
+    #gm-transcript .turn { padding: 4px 0; border-bottom: 1px dotted var(--border); }
+    #gm-transcript .turn:last-child { border-bottom: none; }
+    #gm-transcript .role { font-family: var(--code); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; margin-right: 6px; }
+    #gm-transcript .turn.you .role { color: var(--accent); }
+    #gm-transcript .turn.gm .role { color: var(--good); }
+    #gm-transcript .turn.error .role { color: var(--bad); }
+    #gm-transcript .turn.error { color: var(--muted); }
+    #gm-transcript .turn.system { color: var(--muted); font-style: italic; font-size: 12px; }
+    #gm-transcript .empty { color: var(--muted); font-style: italic; }
+    .gm-input-row { display: flex; gap: 6px; margin-top: 8px; }
+    .gm-input-row input { flex: 1; min-width: 0; }
+    .gm-keyrow { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+    .gm-keyrow input { flex: 1; min-width: 0; }
+    .gm-keyrow small { color: var(--muted); font-size: 10px; font-family: var(--code); }
   </style>
 </head>
 <body>
@@ -213,6 +239,29 @@
   </section>
 
   <section class="right">
+    <div class="panel" id="gm-panel">
+      <h2>GM <span class="save-meta">free-text → LLM → engine → narration</span></h2>
+      <div class="gm-header">
+        <span class="gm-pill" id="gm-key-pill">no key</span>
+        <span class="gm-pill"><label><input type="checkbox" id="gm-mock" />mock</label></span>
+        <span class="gm-pill" id="gm-calls-pill">calls 0/30</span>
+        <span class="gm-pill" id="gm-status-pill" style="display:none"></span>
+      </div>
+      <div id="gm-transcript"><div class="empty">(GM is quiet — paste a key or enable mock, then say something.)</div></div>
+      <div class="gm-input-row">
+        <input type="text" id="gm-input" placeholder="I scan the room for traps." />
+        <button class="primary" id="gm-send">Send</button>
+      </div>
+      <div class="gm-keyrow" id="gm-keyrow">
+        <input type="password" id="gm-key" placeholder="paste your OpenRouter key (sk-or-…)" autocomplete="off" />
+        <button id="gm-key-save">Save key</button>
+        <button id="gm-key-clear" title="Remove the saved key">Forget</button>
+      </div>
+      <small style="color:var(--muted); font-size:10px; font-family:var(--code);">
+        key stays in your browser's localStorage; never sent to bag-of-holding.
+      </small>
+    </div>
+
     <div class="panel">
       <h2>Oracle</h2>
       <div class="row">
@@ -571,9 +620,13 @@
     }
 
     // Called after any user-driven mutation to re-render + autosave.
-    function afterMutation() {
+    // `source` is 'user' (button or chat dispatch) or 'gm' (LLM dispatched).
+    // The GM uses it to avoid an infinite loop where it narrates its own
+    // dispatched actions twice.
+    function afterMutation(source = 'user') {
       render();
       if (state.autosave) saveSession();
+      if (gm.enabled()) gm.queueNarration({ source });
     }
 
     function renderLogEntry(entry) {
@@ -676,6 +729,7 @@
       $('#share-panel').style.display = 'none';
       render();
       populateMonsterPicker();
+      gm.reset();
     }
 
     function populateMonsterPicker() {
@@ -685,6 +739,504 @@
         .sort();
       sel.innerHTML = ids.map(id => `<option value="${id}">${state.engine.monsters[id].name} (CR ${state.engine.monsters[id].cr})</option>`).join('');
     }
+
+    // ========================================================
+    // GM — LLM-driven chat layer (OpenRouter, tencent/hy3-preview)
+    //
+    // The GM never invents dice or rules. It emits one structured
+    // intent from a closed vocabulary; the dispatcher routes it to
+    // the existing session.* surfaces; then a second LLM call
+    // narrates the actual engine outcomes. Existing buttons skip
+    // the classify call and feed straight into narration.
+    // See /root/.claude/plans/for-solo-mode-i-rippling-emerson.md
+    // ========================================================
+    const GM_KEY_STORAGE = 'bag-of-holding/gm-openrouter-key@1';
+    const GM_MOCK_STORAGE = 'bag-of-holding/gm-mock@1';
+    const GM_MODEL = 'tencent/hy3-preview';
+    const GM_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+    const GM_MAX_CALLS = 30;
+    const GM_DEBOUNCE_MS = 500;
+    const GM_MIN_GAP_MS = 2000;
+
+    const gm = {
+      apiKey: localStorage.getItem(GM_KEY_STORAGE) || '',
+      mock: localStorage.getItem(GM_MOCK_STORAGE) === '1',
+      busy: false,
+      callCount: 0,
+      lastCallAt: 0,
+      lastNarratedSeq: 0,
+      pendingNarration: null,   // setTimeout handle
+      chat: [],                 // {role:'you'|'gm'|'system'|'error', text}
+      // Reset on every newSession() / loadSavedSession() so the
+      // queue lines up with the fresh session.log indexing.
+      reset() {
+        this.lastNarratedSeq = state.session?.log?.length ?? 0;
+        this.busy = false;
+        this.pendingNarration && clearTimeout(this.pendingNarration);
+        this.pendingNarration = null;
+        this.chat = [];
+        this.renderTranscript();
+        this.renderHeader();
+      },
+      enabled() {
+        // Enabled if either mock is on or a key exists; AND the
+        // session-call cap hasn't been hit.
+        if (this.callCount >= GM_MAX_CALLS) return false;
+        return this.mock || !!this.apiKey;
+      },
+      addTurn(role, text) {
+        this.chat.push({ role, text });
+        if (this.chat.length > 40) this.chat.splice(0, this.chat.length - 40);
+        this.renderTranscript();
+      },
+      renderHeader() {
+        const keyPill = $('#gm-key-pill');
+        const callsPill = $('#gm-calls-pill');
+        const statusPill = $('#gm-status-pill');
+        keyPill.textContent = this.apiKey ? 'key set' : 'no key';
+        keyPill.className = 'gm-pill ' + (this.apiKey ? 'ok' : 'bad');
+        callsPill.textContent = `calls ${this.callCount}/${GM_MAX_CALLS}`;
+        callsPill.className = 'gm-pill ' + (this.callCount >= GM_MAX_CALLS ? 'bad' : '');
+        $('#gm-mock').checked = this.mock;
+        $('#gm-input').disabled = !this.enabled();
+        $('#gm-send').disabled = !this.enabled();
+        if (this.busy) {
+          statusPill.textContent = 'thinking…';
+          statusPill.className = 'gm-pill';
+          statusPill.style.display = '';
+        } else {
+          statusPill.style.display = 'none';
+        }
+      },
+      renderTranscript() {
+        const el = $('#gm-transcript');
+        if (this.chat.length === 0) {
+          el.innerHTML = '<div class="empty">(GM is quiet — paste a key or enable mock, then say something.)</div>';
+          return;
+        }
+        el.innerHTML = this.chat.map(t => {
+          const role = t.role === 'you' ? 'you' : t.role === 'gm' ? 'GM' : t.role === 'system' ? 'sys' : 'err';
+          return `<div class="turn ${t.role}"><span class="role">${role}</span><span class="text"></span></div>`;
+        }).join('');
+        // Set text via textContent to avoid HTML injection from
+        // either user input or LLM output.
+        const turns = el.querySelectorAll('.turn .text');
+        this.chat.forEach((t, i) => { turns[i].textContent = t.text; });
+        el.scrollTop = el.scrollHeight;
+      },
+      // === Chat submit flow: Prompt A → dispatch → Prompt B ===
+      async submitChat(text) {
+        if (!text || !this.enabled() || this.busy) return;
+        this.addTurn('you', text);
+        this.busy = true; this.renderHeader();
+        try {
+          const intent = await this.classify(text);
+          if (!intent || intent.kind === 'unknown') {
+            this.addTurn('error', `GM didn't understand${intent?.reason ? `: ${intent.reason}` : ''} — try rephrasing.`);
+            // Still advance seq so we don't double-narrate later.
+            this.lastNarratedSeq = state.session.log.length;
+            return;
+          }
+          // Dispatch the intent. The dispatcher pushes 0+ events
+          // onto session.log; afterMutation('gm') schedules
+          // narration through the same debounce path as buttons.
+          const dispatchResult = this.dispatchIntent(intent);
+          if (dispatchResult && dispatchResult.error) {
+            this.addTurn('error', `GM tried "${intent.kind}" but ${dispatchResult.error}.`);
+            this.lastNarratedSeq = state.session.log.length;
+            return;
+          }
+          // Re-render and explicitly trigger narration. Dispatcher
+          // already called session.* which logged events; force a
+          // flush rather than relying on the debounce in case the
+          // intent was narrate-only (no engine events).
+          afterMutation('gm');
+          if (['describe', 'talk', 'look'].includes(intent.kind)) {
+            // Narrate-only intents: synthesize a fake event so
+            // Prompt B has something to riff on.
+            await this.narrateExplicit(intent, text);
+          }
+        } catch (err) {
+          this.addTurn('error', `GM unavailable: ${err.message || err}`);
+          this.lastNarratedSeq = state.session.log.length;
+        } finally {
+          this.busy = false; this.renderHeader();
+        }
+      },
+      // === Classify — Prompt A ===
+      async classify(message) {
+        const snapshot = this.buildSnapshot();
+        // Log entries are already flat ({seq, kind, ...fields}); pass through as-is.
+        const recentLog = state.session.log.slice(-5);
+        const recentChat = this.chat.slice(-4);
+        const schema = `One of these JSON shapes (no extra keys):
+{kind:"attack",attackerId,targetId}
+{kind:"cast",casterId,spellId,slotLevel,targetId?}
+{kind:"heal",targetId,amount}
+{kind:"apply-condition",targetId,condition}
+{kind:"remove-condition",targetId,condition}
+{kind:"advance-time",minutes}
+{kind:"short-rest"} | {kind:"long-rest"} | {kind:"end-turn"}
+{kind:"oracle-ask",question,odds}
+{kind:"describe"} | {kind:"talk"} | {kind:"look"}
+{kind:"unknown",reason}`;
+        const systemPrompt = `You convert one solo-D&D player message into ONE structured intent.
+Return JSON only — no prose, no markdown, no code fences.
+${schema}
+
+Rules:
+- Use the IDs in the snapshot (e.g. "thora", "goblin-1"), not display names.
+- spellId must match an id from snapshot.knownSpells.
+- condition must be one of: ${TOGGLEABLE_CONDITIONS.join(', ')}.
+- odds must be one of: certain, near-certain, very-likely, likely, fifty-fifty, unlikely, very-unlikely, near-impossible, impossible.
+- If the player just wants narration or asks about the world, use describe/talk/look.
+- If you cannot map cleanly, use {kind:"unknown",reason:"..."}.`;
+        const userPrompt = JSON.stringify({
+          snapshot, recentLog, recentChat, message
+        });
+        if (this.mock) return this.mockClassify(message);
+        const resp = await this.callOpenRouter([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ], { responseFormatJson: true, temperature: 0.2, maxTokens: 200 });
+        try {
+          return JSON.parse(resp);
+        } catch (_) {
+          return { kind: 'unknown', reason: 'classifier returned non-JSON' };
+        }
+      },
+      // === Dispatcher: intent → engine call ===
+      // Returns { error } on a recoverable miss; throws only on bugs.
+      dispatchIntent(intent) {
+        const session = state.session;
+        const lookupActor = id => {
+          try { return session.actor(id); } catch (_) { return null; }
+        };
+        switch (intent.kind) {
+          case 'attack': {
+            const attacker = lookupActor(intent.attackerId);
+            const target = lookupActor(intent.targetId);
+            if (!attacker) return { error: `couldn't find "${intent.attackerId}"` };
+            if (!target) return { error: `couldn't find "${intent.targetId}"` };
+            const record = STARTER_PARTY.find(r => r.id === intent.attackerId);
+            let attackBonus = 4, damageDice = '1d6', damageMod = 2;
+            if (record) {
+              const sheet = state.engine.deriveSheet(record);
+              const first = sheet.attacks[0];
+              if (first) { attackBonus = first.attackBonus; damageDice = first.damageDice; damageMod = first.damageMod; }
+            } else if (attacker.attacks?.[0]) {
+              const a = attacker.attacks[0];
+              const m = String(a.damage).match(/^(\d+d\d+)([+-]\d+)?$/);
+              attackBonus = a.attackBonus;
+              damageDice = m ? m[1] : a.damage;
+              damageMod = m && m[2] ? Number(m[2]) : 0;
+            }
+            session.attack({ attackerId: intent.attackerId, targetId: intent.targetId, attackBonus, damageDice, damageMod, ac: target.ac });
+            return {};
+          }
+          case 'cast': {
+            const caster = lookupActor(intent.casterId);
+            const spell = state.engine.spells[intent.spellId];
+            if (!caster) return { error: `couldn't find caster "${intent.casterId}"` };
+            if (!spell) return { error: `unknown spell "${intent.spellId}"` };
+            const args = spell.level > 0 ? { slotLevel: intent.slotLevel ?? spell.level } : {};
+            const result = state.engine.Spellcasting.castSpell(caster, spell, args);
+            if (!result.ok) return { error: result.reason };
+            Object.assign(caster, result.actor);
+            // Reuse the existing doCast effect resolver inline. To
+            // keep the GM honest, we re-use the same damage/save
+            // logic that the button-driven cast uses; here it's
+            // inlined for brevity.
+            const record = STARTER_PARTY.find(r => r.id === intent.casterId);
+            const sheet = state.engine.deriveSheet(record);
+            const target = intent.targetId ? lookupActor(intent.targetId) : null;
+            if (spell.damage && target) {
+              const m = String(spell.damage).match(/^(\d+d\d+)([+-]\d+)?$/);
+              const dice = m ? m[1] : spell.damage;
+              const flat = m && m[2] ? Number(m[2]) : 0;
+              const projectiles = spell.projectiles ?? 1;
+              let total = 0;
+              for (let i = 0; i < projectiles; i++) {
+                const dmg = state.engine.Combat.damageRoll({ damageDice: dice, damageMod: flat });
+                total += dmg.total;
+              }
+              if (spell.save) {
+                const score = target.abilityScores?.[spell.save] ?? 10;
+                const save = state.engine.Checks.savingThrow({
+                  abilityScore: score, proficient: false, proficiencyBonus: 0,
+                  dc: sheet.spellcasting.saveDC
+                });
+                if (save.success) total = Math.floor(total / 2);
+              }
+              session.applyDamage(intent.targetId, { amount: total, type: spell.damageType ?? 'force', source: intent.casterId });
+            } else if (spell.healing && target) {
+              const abilityMod = sheet.abilityScores.mod[sheet.spellcasting.ability];
+              const dice = spell.healing.replace(/\+mod$/, '');
+              const baseRoll = state.engine.Dice.roll(dice);
+              session.heal(intent.targetId, baseRoll.total + abilityMod);
+            }
+            session.record('cast', { casterId: intent.casterId, spellId: intent.spellId, slotLevel: intent.slotLevel, targetId: intent.targetId });
+            return {};
+          }
+          case 'heal': {
+            if (!lookupActor(intent.targetId)) return { error: `couldn't find "${intent.targetId}"` };
+            session.heal(intent.targetId, Number(intent.amount) || 0);
+            return {};
+          }
+          case 'apply-condition': {
+            if (!TOGGLEABLE_CONDITIONS.includes(intent.condition)) return { error: `unknown condition "${intent.condition}"` };
+            if (!lookupActor(intent.targetId)) return { error: `couldn't find "${intent.targetId}"` };
+            session.applyCondition(intent.targetId, intent.condition);
+            return {};
+          }
+          case 'remove-condition': {
+            if (!lookupActor(intent.targetId)) return { error: `couldn't find "${intent.targetId}"` };
+            session.removeCondition(intent.targetId, intent.condition);
+            return {};
+          }
+          case 'advance-time': {
+            session.advanceTime({ minutes: Number(intent.minutes) || 10 });
+            return {};
+          }
+          case 'short-rest': session.shortRest(); return {};
+          case 'long-rest':  session.longRest();  return {};
+          case 'end-turn':
+            try { session.endTurn(); return {}; }
+            catch (e) { return { error: e.message }; }
+          case 'oracle-ask': {
+            const odds = intent.odds || 'fifty-fifty';
+            const result = state.oracle.ask(intent.question || '(?)', odds);
+            session.record('oracle', result);
+            return {};
+          }
+          case 'describe':
+          case 'talk':
+          case 'look':
+            return {};
+          default:
+            return { error: `unhandled intent kind "${intent.kind}"` };
+        }
+      },
+      // === Narrate — Prompt B ===
+      // Called via the debounced queueNarration after engine events
+      // land in session.log. Coalesces a cluster of related events
+      // (attack → applyDamage → applyCondition) into one beat.
+      queueNarration({ source } = {}) {
+        if (!this.enabled()) return;
+        if (this.pendingNarration) clearTimeout(this.pendingNarration);
+        this.pendingNarration = setTimeout(() => this.flushNarration(), GM_DEBOUNCE_MS);
+      },
+      async flushNarration() {
+        this.pendingNarration = null;
+        if (!this.enabled() || this.busy) return;
+        const session = state.session;
+        const newEntries = session.log.slice(this.lastNarratedSeq);
+        if (newEntries.length === 0) return;
+        // Throttle: enforce min gap between LLM calls.
+        const gap = Date.now() - this.lastCallAt;
+        if (gap < GM_MIN_GAP_MS) {
+          this.pendingNarration = setTimeout(() => this.flushNarration(), GM_MIN_GAP_MS - gap);
+          return;
+        }
+        // Snapshot the seq before we send — even if the call fails,
+        // we advance so a stuck loop can't form.
+        const targetSeq = session.log.length;
+        // Log entries are already flat; ship them as-is.
+        const events = newEntries;
+        const deltas = this.computeDeltas(newEntries);
+        this.busy = true; this.renderHeader();
+        try {
+          const text = await this.narrate({ events, deltas });
+          if (text) this.addTurn('gm', text);
+        } catch (err) {
+          this.addTurn('error', `GM unavailable: ${err.message || err}`);
+        } finally {
+          this.lastNarratedSeq = targetSeq;
+          this.busy = false; this.renderHeader();
+        }
+      },
+      computeDeltas(entries) {
+        // Walk the entries; record HP and condition deltas per
+        // actor referenced. Cheap and bounded.
+        const deltas = {};
+        const touch = id => {
+          if (!id) return null;
+          if (!deltas[id]) {
+            let actor;
+            try { actor = state.session.actor(id); } catch (_) { return null; }
+            deltas[id] = {
+              name: actor.name || id,
+              hpAfter: actor.hp,
+              hpMax: actor.hpMax,
+              conditions: [...(actor.conditions || [])]
+            };
+          }
+          return deltas[id];
+        };
+        for (const e of entries) {
+          if (e.targetId) touch(e.targetId);
+          if (e.attackerId) touch(e.attackerId);
+          if (e.casterId) touch(e.casterId);
+          if (e.actorId) touch(e.actorId);
+        }
+        return deltas;
+      },
+      async narrate({ events, deltas, freeform }) {
+        const systemPrompt = `You are the GM of a dark-fantasy solo D&D table.
+Given the engine events that just occurred, write ONE to THREE sentences of in-character narration.
+Translate damage into fictional consequence (wounds, stumbles, screams). Avoid mechanics jargon — no "d20", "AC", "HP", "crit", "save DC". Use the actors' display names.
+Keep it tight. No meta commentary. No questions to the player unless the events ended on a beat that demands one.`;
+        const body = {
+          events: events ?? [],
+          deltas: deltas ?? {},
+          freeform: freeform ?? null,
+          scene: { minutes: state.session.scene.minutes }
+        };
+        if (this.mock) return this.mockNarrate(body);
+        const text = await this.callOpenRouter([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: JSON.stringify(body) }
+        ], { temperature: 0.8, maxTokens: 220 });
+        return text?.trim();
+      },
+      // Narrate-only intents (describe/talk/look) call this directly
+      // because they produce no engine events.
+      async narrateExplicit(intent, playerMessage) {
+        try {
+          const text = await this.narrate({
+            events: [{ seq: state.session.log.length, kind: intent.kind }],
+            deltas: this.computeDeltas([]),
+            freeform: { intent, playerMessage, party: this.buildSnapshot().party, foes: this.buildSnapshot().foes }
+          });
+          if (text) this.addTurn('gm', text);
+          this.lastNarratedSeq = state.session.log.length;
+        } catch (err) {
+          this.addTurn('error', `GM unavailable: ${err.message || err}`);
+        }
+      },
+      // === OpenRouter HTTP ===
+      async callOpenRouter(messages, { responseFormatJson = false, temperature = 0.7, maxTokens = 220 } = {}) {
+        if (this.callCount >= GM_MAX_CALLS) throw new Error('session call cap reached');
+        if (!this.apiKey) throw new Error('no API key');
+        this.callCount += 1;
+        this.lastCallAt = Date.now();
+        this.renderHeader();
+        const body = {
+          model: GM_MODEL,
+          messages,
+          temperature,
+          max_tokens: maxTokens
+        };
+        if (responseFormatJson) body.response_format = { type: 'json_object' };
+        let resp;
+        try {
+          resp = await fetch(GM_ENDPOINT, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+              // OpenRouter recommends a Referer + Title for app
+              // attribution; the values are harmless metadata.
+              'HTTP-Referer': location.origin || 'https://bag-of-holding.example',
+              'X-Title': 'bag-of-holding solo sandbox'
+            },
+            body: JSON.stringify(body)
+          });
+        } catch (err) {
+          throw new Error('network error');
+        }
+        if (resp.status === 401) {
+          this.apiKey = '';
+          localStorage.removeItem(GM_KEY_STORAGE);
+          this.renderHeader();
+          throw new Error('key rejected (401) — paste a new key');
+        }
+        if (!resp.ok) {
+          let detail = '';
+          try { detail = (await resp.json()).error?.message || ''; } catch (_) {}
+          throw new Error(`HTTP ${resp.status}${detail ? `: ${detail}` : ''}`);
+        }
+        const json = await resp.json();
+        return json.choices?.[0]?.message?.content ?? '';
+      },
+      // === Snapshot for prompts ===
+      buildSnapshot() {
+        const session = state.session;
+        const partyIdSet = new Set(STARTER_PARTY.map(r => r.id));
+        const dump = id => {
+          try {
+            const a = session.actor(id);
+            const out = { id: a.id, name: a.name || id, hp: a.hp, hpMax: a.hpMax, ac: a.ac, conditions: [...(a.conditions || [])] };
+            if (a.spellSlots) out.spellSlots = a.spellSlots.map(s => ({ level: s.level, remaining: s.max - s.used }));
+            return out;
+          } catch (_) { return null; }
+        };
+        const party = STARTER_PARTY.map(r => dump(r.id)).filter(Boolean);
+        const foes = [...state.foeIds].map(id => dump(id)).filter(Boolean);
+        const current = session.currentActor();
+        // Wizard + cleric know everything ≤ L2 in this sandbox; the
+        // GM picker on the LLM side gets that same list so it can
+        // pick by id.
+        const knownSpells = Object.values(state.engine.spells)
+          .filter(s => s.level <= 2)
+          .map(s => ({ id: s.id, name: s.name, level: s.level, school: s.school }));
+        return {
+          party, foes,
+          scene: { minutes: session.scene.minutes },
+          currentActorId: current?.id ?? null,
+          round: session.encounter?.round ?? null,
+          knownSpells
+        };
+      },
+      // === Mock-mode keyword routers ===
+      mockClassify(message) {
+        const m = message.toLowerCase();
+        const livingPartyId = STARTER_PARTY.map(r => r.id).find(id => {
+          try { return state.session.actor(id).hp > 0; } catch (_) { return false; }
+        });
+        const livingFoeId = [...state.foeIds].find(id => {
+          try { return state.session.actor(id).hp > 0; } catch (_) { return false; }
+        });
+        if (/\b(attack|swing|hit|stab|strike|slash|shoot)\b/.test(m)) {
+          if (!livingPartyId || !livingFoeId) return { kind: 'unknown', reason: 'no valid attacker/target' };
+          return { kind: 'attack', attackerId: livingPartyId, targetId: livingFoeId };
+        }
+        if (/\b(heal|cure|bind)\b/.test(m)) {
+          return { kind: 'heal', targetId: livingPartyId || 'thora', amount: 5 };
+        }
+        if (/\b(rest|sleep|camp)\b/.test(m)) {
+          return /\blong\b/.test(m) ? { kind: 'long-rest' } : { kind: 'short-rest' };
+        }
+        if (/\b(wait|pass|advance|hour|minute)\b/.test(m)) {
+          return { kind: 'advance-time', minutes: /\bhour\b/.test(m) ? 60 : 10 };
+        }
+        if (/\?$/.test(m.trim())) {
+          return { kind: 'oracle-ask', question: message, odds: 'fifty-fifty' };
+        }
+        if (/\b(look|describe|scene|around|room)\b/.test(m)) {
+          return { kind: 'describe' };
+        }
+        if (/\b(say|talk|speak|ask)\b/.test(m)) {
+          return { kind: 'talk' };
+        }
+        return { kind: 'unknown', reason: 'mock router has no match' };
+      },
+      mockNarrate(body) {
+        const eventLines = (body.events || []).map(e => {
+          if (e.kind === 'attack') return e.hit ? `The blow lands.` : `The strike goes wide.`;
+          if (e.kind === 'applyDamage') return `${e.targetId} reels — ${e.amount} of life torn away${e.outcome === 'dead' ? ' (felled)' : e.outcome === 'downed' ? ' (down)' : ''}.`;
+          if (e.kind === 'applyHealing') return `Warm light closes ${e.targetId}'s wounds.`;
+          if (e.kind === 'shortRest') return `The party catches its breath.`;
+          if (e.kind === 'longRest') return `Dawn arrives; bones knit, spells return.`;
+          if (e.kind === 'cast') return `Words of power thread the air.`;
+          if (e.kind === 'oracle') return `The omens answer: ${e.outcome.replaceAll('-', ' ')}.`;
+          if (e.kind === 'describe' || e.kind === 'look') return `Stone walls, torchlight, the smell of damp iron — the room watches you back.`;
+          if (e.kind === 'talk') return `Your voice carries; whether anyone listens is another question.`;
+          return `${e.kind} happens.`;
+        });
+        return eventLines.join(' ') || '(silence)';
+      }
+    };
 
     function bindEvents() {
       $('#new-session').addEventListener('click', () => { newSession(); afterMutation(); });
@@ -804,6 +1356,38 @@
       $('#do-cast').addEventListener('click', doCast);
 
       // === Conditions === wired per-row in render(); see wireConditionControls.
+
+      // === GM chat ===
+      $('#gm-send').addEventListener('click', () => {
+        const input = $('#gm-input');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        gm.submitChat(text);
+      });
+      $('#gm-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#gm-send').click(); }
+      });
+      $('#gm-mock').addEventListener('change', (e) => {
+        gm.mock = e.target.checked;
+        localStorage.setItem(GM_MOCK_STORAGE, gm.mock ? '1' : '0');
+        gm.renderHeader();
+      });
+      $('#gm-key-save').addEventListener('click', () => {
+        const v = $('#gm-key').value.trim();
+        if (!v) return;
+        gm.apiKey = v;
+        localStorage.setItem(GM_KEY_STORAGE, v);
+        $('#gm-key').value = '';
+        gm.renderHeader();
+        gm.addTurn('system', 'Key saved (stored only in your browser).');
+      });
+      $('#gm-key-clear').addEventListener('click', () => {
+        gm.apiKey = '';
+        localStorage.removeItem(GM_KEY_STORAGE);
+        gm.renderHeader();
+        gm.addTurn('system', 'Key forgotten.');
+      });
 
       // === Persistence ===
       $('#save-session').addEventListener('click', () => { saveSession(); renderSaveMeta(); });
@@ -947,6 +1531,7 @@
         populateMonsterPicker();
         $('#share-panel').style.display = 'none';
         render();
+        gm.reset();
         return true;
       } catch (e) {
         console.error('load failed', e);
