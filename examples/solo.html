@@ -758,6 +758,36 @@
     const GM_DEBOUNCE_MS = 500;
     const GM_MIN_GAP_MS = 2000;
 
+    // Tolerant JSON extractor. LLMs that don't honor a strict
+    // "JSON-only" instruction commonly wrap their output in
+    // ```json ... ``` fences, prefix it with a sentence, or both.
+    // We strip the most common shapes before falling back to a
+    // greedy {…} substring scan. Returns null if nothing parses.
+    function tryParseJson(text) {
+      if (!text || typeof text !== 'string') return null;
+      const stripped = text.trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/i, '')
+        .trim();
+      try { return JSON.parse(stripped); } catch (_) {}
+      // Fallback: pick the first {...} block (balanced braces).
+      const start = stripped.indexOf('{');
+      if (start < 0) return null;
+      let depth = 0;
+      for (let i = start; i < stripped.length; i++) {
+        const ch = stripped[i];
+        if (ch === '{') depth++;
+        else if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            try { return JSON.parse(stripped.slice(start, i + 1)); }
+            catch (_) { return null; }
+          }
+        }
+      }
+      return null;
+    }
+
     const gm = {
       apiKey: localStorage.getItem(GM_KEY_STORAGE) || '',
       mock: localStorage.getItem(GM_MOCK_STORAGE) === '1',
@@ -881,7 +911,7 @@
 {kind:"describe"} | {kind:"talk"} | {kind:"look"}
 {kind:"unknown",reason}`;
         const systemPrompt = `You convert one solo-D&D player message into ONE structured intent.
-Return JSON only — no prose, no markdown, no code fences.
+Respond with a SINGLE valid JSON object and nothing else. Do NOT wrap it in markdown code fences. Do NOT add prose before or after. Your entire response must be parseable by JSON.parse.
 ${schema}
 
 Rules:
@@ -895,15 +925,18 @@ Rules:
           snapshot, recentLog, recentChat, message
         });
         if (this.mock) return this.mockClassify(message);
+        // NOTE: we deliberately do NOT pass response_format:json_object.
+        // Many non-OpenAI providers on OpenRouter (incl. Tencent's
+        // hy3-preview) reject the field upstream → "Provider returned
+        // error" with HTTP 400. We coerce JSON via prompt instead and
+        // strip any stray markdown fences before parsing.
         const resp = await this.callOpenRouter([
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
-        ], { responseFormatJson: true, temperature: 0.2, maxTokens: 200 });
-        try {
-          return JSON.parse(resp);
-        } catch (_) {
-          return { kind: 'unknown', reason: 'classifier returned non-JSON' };
-        }
+        ], { temperature: 0.2, maxTokens: 200 });
+        const parsed = tryParseJson(resp);
+        if (!parsed) return { kind: 'unknown', reason: 'classifier returned non-JSON' };
+        return parsed;
       },
       // === Dispatcher: intent → engine call ===
       // Returns { error } on a recoverable miss; throws only on bugs.
@@ -1115,7 +1148,7 @@ Keep it tight. No meta commentary. No questions to the player unless the events 
         }
       },
       // === OpenRouter HTTP ===
-      async callOpenRouter(messages, { responseFormatJson = false, temperature = 0.7, maxTokens = 220 } = {}) {
+      async callOpenRouter(messages, { temperature = 0.7, maxTokens = 220 } = {}) {
         if (this.callCount >= GM_MAX_CALLS) throw new Error('session call cap reached');
         if (!this.apiKey) throw new Error('no API key');
         this.callCount += 1;
@@ -1127,7 +1160,6 @@ Keep it tight. No meta commentary. No questions to the player unless the events 
           temperature,
           max_tokens: maxTokens
         };
-        if (responseFormatJson) body.response_format = { type: 'json_object' };
         let resp;
         try {
           resp = await fetch(GM_ENDPOINT, {
@@ -1152,8 +1184,25 @@ Keep it tight. No meta commentary. No questions to the player unless the events 
           throw new Error('key rejected (401) — paste a new key');
         }
         if (!resp.ok) {
+          // OpenRouter wraps upstream errors as
+          // {error:{message,metadata:{raw}}}. Pull the verbatim
+          // upstream blob into the detail string so a 400 from
+          // Tencent doesn't read as the opaque "Provider returned
+          // error". Read the body as text once and parse it
+          // ourselves — the response stream can only be consumed
+          // a single time.
           let detail = '';
-          try { detail = (await resp.json()).error?.message || ''; } catch (_) {}
+          let bodyText = '';
+          try { bodyText = await resp.text(); } catch (_) {}
+          try {
+            const body = JSON.parse(bodyText);
+            const msg = body?.error?.message || '';
+            const raw = body?.error?.metadata?.raw || '';
+            detail = [msg, raw].filter(Boolean).join(' — ') || bodyText.slice(0, 200);
+          } catch (_) {
+            detail = bodyText.slice(0, 200);
+          }
+          console.error('OpenRouter error', resp.status, bodyText);
           throw new Error(`HTTP ${resp.status}${detail ? `: ${detail}` : ''}`);
         }
         const json = await resp.json();
