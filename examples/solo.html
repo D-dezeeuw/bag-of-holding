@@ -761,31 +761,52 @@
     // Tolerant JSON extractor. LLMs that don't honor a strict
     // "JSON-only" instruction commonly wrap their output in
     // ```json ... ``` fences, prefix it with a sentence, or both.
-    // We strip the most common shapes before falling back to a
-    // greedy {…} substring scan. Returns null if nothing parses.
+    // Reasoning models (hy3-preview, DeepSeek-R1, o1) emit chain-of-
+    // thought BEFORE the final JSON, often referencing hypothetical
+    // shapes mid-reasoning. We scan ALL balanced {…} blocks and
+    // return the LAST one that parses cleanly — that's where
+    // reasoning models put their answer.
     function tryParseJson(text) {
       if (!text || typeof text !== 'string') return null;
       const stripped = text.trim()
         .replace(/^```(?:json)?\s*/i, '')
         .replace(/\s*```\s*$/i, '')
         .trim();
+      // Fast path: the trimmed string is already a JSON object.
       try { return JSON.parse(stripped); } catch (_) {}
-      // Fallback: pick the first {...} block (balanced braces).
-      const start = stripped.indexOf('{');
-      if (start < 0) return null;
-      let depth = 0;
-      for (let i = start; i < stripped.length; i++) {
-        const ch = stripped[i];
-        if (ch === '{') depth++;
-        else if (ch === '}') {
-          depth--;
-          if (depth === 0) {
-            try { return JSON.parse(stripped.slice(start, i + 1)); }
-            catch (_) { return null; }
+      // Slow path: scan every balanced {…} object in the text and
+      // remember the LAST one that parsed. Skip braces inside string
+      // literals so something like {"reason": "see ${x}"} doesn't
+      // throw off depth counting.
+      let lastGood = null;
+      const len = stripped.length;
+      for (let outer = 0; outer < len; outer++) {
+        if (stripped[outer] !== '{') continue;
+        let depth = 0;
+        let inStr = false;
+        let escape = false;
+        for (let i = outer; i < len; i++) {
+          const ch = stripped[i];
+          if (escape) { escape = false; continue; }
+          if (inStr) {
+            if (ch === '\\') escape = true;
+            else if (ch === '"') inStr = false;
+            continue;
+          }
+          if (ch === '"') { inStr = true; continue; }
+          if (ch === '{') depth++;
+          else if (ch === '}') {
+            depth--;
+            if (depth === 0) {
+              try { lastGood = JSON.parse(stripped.slice(outer, i + 1)); }
+              catch (_) {}
+              outer = i;  // jump past this block in the outer scan
+              break;
+            }
           }
         }
       }
-      return null;
+      return lastGood;
     }
 
     const gm = {
@@ -975,7 +996,7 @@ ${fewShot.map(ex => `Message: ${JSON.stringify(ex.in)}\nReply: ${ex.out}`).join(
         const resp = await this.callOpenRouter([
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt }
-        ], { temperature: 0.2, maxTokens: 200 });
+        ], { temperature: 0.2, maxTokens: 1500 });
         const parsed = tryParseJson(resp);
         if (!parsed) {
           // Surface what the model actually returned so the user can
@@ -1179,7 +1200,7 @@ Keep it tight. No meta commentary. No questions to the player unless the events 
         const text = await this.callOpenRouter([
           { role: 'system', content: systemPrompt },
           { role: 'user', content: JSON.stringify(body) }
-        ], { temperature: 0.8, maxTokens: 220 });
+        ], { temperature: 0.8, maxTokens: 1000 });
         return text?.trim();
       },
       // Narrate-only intents (describe/talk/look) call this directly
@@ -1256,7 +1277,31 @@ Keep it tight. No meta commentary. No questions to the player unless the events 
           throw new Error(`HTTP ${resp.status}${detail ? `: ${detail}` : ''}`);
         }
         const json = await resp.json();
-        return json.choices?.[0]?.message?.content ?? '';
+        // Reasoning models (Tencent hy3-preview, DeepSeek-R1, o1)
+        // often emit their visible reply through `message.content`
+        // but spend output tokens on internal chain-of-thought
+        // FIRST. Some providers surface that as `message.reasoning`
+        // (OpenRouter's normalization) or a sibling `reasoning`
+        // field. Pull from all three candidate paths so a short
+        // max-tokens budget doesn't leave us with empty content
+        // while reasoning ate the entire allotment. We also surface
+        // a content_filter finish-reason as a clear hint to the
+        // user, since some providers silently drop the body.
+        const choice = json.choices?.[0];
+        const msg = choice?.message ?? {};
+        const content = msg.content || msg.reasoning || choice?.text || '';
+        if (!content) {
+          console.warn('OpenRouter returned empty content. Full response:', json);
+          if (choice?.finish_reason === 'content_filter') {
+            throw new Error('upstream content filter blocked the request');
+          }
+          if (choice?.finish_reason === 'length') {
+            throw new Error('model exhausted max_tokens before emitting any visible content (likely a reasoning model — raise maxTokens or pick a non-reasoning model)');
+          }
+          // finish_reason is often null / 'stop' even when content is empty.
+          // Fall through and return '' so the caller can decide.
+        }
+        return content;
       },
       // === Snapshot for prompts ===
       buildSnapshot() {
