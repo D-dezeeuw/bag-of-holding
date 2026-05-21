@@ -5,16 +5,22 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-20: **`2.0.0`, solo-playable**. Kernel
-> surface (dice, slots, conditions, XP, character derivation,
+> Status as of 2026-05-21: **`2.0.1`, solo-playable + sandbox demo**.
+> Kernel surface (dice, slots, conditions, XP, character derivation,
 > beats, plugins) feature complete since 1.0; the 1.x line closed
 > SRD 5.2 coverage; 2.0 adds the `Solo` / `Session` / `Replay`
 > namespaces and a pre-built starter party so the package is
 > playable end-to-end without a host. Bundled `examples/solo.html`
-> drives every namespace in a single zero-build page. 1500+ tests
-> at 100 / 100 / 100 coverage. The public API in `index.d.ts` is
-> the frozen 1.0 contract plus the additive 2.0 surface, so semver
-> still means something.
+> drives every namespace in a single zero-build page; 2.0.1 fleshes
+> it out with a character-sheet view, a spell-casting UI, per-actor
+> conditions, save-to-browser persistence, and an LLM-GM chat that
+> uses OpenRouter (paste-in-browser key) to convert free-text into
+> deterministic engine calls and narrate the engine's actual
+> outcomes. 1536 tests at 100% lines / 99.92% branches / 100%
+> functions (the two remaining branches are unreachable defensive
+> guards in `src/solo/session.js`). The public API in `index.d.ts`
+> is the frozen 1.0 contract plus the additive 2.0 surface; 2.0.1
+> ships zero kernel-API changes — sandbox + tests only.
 >
 > **SRD coverage is not yet complete**: death saves, rest-based HP
 > recovery, hit-dice spending, and class-feature *mechanics* (vs the
@@ -1181,6 +1187,63 @@ namespaces + `STARTER_PARTY` constant are a meaningful API
 expansion. The 1.0 contract stays intact (every 1.x export still
 works); the major bump signals "the engine ships its own
 playable surface now," not a break.
+
+### `2.0.1`: Sandbox depth + LLM-GM chat ✅ shipped
+
+Patch-level because **zero kernel API surface changed**: every
+deliverable lives in `examples/solo.html` and `tests/solo.test.js`.
+The sandbox stops being a wiring-test page and starts being a
+playable demo.
+
+- **Character-sheet expand.** Click a party member's name to
+  unfurl an inline detail row: ability scores + mods, saves with
+  proficiency indicators, proficient skills (with expertise
+  pips), weapon attacks, spell-slot pip bar, class resources,
+  remaining hit dice. Reads through `engine.deriveSheet` so
+  equipment changes propagate.
+- **Spell-casting UI.** Caster filtered to party members with
+  `sheet.spellcasting`; spell list pulls L0-L2 entries from
+  `engine.spells`; slot-level picker derives from the caster's
+  `spellSlots` filtered by the spell's base level (so upcasting
+  is one click). Routes through `engine.Spellcasting.castSpell`
+  for slot consumption + concentration auto-bind, then the host
+  resolves the effect (damage / save-for-half / healing).
+- **Per-actor condition controls.** Every party and foe row gets
+  an in-place dropdown + apply/remove buttons over the 11
+  toggle-friendly SRD conditions. Wires `engine.Conditions.apply`
+  / `remove`, which fires the existing `onConditionApplied`
+  chain (and auto-drops concentration on incapacitating
+  conditions per 1.5.0).
+- **Save / Load to browser localStorage.** Per-mutation autosave
+  under `bag-of-holding/solo-session@1`; on page load, restores
+  the last saved session if one exists. Round-trips through
+  `Session.serialize` + `Session.restore` — both fingerprint-
+  gated, so a wrong-pack save throws cleanly.
+- **LLM-GM chat.** A free-text panel powered by OpenRouter
+  (`tencent/hy3-preview`, paste-in-browser key, never committed).
+  Two-call loop: Prompt A classifies the chat message into ONE
+  structured intent from a closed 13-kind vocabulary; a
+  dispatcher routes it to the existing `session.*` surfaces;
+  Prompt B narrates the actual engine outcomes back in-character.
+  Existing buttons skip Prompt A and feed straight into
+  narration. **The LLM never invents dice or HP** — mechanical
+  values are read from `engine.deriveSheet` inside the
+  dispatcher; the intent schema only carries IDs. 500 ms
+  debounce + 2 s min gap + 30-call session cap; XSS-safe
+  rendering via `textContent`. Mock mode (keyword router) lets
+  hosts demo the loop without burning quota.
+- **Coverage tightening.** 18 new tests in `tests/solo.test.js`
+  close the gap between the prior roadmap claim ("100/100/100")
+  and reality (was 99.86 / 98.99 / 99.37). New numbers: 100% /
+  99.92% / 100%. The remaining branch gap is two unreachable
+  defensive guards in `src/solo/session.js:186` (the `?? null`
+  fallback for `actors.get(p.id)` — `adoptParticipant` always
+  populates the map on every public code path).
+
+*Why .1 and not .x:* the sandbox upgrades are demo / example
+changes — the published `@zeeuw/bag-of-holding` kernel exports
+the same surface as 2.0.0. Reserving `2.1.0` / `2.2.0` for the
+adventure + bestiary milestones below.
 
 ### `2.1.0`: Starter adventure: *The Quiet Stair*
 
