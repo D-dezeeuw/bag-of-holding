@@ -76,6 +76,10 @@ recipe points to the milestone where it gets a first-class helper.
 - [38. Fireball: AoE targeting + save-for-half](#38-fireball-aoe-targeting--save-for-half)
 - [39. Monster legendary actions in a round](#39-monster-legendary-actions-in-a-round)
 
+### Solo mode (since 2.0.0)
+
+- [40. Solo mode: oracle + session + share](#40-solo-mode-oracle--session--share-since-200)
+
 ---
 
 ## 1. Roll dice from a static HTML page
@@ -1429,3 +1433,72 @@ if (engine.Monsters.lairActionAvailable(dragon,
 `engine.Monsters.castInnate(actor, dragon, 'fireball')` decrements
 the per-day counter for tracked spells (3/day, 1/day) and reports
 at-will spells succeeding without depletion.
+
+## 40. Solo mode: oracle + session + share (since 2.0.0)
+
+**Use case:** Run a solo session with no human DM — engine drives
+the dice and the bookkeeping, the oracle drives the rulings, the
+session ties it together, and a portable share payload lets you
+hand the session to a friend or a CI replay rig.
+
+```js
+import {
+  createEngine, Dice,
+  Solo, Session, Replay,
+  STARTER_PARTY
+} from '@zeeuw/bag-of-holding';
+
+// 1. Seeded engine for replay-determinism.
+const engine = createEngine({ rng: Dice.seededRng(2026) });
+
+// 2. Oracle gets its OWN seeded rng. Sharing the engine's dice
+//    rng would silently advance the dice stream and break the
+//    rollLog replay; keeping them separate is the whole point of
+//    the 2.0 design.
+const oracle = engine.Solo.oracle({ rng: Dice.seededRng(7777) });
+
+// 3. One-line session with the starter party + an encounter.
+const session = engine.Session.create({
+  seed: 2026,
+  party: STARTER_PARTY,
+  oracle,
+  encounter: {
+    participants: [
+      // Mix party + monsters as the participant list.
+      ...STARTER_PARTY.map(r => {
+        const s = engine.deriveSheet(r);
+        return { id: r.id, dexterity: s.abilityScores.final.dex, speed: s.speed.walk, hp: s.hp.max, hpMax: s.hp.max, ac: s.ac.value };
+      }),
+      { id: 'goblin-1', dexterity: 14, speed: 30, hp: 7, hpMax: 7, ac: 13 }
+    ]
+  }
+});
+
+// 4. Run a turn. Oracle answers a question. Attack. End turn.
+const ruling = oracle.ask('Does the goblin notice us first?', 'unlikely');
+session.record('oracle', ruling);          // log the ruling for narrative trace-back
+
+session.attack({
+  attackerId: 'thora',
+  targetId: 'goblin-1',
+  attackBonus: 5,
+  damageDice: '1d8',
+  damageMod: 3
+});
+
+session.endTurn();
+session.advanceTime({ minutes: 30 });
+
+// 5. Save / restore / share.
+const save = session.serialize();
+// → portable JSON the host can persist; restore via
+//   engine.Session.restore(save) on the same-fingerprint engine.
+
+const share = engine.Replay.share(session);
+const verified = engine.Replay.verify(share);
+// verified.ok === true; dice stream reproduces from the seed.
+```
+
+The browser sandbox at `examples/solo.html` is the live worked
+example — it wires every namespace this recipe touches into
+clickable buttons.

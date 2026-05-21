@@ -1,0 +1,62 @@
+# Deploy the solo sandbox (examples/solo.html) to GitHub Pages.
+#
+# Assembles a static `public/` tree via `npm run pages:build`, then
+# uploads it as a Pages artifact. No bundler step — the kernel is
+# pure ESM with relative imports, so the build is literal file
+# copying + one import-path rewrite.
+#
+# One-time setup needed in the repo:
+#   Settings → Pages → Source: "GitHub Actions"
+# After that this workflow drives every subsequent deploy.
+
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# A new push to main supersedes an in-flight deploy; we don't want
+# two deploys racing the same Pages environment.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Build public/
+        run: npm run pages:build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

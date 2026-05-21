@@ -29,14 +29,16 @@ import * as Classes from './src/classes/index.js';
 import * as CharacterModule from './src/character.js';
 import { createEngine, HOOK_EVENTS } from './src/engine.js';
 import { verifyLog } from './src/replay.js';
+import { STARTER_PARTY } from './src/solo/starter.js';
 
-export { createEngine, verifyLog, HOOK_EVENTS };
+export { createEngine, verifyLog, HOOK_EVENTS, STARTER_PARTY };
 
 const _default = createEngine();
 export default _default;
 
 export const {
   Dice, Checks, Combat, Conditions, XP, Movesets, Beats, Spellcasting, Rest, Mechanics, SceneClock, MagicItems, Monsters, Movement, Multiclass, Inspiration, EncounterDesign, Hazards, Equipment, Travel, MountedCombat,
+  Solo, Session, Replay,
   species, classes, backgrounds, feats, spells, items, monsters
 } = _default;
 
