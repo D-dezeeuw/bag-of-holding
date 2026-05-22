@@ -784,7 +784,24 @@
     const GM_MOCK_STORAGE = 'bag-of-holding/gm-mock@1';
     const GM_MODEL = 'tencent/hy3-preview';
     const GM_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
-    const GM_MAX_CALLS = 30;
+    // Per-session cap. Each chat turn costs up to 3 calls
+    // (classify + narrator + formatter); each engine event triggers
+    // 2 calls (narrator + formatter). 60 ≈ 20 chat turns or 30
+    // button-driven narrations — bumped from 30 when the formatter
+    // pass landed in 2.0.7.
+    const GM_MAX_CALLS = 60;
+    // The narrator's role is creative — let it think and produce a
+    // rich draft (which may include reasoning if the model leaks).
+    // The formatter then compresses to 1-3 clean sentences. Sized
+    // so a verbose reasoning model has room to produce something
+    // usable for the formatter to grab onto.
+    const GM_NARRATOR_MAX_TOKENS = 1500;
+    // Formatter is single-purpose (compress to 1-3 sentences). Low
+    // temperature, low max_tokens for predictable output. If you
+    // swap GM_MODEL to a non-reasoning model and want to save a
+    // call, you can short-circuit formatNarration to return the
+    // narrator's output via sanitizeNarration directly.
+    const GM_FORMATTER_MAX_TOKENS = 250;
     const GM_DEBOUNCE_MS = 500;
     const GM_MIN_GAP_MS = 2000;
 
@@ -1252,21 +1269,33 @@ ${fewShot.map(ex => `Message: ${JSON.stringify(ex.in)}\nReply: ${ex.out}`).join(
         }
         return deltas;
       },
+      // Narrate pipeline: 2 LLM calls split by responsibility.
+      //
+      // Call B1 (narrator): creative pass. The model gets the events
+      //   + deltas + scene snapshot and produces a rich draft. We do
+      //   NOT enforce strict format here — reasoning models can think
+      //   freely, leak chain-of-thought, ramble, whatever. The
+      //   formatter cleans it up. This is the architectural fix for
+      //   the "model dumped chain-of-thought as narration" bug from
+      //   2.0.5 — instead of begging reasoning models not to reason,
+      //   we let them reason and compress the result.
+      //
+      // Call B2 (formatter): single-purpose pass that takes the
+      //   draft and emits EXACTLY 1-3 sentences of dark-fantasy GM
+      //   prose. Lower temperature (0.3 vs 0.8), tighter max_tokens
+      //   (250 vs 1500). Narrow task → more reliable output even
+      //   from the same reasoning model.
       async narrate({ events, deltas, freeform }) {
-        const systemPrompt = `You are the GM of a dark-fantasy solo D&D table.
+        const narratorPrompt = `You are the GM of a dark-fantasy solo D&D table.
 
-OUTPUT FORMAT — STRICT:
-- Output ONLY the final in-character narration. NOTHING else.
-- 1 to 3 sentences. No more.
-- Begin your response with the FIRST WORD of the narration itself.
-- Do NOT think aloud. Do NOT explain your reasoning. Do NOT use words like "Wait", "Let me think", "Let's see", "Okay,", "First,", "So,", "Right,", or any meta phrasing.
-- Do NOT preface with "Narration:" or "GM:" or any label.
-- Do NOT include reasoning, planning, or hedging. Commit to the prose.
+Given the engine events that just occurred, produce a vivid in-character beat describing what the player perceives — what happens, what's seen, heard, felt. 1 to 3 sentences is ideal, but more is OK; another pass will compress your output.
 
-CONTENT RULES:
-- Translate damage into fictional consequence (wounds, stumbles, screams). Avoid mechanics jargon — no "d20", "AC", "HP", "crit", "save DC".
+Content rules:
+- Translate damage into fictional consequence (wounds, stumbles, screams).
+- Avoid mechanics jargon — no "d20", "AC", "HP", "crit", "save DC".
 - Use the actors' display names.
-- No questions to the player unless the events ended on a beat that demands one.`;
+- No questions to the player unless the events ended on a beat that demands one.
+- Dark-fantasy register: visceral, concrete, sparse.`;
         const body = {
           events: events ?? [],
           deltas: deltas ?? {},
@@ -1274,11 +1303,56 @@ CONTENT RULES:
           scene: { minutes: state.session.scene.minutes }
         };
         if (this.mock) return this.mockNarrate(body);
-        const raw = await this.callOpenRouter([
-          { role: 'system', content: systemPrompt },
+        // Step 1: narrator draft (creative, verbose ok).
+        const draft = await this.callOpenRouter([
+          { role: 'system', content: narratorPrompt },
           { role: 'user', content: JSON.stringify(body) }
-        ], { temperature: 0.8, maxTokens: 1000 });
-        return sanitizeNarration(raw);
+        ], { temperature: 0.8, maxTokens: GM_NARRATOR_MAX_TOKENS });
+        if (!draft || !draft.trim()) {
+          throw new Error('narrator returned empty draft');
+        }
+        // Step 2: formatter pass (single-purpose, terse).
+        return await this.formatNarration(draft);
+      },
+      // === Formatter — Prompt C ===
+      // Single-purpose: compress an arbitrary text blob (which may
+      // be clean prose, chain-of-thought, or a mix) into 1-3
+      // sentences of dark-fantasy GM narration. Determinism comes
+      // from (a) narrow task, (b) low temperature, (c) low
+      // max_tokens, (d) sanitization on the output as final guard.
+      async formatNarration(draft) {
+        const formatterPrompt = `You compress text into dark-fantasy game-master narration.
+
+Take the DRAFT below and output EXACTLY 1 to 3 sentences of in-character GM prose. Nothing else.
+
+OUTPUT RULES:
+- Begin your response with the FIRST WORD of the narration.
+- Total length: 1 to 3 sentences. Hard cap.
+- No labels ("Narration:", "Final:", "GM:", etc.). No code fences.
+- Do NOT think aloud. Do NOT use "Wait", "Let me", "Let's", "Okay,", "First,", "So,", "Right,", or any reasoning phrase.
+- Do NOT explain what you did. Output only the sentences.
+
+CONTENT RULES:
+- Keep the most vivid concrete detail (action, visible state, sound, smell).
+- Drop hedging, planning, repetition, hypotheticals, "alternatively" phrasings.
+- Avoid mechanics jargon — no "d20", "AC", "HP", "crit", "save DC".
+- If the draft is empty or pure reasoning with no scene content, write ONE short dark-fantasy sentence from whatever you can salvage.`;
+        const text = await this.callOpenRouter([
+          { role: 'system', content: formatterPrompt },
+          { role: 'user', content: `DRAFT:\n${draft.trim()}` }
+        ], { temperature: 0.3, maxTokens: GM_FORMATTER_MAX_TOKENS });
+        if (!text || !text.trim()) {
+          // Formatter failed; fall back to a heuristic compression
+          // of the narrator draft so the chat at least gets
+          // SOMETHING. Conservative — if the draft itself was a
+          // reasoning blob, sanitizeNarration will throw and we
+          // surface that.
+          return sanitizeNarration(draft);
+        }
+        // Sanitize formatter output as last-line defence (strips
+        // fences / labels, caps at 3 sentences, detects leak
+        // fingerprint).
+        return sanitizeNarration(text);
       },
       // Narrate-only intents (describe/talk/look) call this directly
       // because they produce no engine events.
