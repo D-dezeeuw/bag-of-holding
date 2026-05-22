@@ -809,6 +809,43 @@
       return lastGood;
     }
 
+    // Reasoning models (tencent/hy3-preview, DeepSeek-R1, o1) often
+    // stream chain-of-thought into `message.content` even when we
+    // ask them not to. We can't always block that at the API level
+    // (the `reasoning: { exclude: true }` hint is only honoured by
+    // some providers), so this is the last-line defence:
+    //
+    //  1. Strip code fences and a "Narration:"-style preamble.
+    //  2. Detect the reasoning fingerprint: leading thinking-aloud
+    //     markers AND a wall of prose. If both fire, treat the
+    //     response as a leak and surface a clear error rather than
+    //     dumping the monologue into the chat.
+    //  3. Otherwise, keep only the first 3 sentences (the
+    //     narration; everything after is usually leftover thinking).
+    function sanitizeNarration(raw) {
+      if (!raw || typeof raw !== 'string') {
+        throw new Error('model returned no narration');
+      }
+      let text = raw.trim()
+        .replace(/^```(?:\w+)?\s*/i, '')
+        .replace(/\s*```\s*$/i, '')
+        .replace(/^(?:narration|gm|answer|response|final)\s*:\s*/i, '')
+        .trim();
+      // Reasoning fingerprint: thinking-aloud opener + long output.
+      // Conservative thresholds so a legitimate "Okay — the door
+      // creaks open." (3 short words, opener) doesn't get blocked.
+      const thinkingMarkers = /^(wait|let me|let's|okay,|first,|so,|right,|hmm,|hmm,|alright,|got it,|the user|given the|the event)/i;
+      if (thinkingMarkers.test(text) && text.length > 600) {
+        console.warn('GM narrator leaked reasoning into content. Raw output:', raw);
+        throw new Error("model leaked chain-of-thought instead of narrating (try a non-reasoning model, e.g. anthropic/claude-haiku or openai/gpt-4o-mini)");
+      }
+      // Cap to first 3 sentences. Splitting on .!? followed by
+      // whitespace handles English prose; the rejoin preserves
+      // punctuation. Drops empty trailing fragments.
+      const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0).slice(0, 3);
+      return sentences.join(' ').trim();
+    }
+
     const gm = {
       apiKey: localStorage.getItem(GM_KEY_STORAGE) || '',
       mock: localStorage.getItem(GM_MOCK_STORAGE) === '1',
@@ -1187,9 +1224,19 @@ ${fewShot.map(ex => `Message: ${JSON.stringify(ex.in)}\nReply: ${ex.out}`).join(
       },
       async narrate({ events, deltas, freeform }) {
         const systemPrompt = `You are the GM of a dark-fantasy solo D&D table.
-Given the engine events that just occurred, write ONE to THREE sentences of in-character narration.
-Translate damage into fictional consequence (wounds, stumbles, screams). Avoid mechanics jargon — no "d20", "AC", "HP", "crit", "save DC". Use the actors' display names.
-Keep it tight. No meta commentary. No questions to the player unless the events ended on a beat that demands one.`;
+
+OUTPUT FORMAT — STRICT:
+- Output ONLY the final in-character narration. NOTHING else.
+- 1 to 3 sentences. No more.
+- Begin your response with the FIRST WORD of the narration itself.
+- Do NOT think aloud. Do NOT explain your reasoning. Do NOT use words like "Wait", "Let me think", "Let's see", "Okay,", "First,", "So,", "Right,", or any meta phrasing.
+- Do NOT preface with "Narration:" or "GM:" or any label.
+- Do NOT include reasoning, planning, or hedging. Commit to the prose.
+
+CONTENT RULES:
+- Translate damage into fictional consequence (wounds, stumbles, screams). Avoid mechanics jargon — no "d20", "AC", "HP", "crit", "save DC".
+- Use the actors' display names.
+- No questions to the player unless the events ended on a beat that demands one.`;
         const body = {
           events: events ?? [],
           deltas: deltas ?? {},
@@ -1197,11 +1244,11 @@ Keep it tight. No meta commentary. No questions to the player unless the events 
           scene: { minutes: state.session.scene.minutes }
         };
         if (this.mock) return this.mockNarrate(body);
-        const text = await this.callOpenRouter([
+        const raw = await this.callOpenRouter([
           { role: 'system', content: systemPrompt },
           { role: 'user', content: JSON.stringify(body) }
         ], { temperature: 0.8, maxTokens: 1000 });
-        return text?.trim();
+        return sanitizeNarration(raw);
       },
       // Narrate-only intents (describe/talk/look) call this directly
       // because they produce no engine events.
@@ -1229,7 +1276,18 @@ Keep it tight. No meta commentary. No questions to the player unless the events 
           model: GM_MODEL,
           messages,
           temperature,
-          max_tokens: maxTokens
+          max_tokens: maxTokens,
+          // Reasoning-model controls (OpenRouter's normalized
+          // surface). Tell the upstream provider to keep
+          // chain-of-thought short AND to omit it from the
+          // response body — otherwise reasoning models like
+          // tencent/hy3-preview stream their entire internal
+          // monologue into `message.content`. `include_reasoning`
+          // is the older flag; the `reasoning` object is the
+          // current one. Providers that don't support either
+          // ignore them.
+          reasoning: { effort: 'low', exclude: true },
+          include_reasoning: false
         };
         let resp;
         try {
