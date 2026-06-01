@@ -274,25 +274,84 @@ function deriveInitiative(allFeats, profBonus, dexMod) {
 }
 
 /**
- * Walking speed after exhaustion, movement-cancelling conditions, and
- * the heavy-armor STR-requirement penalty (since v1.17.0).
+ * SRD 5.2 § Character Origins: each background grants its named
+ * Origin Feat with full mechanical effects (cantrips, +5 ft
+ * initiative, weapon reroll, etc.). Folding the feats' `grants`
+ * blocks into a flat `featGrants` map on the sheet lets the host
+ * read every active grant without re-walking the feats list.
  *
- * Per SRD 5.2:
- *   - Grappled / Paralyzed / Petrified / Restrained / Stunned /
- *     Unconscious hard-zero speed — we short-circuit so a paralyzed
- *     PC's sheet doesn't misleadingly show any movement.
- *   - Exhaustion subtracts 5 ft per level.
- *   - If the equipped armor has a `strRequirement` and the character's
- *     STR (final, after background bumps) is below it, speed is
- *     reduced by an additional 10 ft.
+ * Conflict policy: last-write-wins (the player's chosen feats can
+ * override an origin feat's defaults). Repeatable feats with
+ * `variant` selectors collect under the feat id with `_<variant>`.
  */
-function deriveSpeed(species, conditions, exhaustionLevel, strScore, armorRecord) {
-  if (conditions.some((c) => SPEED_ZERO_CONDITIONS.includes(typeof c === 'string' ? c : c.name))) {
-    return { walk: 0 };
+function deriveFeatGrants(allFeats, feats) {
+  const merged = {};
+  for (const featRef of allFeats) {
+    const def = feats[featRef.id];
+    if (!def || !def.grants) continue;
+    const key = featRef.variant ? `${featRef.id}_${featRef.variant}` : featRef.id;
+    merged[key] = def.grants;
   }
-  const penalty = Exhaustion.speedPenalty({ exhaustion: exhaustionLevel });
-  const strPenalty = (armorRecord?.strRequirement && strScore < armorRecord.strRequirement) ? 10 : 0;
-  return { walk: Math.max(0, species.speed - penalty - strPenalty) };
+  return merged;
+}
+
+/**
+ * Walking speed after exhaustion and movement-cancelling conditions.
+ * Per SRD 5.2, Exhaustion subtracts 5 ft per level (handled by
+ * `Conditions.exhaustion.speedPenalty`). Grappled / Paralyzed /
+ * Petrified / Restrained / Stunned / Unconscious all set speed to 0
+ * — we hard-zero on any of them so a paralyzed PC's sheet doesn't
+ * misleadingly show "25 ft (exhausted from 30)".
+ */
+function deriveSpeed(species, conditions, exhaustionLevel, extraPenalty = 0) {
+  const effects = species.effects ?? {};
+  const extras = effects.extraSpeeds ?? {};
+  if (conditions.some((c) => SPEED_ZERO_CONDITIONS.includes(c))) {
+    const zeroed = { walk: 0 };
+    for (const mode of Object.keys(extras)) zeroed[mode] = 0;
+    return zeroed;
+  }
+  const penalty = Exhaustion.speedPenalty({ exhaustion: exhaustionLevel }) + extraPenalty;
+  const speeds = { walk: Math.max(0, species.speed - penalty) };
+  for (const [mode, base] of Object.entries(extras)) {
+    speeds[mode] = Math.max(0, base - penalty);
+  }
+  return speeds;
+}
+
+/**
+ * Senses block per SRD 5.2 § Vision and Light. Pulls darkvision /
+ * blindsight / truesight ranges off the species effects map; the
+ * host stamps the same shape onto any actor for `Movement` helpers
+ * to read.
+ */
+function deriveSenses(species) {
+  const effects = species.effects ?? {};
+  return {
+    darkvision: effects.darkvisionFt ?? 0,
+    blindsight: effects.blindsightFt ?? 0,
+    truesight: effects.truesightFt ?? 0
+  };
+}
+
+/**
+ * Pull damage resistances off the species effects map. Returned as a
+ * fresh array so the sheet's `damageResistances` is host-mutable
+ * (after the host melts the frozen sheet with a copy) without
+ * leaking into the SRD species record.
+ */
+function deriveDamageResistances(species) {
+  const list = species.effects?.damageResistances ?? [];
+  return [...list];
+}
+
+/**
+ * Species trait flags surfaced as a flat object so 1.6 hook handlers
+ * and host UIs can read them without parsing strings. Empty object
+ * for a species with no flags set.
+ */
+function deriveTraitFlags(species) {
+  return { ...(species.effects?.flags ?? {}) };
 }
 
 /**
@@ -324,7 +383,7 @@ function deriveSaves(classDef, extraSaves, profBonus, abilityMods) {
  * rather than throwing — a host editor mid-edit shouldn't crash on a
  * half-written record.
  */
-function deriveSkills(background, extraSkills, expertise, profBonus, abilityMods) {
+function deriveSkills(background, extraSkills, expertise, profBonus, abilityMods, stealthDisadvantage = false) {
   const proficientSet = new Set([
     ...(background.skillProficiencies ?? []),
     ...(extraSkills ?? [])
@@ -335,12 +394,20 @@ function deriveSkills(background, extraSkills, expertise, profBonus, abilityMods
     const proficient = proficientSet.has(skillId);
     const isExpert = proficient && expertiseSet.has(skillId);
     const profPortion = isExpert ? profBonus * 2 : (proficient ? profBonus : 0);
-    skills[skillId] = {
+    const skill = {
       ability,
       mod: abilityMods[ability] + profPortion,
       proficient,
       expertise: isExpert
     };
+    // Heavy / armored disadvantage rides through to the host as a
+    // flag the UI can render alongside the mod, instead of folding
+    // into the mod itself (advantage / disadvantage are roll-time
+    // mechanics in 5e, not flat penalties).
+    if (skillId === 'stealth' && stealthDisadvantage) {
+      skill.disadvantage = true;
+    }
+    skills[skillId] = skill;
   }
   return skills;
 }
@@ -459,6 +526,7 @@ export function deriveSheet(record, registries) {
   const classDef = registries.classes[record.classId];
   const background = registries.backgrounds[record.backgroundId];
   const items = registries.items;
+  const feats = registries.feats ?? {};
 
   const profBonus = registries.XP.PROFICIENCY_BY_LEVEL[record.level]
     ?? Math.ceil(record.level / 4) + 1;   // graceful fallback past tier 1
@@ -468,40 +536,34 @@ export function deriveSheet(record, registries) {
   const conditions = Array.isArray(record.conditions) ? record.conditions : [];
   const exhaustionLevel = Exhaustion.level({ exhaustion: record.exhaustion });
 
-  // Look up the equipped armor once — used for AC, stealth disadvantage,
-  // and the STR-requirement speed penalty. Pulled out here so each
-  // sub-deriver receives the resolved record, not a raw id.
-  const armorRecord = record.equipment.armorId ? items[record.equipment.armorId] : null;
-
   const hp = { max: deriveMaxHp(record, classDef, abilityMods.con) };
   const ac = deriveAc(record, items, abilityMods.dex);
   const initiative = deriveInitiative(allFeats, profBonus, abilityMods.dex);
-  const speed = deriveSpeed(species, conditions, exhaustionLevel, abilityFinal.str, armorRecord);
+  const featGrants = deriveFeatGrants(allFeats, feats);
+  // Armor metadata governs both stealth disadvantage (per SRD § Armor)
+  // and a 10 ft speed penalty when a heavy armor's strRequired isn't
+  // met. The host can also stamp `record.encumbrance` for the variant
+  // rule, which routes through the same speed-penalty pipeline.
+  const armor = record.equipment?.armorId ? items[record.equipment.armorId] : null;
+  const armorStealthDisadvantage = Boolean(armor?.stealthDisadvantage);
+  const armorSpeedPenalty = armor && armor.strRequired && abilityFinal.str < armor.strRequired ? 10 : 0;
+  const encumbranceSpeed = (record.encumbrance === 'encumbered') ? 10
+    : (record.encumbrance === 'heavily-encumbered') ? 20 : 0;
+  const speed = deriveSpeed(species, conditions, exhaustionLevel, armorSpeedPenalty + encumbranceSpeed);
+  const senses = deriveSenses(species);
+  const damageResistances = deriveDamageResistances(species);
+  const traitFlags = deriveTraitFlags(species);
   const saves = deriveSaves(classDef, record.proficiencies?.saves, profBonus, abilityMods);
   const skills = deriveSkills(
     background,
     record.proficiencies?.skills,
     record.proficiencies?.expertise,
     profBonus,
-    abilityMods
+    abilityMods,
+    armorStealthDisadvantage
   );
-  // Armor stealth disadvantage (since v1.17.0). Patched onto the
-  // stealth line after general skill derivation so the main loop
-  // stays clean and the patch is easy to audit in one place.
-  if (armorRecord?.stealthDisadvantage) {
-    skills.stealth = { ...skills.stealth, disadvantage: true };
-  }
   const attacks = deriveAttacks(record, items, profBonus, abilityMods);
   const spellcasting = deriveSpellcasting(classDef, profBonus, abilityMods);
-
-  // Species mechanic fields (since v1.13.0). Copy so a plugin that
-  // hands us a mutable object doesn't get its record frozen by the
-  // deepFreeze below.
-  const senses = { ...(species.senses ?? {}) };
-  const traits = [...(species.traits ?? [])];
-  const damageResistances = [...(species.damageResistances ?? [])];
-  const conditionImmunities = [...(species.conditionImmunities ?? [])];
-  const flags = { ...(species.flags ?? {}) };
 
   const passives = {
     perception:    10 + skills.perception.mod,
@@ -536,15 +598,14 @@ export function deriveSheet(record, registries) {
     initiative,
     speed,
     senses,
-    traits,
     damageResistances,
-    conditionImmunities,
-    flags,
+    traitFlags,
     saves,
     skills,
     attacks,
     spellcasting,
     passives,
+    featGrants,
     carryingCapacity,
     activeEffects: {
       conditions: [...conditions],

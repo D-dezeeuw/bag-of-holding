@@ -8,7 +8,6 @@ import {
   stabilize,
   reviveTo
 } from '../src/combat.js';
-import { has as hasCondition } from '../src/conditions.js';
 import { createEngine } from '../src/engine.js';
 import { seededRng } from '../src/dice.js';
 import { buildRules } from '../src/rules.js';
@@ -38,7 +37,7 @@ test('dropToZero zeroes HP, applies Unconscious, initialises tracker', () => {
   const actor = { id: 'pc', hp: 4, conditions: [] };
   const next = dropToZero(actor);
   assert.equal(next.hp, 0);
-  assert.ok(hasCondition(next, 'unconscious'));
+  assert.ok(next.conditions.includes('unconscious'));
   assert.deepEqual(next.deathSaves, freshDeathSaves());
   // Original untouched.
   assert.equal(actor.hp, 4);
@@ -48,10 +47,10 @@ test('dropToZero preserves existing conditions and is idempotent', () => {
   const actor = { id: 'pc', hp: 1, conditions: ['poisoned'] };
   const once = dropToZero(actor);
   const twice = dropToZero(once);
-  assert.ok(hasCondition(once, 'poisoned'));
-  assert.ok(hasCondition(once, 'unconscious'));
+  assert.ok(once.conditions.includes('poisoned'));
+  assert.ok(once.conditions.includes('unconscious'));
   // Re-dropping refreshes the tracker but doesn't duplicate conditions.
-  assert.equal(twice.conditions.filter(e => (typeof e === 'string' ? e : e.name) === 'unconscious').length, 1);
+  assert.equal(twice.conditions.filter(c => c === 'unconscious').length, 1);
   assert.deepEqual(twice.deathSaves, freshDeathSaves());
 });
 
@@ -106,7 +105,7 @@ test('nat 20 revives the actor to 1 HP and removes Unconscious', () => {
   assert.equal(d20, 20);
   assert.equal(outcome, 'revived');
   assert.equal(next.hp, 1);
-  assert.ok(!hasCondition(next, 'unconscious'));
+  assert.ok(!next.conditions.includes('unconscious'));
   assert.deepEqual(next.deathSaves, freshDeathSaves());
 });
 
@@ -223,8 +222,8 @@ test('reviveTo restores HP, clears tracker, removes Unconscious', () => {
   const down = dropToZero({ id: 'pc', conditions: ['poisoned'] });
   const up = reviveTo(down, 7);
   assert.equal(up.hp, 7);
-  assert.ok(!hasCondition(up, 'unconscious'));
-  assert.ok(hasCondition(up, 'poisoned'));    // unrelated conditions stay
+  assert.ok(!up.conditions.includes('unconscious'));
+  assert.ok(up.conditions.includes('poisoned'));    // unrelated conditions stay
   assert.deepEqual(up.deathSaves, freshDeathSaves());
 });
 

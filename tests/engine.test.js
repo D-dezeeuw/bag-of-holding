@@ -66,7 +66,7 @@ test('extraConditions extend the boolean condition vocabulary', () => {
   assert.ok(e.Conditions.CONDITIONS.includes('prone'));      // SRD still present
 
   const actor = e.Conditions.apply({ id: 'pc' }, 'cursed');
-  assert.deepEqual(actor.conditions, [{ name: 'cursed' }]);
+  assert.deepEqual(actor.conditions, ['cursed']);
 });
 
 test('extraConditions apply works through the bound Conditions namespace, not the global', () => {

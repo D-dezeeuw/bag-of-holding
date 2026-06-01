@@ -1,0 +1,1886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>bag-of-holding — solo mode sandbox</title>
+  <style>
+    :root {
+      --bg: #14171a;
+      --fg: #e8eaed;
+      --muted: #9aa0a6;
+      --accent: #f1c40f;
+      --good: #27ae60;
+      --bad: #e74c3c;
+      --panel: #1d2125;
+      --border: #2a2f34;
+      --hover: #252a2f;
+      --code: 'JetBrains Mono', 'Fira Code', 'SF Mono', Menlo, Consolas, monospace;
+    }
+    html, body {
+      margin: 0; padding: 0;
+      background: var(--bg); color: var(--fg);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    body { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: auto 1fr; min-height: 100vh; }
+    header {
+      grid-column: 1 / -1;
+      padding: 12px 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 12px;
+    }
+    header h1 { margin: 0; font-size: 16px; font-weight: 600; }
+    header .meta { color: var(--muted); font-family: var(--code); font-size: 12px; }
+    .left, .right { padding: 16px 20px; overflow-y: auto; max-height: calc(100vh - 60px); }
+    .left { border-right: 1px solid var(--border); }
+    .panel { background: var(--panel); border: 1px solid var(--border); border-radius: 6px; padding: 12px 14px; margin-bottom: 14px; }
+    .panel h2 { margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+    .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 6px 0; }
+    button {
+      background: var(--hover); color: var(--fg);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 5px 12px; font-size: 13px; cursor: pointer;
+      font-family: inherit;
+    }
+    button:hover { background: #2f3539; }
+    button:active { transform: translateY(1px); }
+    button.primary { background: var(--accent); color: #14171a; border-color: var(--accent); }
+    button.primary:hover { filter: brightness(1.1); }
+    select, input[type=text], input[type=number] {
+      background: #14171a; color: var(--fg);
+      border: 1px solid var(--border); border-radius: 4px;
+      padding: 5px 8px; font-size: 13px; font-family: inherit;
+    }
+    select { min-width: 110px; }
+    input[type=text] { min-width: 200px; }
+    label { color: var(--muted); font-size: 12px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); }
+    th { color: var(--muted); font-weight: 500; }
+    tr.actor.down td { opacity: 0.55; }
+    tr.actor.current td { background: rgba(241, 196, 15, 0.08); }
+    .badge { display: inline-block; font-size: 11px; padding: 1px 6px; border-radius: 3px; margin-right: 4px; background: var(--hover); }
+    .badge.cond { background: #2c3e50; color: var(--fg); }
+    .hp-good { color: var(--good); }
+    .hp-low { color: var(--accent); }
+    .hp-bad { color: var(--bad); }
+    .log { font-family: var(--code); font-size: 12px; line-height: 1.5; }
+    .log .entry { padding: 3px 6px; border-bottom: 1px dotted var(--border); }
+    .log .entry .kind { color: var(--muted); margin-right: 8px; }
+    .log .entry.hit .kind { color: var(--good); }
+    .log .entry.miss .kind { color: var(--muted); }
+    .log .entry.crit .kind { color: var(--accent); font-weight: bold; }
+    .log .entry.fumble .kind { color: var(--bad); }
+    .log .entry.death .kind { color: var(--bad); font-weight: bold; }
+    .oracle-out { font-family: var(--code); font-size: 13px; padding: 4px 0; }
+    .out-yes, .out-yes-but, .out-exceptional-yes { color: var(--good); }
+    .out-no, .out-no-but, .out-exceptional-no { color: var(--bad); }
+    .out-exceptional-yes, .out-exceptional-no { font-weight: bold; }
+    pre.share {
+      background: #0e1012; padding: 10px; border-radius: 4px;
+      font-family: var(--code); font-size: 11px; overflow-x: auto;
+      max-height: 200px; border: 1px solid var(--border); color: var(--muted);
+    }
+    .scene-time { font-family: var(--code); color: var(--accent); }
+
+    /* Sheet detail expand (clickable party row). */
+    tr.actor td.name { cursor: pointer; user-select: none; }
+    tr.actor td.name:hover { color: var(--accent); }
+    tr.actor td.name .caret { display: inline-block; width: 12px; color: var(--muted); transition: transform 0.1s; }
+    tr.actor.expanded td.name .caret { transform: rotate(90deg); color: var(--accent); }
+    tr.sheet-detail td { padding: 8px 12px 12px; background: #0e1012; }
+    .sheet-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px 12px; font-family: var(--code); font-size: 11px; }
+    .sheet-grid .label { color: var(--muted); }
+    .sheet-grid .value { color: var(--fg); }
+    .sheet-block { margin-top: 8px; }
+    .sheet-block h3 { margin: 6px 0 4px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); font-weight: 600; }
+    .slot-bar { display: inline-flex; gap: 3px; margin-right: 12px; font-family: var(--code); font-size: 11px; }
+    .slot-bar .slot { width: 18px; height: 18px; border: 1px solid var(--border); display: inline-flex; align-items: center; justify-content: center; }
+    .slot-bar .slot.used { background: var(--hover); color: var(--muted); }
+    .slot-bar .slot.available { background: #1f3a2e; color: var(--good); }
+
+    /* Per-row condition controls. */
+    td.cond-cell { white-space: nowrap; }
+    td.cond-cell select { min-width: 90px; font-size: 11px; padding: 2px 4px; }
+    td.cond-cell button { padding: 2px 6px; font-size: 11px; }
+
+    /* Cast spell panel. */
+    .cast-row { display: grid; grid-template-columns: auto 1fr; gap: 6px 10px; align-items: center; margin: 6px 0; }
+    .cast-row label { white-space: nowrap; }
+    .cast-row select { width: 100%; min-width: 0; }
+    .cast-result { font-family: var(--code); font-size: 12px; padding: 4px 8px; border-radius: 4px; margin-top: 6px; }
+    .cast-result.ok { background: #1f3a2e; color: var(--fg); }
+    .cast-result.bad { background: #3a1f1f; color: var(--fg); }
+
+    /* Save/Load indicator. */
+    .save-meta { color: var(--muted); font-size: 11px; font-family: var(--code); margin-left: 8px; }
+
+    /* GM chat panel. */
+    .gm-header { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; font-size: 11px; font-family: var(--code); }
+    .gm-pill { padding: 2px 8px; border-radius: 10px; background: var(--hover); color: var(--muted); border: 1px solid var(--border); }
+    .gm-pill.ok { background: #1f3a2e; color: var(--good); }
+    .gm-pill.bad { background: #3a1f1f; color: var(--bad); }
+    .gm-pill label { font-size: 11px; color: inherit; }
+    .gm-pill input[type=checkbox] { vertical-align: middle; margin-right: 4px; }
+    #gm-transcript {
+      background: #0e1012; border: 1px solid var(--border); border-radius: 4px;
+      padding: 8px; height: 240px; overflow-y: auto; font-size: 13px; line-height: 1.45;
+    }
+    #gm-transcript .turn { padding: 4px 0; border-bottom: 1px dotted var(--border); }
+    #gm-transcript .turn:last-child { border-bottom: none; }
+    #gm-transcript .role { font-family: var(--code); font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; margin-right: 6px; }
+    #gm-transcript .turn.you .role { color: var(--accent); }
+    #gm-transcript .turn.gm .role { color: var(--good); }
+    #gm-transcript .turn.error .role { color: var(--bad); }
+    #gm-transcript .turn.error { color: var(--muted); }
+    #gm-transcript .turn.system { color: var(--muted); font-style: italic; font-size: 12px; }
+    #gm-transcript .empty { color: var(--muted); font-style: italic; }
+    .gm-input-row { display: flex; gap: 6px; margin-top: 8px; }
+    .gm-input-row input { flex: 1; min-width: 0; }
+    .gm-keyrow { display: flex; gap: 6px; align-items: center; margin-top: 6px; }
+    .gm-keyrow input { flex: 1; min-width: 0; }
+    .gm-keyrow small { color: var(--muted); font-size: 10px; font-family: var(--code); }
+
+    /* Chat-only mode (default). The `full-sandbox` body class is
+       added when the user toggles to the full view. */
+    #toggle-view {
+      background: var(--accent); color: #14171a;
+      border-color: var(--accent); font-weight: 600;
+      white-space: nowrap;
+    }
+    #toggle-view:hover { filter: brightness(1.1); }
+    body:not(.full-sandbox) { grid-template-columns: 1fr; }
+    body:not(.full-sandbox) .left { display: none; }
+    body:not(.full-sandbox) .right > .panel:not(#gm-panel) { display: none; }
+    body:not(.full-sandbox) .right {
+      border-right: none;
+      max-width: 820px;
+      margin: 0 auto;
+      padding-top: 24px;
+      width: 100%;
+    }
+    body:not(.full-sandbox) #gm-panel { margin-bottom: 0; }
+    body:not(.full-sandbox) #gm-transcript {
+      height: calc(100vh - 320px);
+      min-height: 320px;
+    }
+    body:not(.full-sandbox) header .meta {
+      /* Drop seed/rules/round/time when focused on chat — they
+         distract from the conversation. The toggle button stays. */
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>bag-of-holding — solo mode sandbox</h1>
+    <div class="meta">
+      seed: <span id="meta-seed">—</span> &nbsp;|&nbsp;
+      rules: <span id="meta-fingerprint">—</span> &nbsp;|&nbsp;
+      round: <span id="meta-round">—</span> &nbsp;|&nbsp;
+      time: <span id="meta-time" class="scene-time">—</span>
+    </div>
+    <button id="toggle-view" title="Switch between chat-only and full sandbox views">▦ Full sandbox</button>
+  </header>
+
+  <section class="left">
+    <div class="panel">
+      <h2>Session</h2>
+      <div class="row">
+        <label>seed</label>
+        <input type="number" id="seed-input" value="2026" />
+        <button id="new-session">Start new session</button>
+        <button id="export-share">Export share</button>
+        <button id="verify-share">Verify share</button>
+      </div>
+      <div class="row">
+        <button id="save-session">Save to browser</button>
+        <button id="load-session">Load from browser</button>
+        <button id="clear-saved-session">Clear saved</button>
+        <span class="save-meta" id="save-meta">—</span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Party <span class="save-meta">click name → expand sheet</span></h2>
+      <table>
+        <thead><tr><th>Name</th><th>HP</th><th>AC</th><th>Conditions</th><th></th></tr></thead>
+        <tbody id="party-body"></tbody>
+      </table>
+      <div class="row">
+        <button id="short-rest">Short rest</button>
+        <button id="long-rest">Long rest</button>
+        <button id="heal-target">Heal +5</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Foes</h2>
+      <table>
+        <thead><tr><th>Name</th><th>HP</th><th>AC</th><th>Conditions</th><th></th></tr></thead>
+        <tbody id="foes-body"></tbody>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h2>Combat</h2>
+      <div class="row">
+        <label>attacker</label>
+        <select id="attacker"></select>
+        <label>target</label>
+        <select id="target"></select>
+        <button class="primary" id="do-attack">Attack</button>
+        <button id="end-turn">End turn</button>
+      </div>
+      <div class="row">
+        <label>spawn foe</label>
+        <select id="spawn-monster"></select>
+        <button id="do-spawn" title="Rebuilds the encounter with the new foe; initiative is re-rolled.">Restart encounter with new foe</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Cast a spell</h2>
+      <div class="cast-row">
+        <label>caster</label>
+        <select id="cast-caster"></select>
+      </div>
+      <div class="cast-row">
+        <label>spell</label>
+        <select id="cast-spell"></select>
+      </div>
+      <div class="cast-row">
+        <label>at slot level</label>
+        <select id="cast-slot"></select>
+      </div>
+      <div class="cast-row">
+        <label>target</label>
+        <select id="cast-target"></select>
+      </div>
+      <div class="row">
+        <button class="primary" id="do-cast">Cast</button>
+      </div>
+      <div id="cast-result"></div>
+    </div>
+  </section>
+
+  <section class="right">
+    <div class="panel" id="gm-panel">
+      <h2>GM <span class="save-meta">free-text → LLM → engine → narration</span></h2>
+      <div class="gm-header">
+        <span class="gm-pill" id="gm-key-pill">no key</span>
+        <span class="gm-pill"><label><input type="checkbox" id="gm-mock" />mock</label></span>
+        <span class="gm-pill" id="gm-calls-pill">calls 0/30</span>
+        <span class="gm-pill" id="gm-status-pill" style="display:none"></span>
+      </div>
+      <div id="gm-transcript"><div class="empty">(GM is quiet — paste a key or enable mock, then say something.)</div></div>
+      <div class="gm-input-row">
+        <input type="text" id="gm-input" placeholder="I scan the room for traps." />
+        <button class="primary" id="gm-send">Send</button>
+      </div>
+      <div class="gm-keyrow" id="gm-keyrow">
+        <input type="password" id="gm-key" placeholder="paste your OpenRouter key (sk-or-…)" autocomplete="off" />
+        <button id="gm-key-save">Save key</button>
+        <button id="gm-key-clear" title="Remove the saved key">Forget</button>
+      </div>
+      <small style="color:var(--muted); font-size:10px; font-family:var(--code);">
+        key stays in your browser's localStorage; never sent to bag-of-holding.
+      </small>
+    </div>
+
+    <div class="panel">
+      <h2>Oracle</h2>
+      <div class="row">
+        <input type="text" id="oracle-q" placeholder="Does the rope hold?" />
+        <select id="oracle-odds">
+          <option>certain</option>
+          <option>near-certain</option>
+          <option>very-likely</option>
+          <option>likely</option>
+          <option selected>fifty-fifty</option>
+          <option>unlikely</option>
+          <option>very-unlikely</option>
+          <option>near-impossible</option>
+          <option>impossible</option>
+        </select>
+        <button id="oracle-ask">Ask</button>
+        <button id="oracle-twist">Draw a twist</button>
+        <button id="oracle-comp">Complication</button>
+      </div>
+      <div id="oracle-history"></div>
+    </div>
+
+    <div class="panel">
+      <h2>Time</h2>
+      <div class="row">
+        <button data-mins="10">+10 min</button>
+        <button data-mins="60">+1 hr</button>
+        <button data-mins="240">+4 hr</button>
+        <button data-mins="480">+8 hr</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Session log</h2>
+      <div class="log" id="log-list"></div>
+    </div>
+
+    <div class="panel" id="share-panel" style="display:none">
+      <h2>Share payload</h2>
+      <pre class="share" id="share-out"></pre>
+    </div>
+  </section>
+
+  <script type="module">
+    // The example loads the kernel as ESM from the package root.
+    // To run: from the repo root, start any static server (e.g.
+    // `npx http-server` or `python3 -m http.server`) and open
+    // `examples/solo.html` in the browser. ESM imports from file://
+    // are blocked by some browsers, so serving over HTTP is safer.
+    import { createEngine, Dice, STARTER_PARTY } from '../index.js';
+
+    const state = {
+      engine: null,
+      session: null,
+      oracle: null,
+      seed: 2026,
+      foeIds: new Set(),
+      // Which actor's sheet detail is expanded (id), or null.
+      expandedId: null,
+      // Skip auto-save inside render() loops; flipped true after
+      // newSession() finishes and any user-driven mutation calls save().
+      autosave: false
+    };
+
+    const $ = (sel) => document.querySelector(sel);
+
+    const SAVE_KEY = 'bag-of-holding/solo-session@1';
+    // Conditions the engine ships out of the box; filtered to ones
+    // useful to toggle by hand (incapacitates / advantage flips).
+    const TOGGLEABLE_CONDITIONS = [
+      'blinded', 'charmed', 'frightened', 'grappled', 'invisible',
+      'paralyzed', 'poisoned', 'prone', 'restrained', 'stunned', 'unconscious'
+    ];
+
+    function classifyHp(actor) {
+      const ratio = actor.hp / (actor.hpMax || 1);
+      if (actor.hp <= 0) return 'hp-bad';
+      if (ratio < 0.33) return 'hp-low';
+      return 'hp-good';
+    }
+
+    // Render one actor row + (optionally) an expanded sheet detail
+    // row below it. Returns an array of <tr> elements the caller
+    // appends in order — so the detail row visually sits with the
+    // header row without breaking table semantics.
+    function renderActorRow(actor, current, isPartyMember) {
+      const tr = document.createElement('tr');
+      tr.className = 'actor';
+      tr.dataset.actorId = actor.id;
+      if (actor.hp <= 0) tr.classList.add('down');
+      if (current && current.id === actor.id) tr.classList.add('current');
+      const expanded = state.expandedId === actor.id;
+      if (expanded) tr.classList.add('expanded');
+      const conds = (actor.conditions || []).map(c => `<span class="badge cond">${c}</span>`).join('');
+      const caret = isPartyMember ? '<span class="caret">▸</span> ' : '';
+      tr.innerHTML = `
+        <td class="name">${caret}${actor.name || actor.id}</td>
+        <td class="${classifyHp(actor)}">${actor.hp}/${actor.hpMax ?? actor.hp}</td>
+        <td>${actor.ac ?? '—'}</td>
+        <td>${conds || '<span style="color:var(--muted)">—</span>'}</td>
+        <td class="cond-cell">
+          <select data-cond-for="${actor.id}">
+            ${TOGGLEABLE_CONDITIONS.map(c => `<option value="${c}">${c}</option>`).join('')}
+          </select>
+          <button data-cond-apply="${actor.id}" title="Apply selected condition">+</button>
+          <button data-cond-remove="${actor.id}" title="Remove selected condition">−</button>
+        </td>
+      `;
+      if (isPartyMember) {
+        tr.querySelector('td.name').addEventListener('click', () => {
+          state.expandedId = expanded ? null : actor.id;
+          render();
+        });
+      }
+      const rows = [tr];
+      if (isPartyMember && expanded) {
+        const detailTr = document.createElement('tr');
+        detailTr.className = 'sheet-detail';
+        const td = document.createElement('td');
+        td.colSpan = 5;
+        td.appendChild(renderSheetDetail(actor));
+        detailTr.appendChild(td);
+        rows.push(detailTr);
+      }
+      return rows;
+    }
+
+    // Build the expanded sheet detail block: ability mods, saves,
+    // skills, attacks, slots, resources, hit dice. Reads from the
+    // engine-derived sheet so the numbers track equipment changes.
+    function renderSheetDetail(actor) {
+      const record = STARTER_PARTY.find(r => r.id === actor.id);
+      const sheet = state.engine.deriveSheet(record);
+      const wrap = document.createElement('div');
+
+      const grid = document.createElement('div');
+      grid.className = 'sheet-grid';
+      const abilities = ['str', 'dex', 'con', 'int', 'wis', 'cha'];
+      grid.innerHTML = abilities.map(a => {
+        const score = sheet.abilityScores.final[a];
+        const mod = sheet.abilityScores.mod[a];
+        return `<div><span class="label">${a.toUpperCase()}</span> <span class="value">${score} (${mod >= 0 ? '+' : ''}${mod})</span></div>`;
+      }).join('');
+      wrap.appendChild(grid);
+
+      // Saves
+      const saves = document.createElement('div');
+      saves.className = 'sheet-block';
+      saves.innerHTML = '<h3>Saves</h3>' + abilities.map(a => {
+        const s = sheet.saves[a];
+        const tag = s.proficient ? ' <span style="color:var(--accent)">●</span>' : '';
+        return `<span class="badge">${a.toUpperCase()} ${s.mod >= 0 ? '+' : ''}${s.mod}${tag}</span>`;
+      }).join('');
+      wrap.appendChild(saves);
+
+      // Skills (only proficient ones — keeps it focused)
+      const profSkills = Object.entries(sheet.skills).filter(([_, s]) => s.proficient);
+      if (profSkills.length > 0) {
+        const skills = document.createElement('div');
+        skills.className = 'sheet-block';
+        skills.innerHTML = '<h3>Proficient skills</h3>' + profSkills.map(([id, s]) => {
+          const exp = s.expertise ? ' ●●' : '';
+          return `<span class="badge">${id} ${s.mod >= 0 ? '+' : ''}${s.mod}${exp}</span>`;
+        }).join('');
+        wrap.appendChild(skills);
+      }
+
+      // Attacks
+      if (sheet.attacks.length > 0) {
+        const atks = document.createElement('div');
+        atks.className = 'sheet-block';
+        atks.innerHTML = '<h3>Attacks</h3>' + sheet.attacks.map(a =>
+          `<span class="badge">${a.name} ${a.attackBonus >= 0 ? '+' : ''}${a.attackBonus} → ${a.damageDice}${a.damageMod ? (a.damageMod >= 0 ? '+' : '') + a.damageMod : ''} ${a.damageType ?? ''}</span>`
+        ).join('');
+        wrap.appendChild(atks);
+      }
+
+      // Spellcasting
+      if (sheet.spellcasting && actor.spellSlots) {
+        const sc = document.createElement('div');
+        sc.className = 'sheet-block';
+        let html = `<h3>Spellcasting <span class="save-meta">${sheet.spellcasting.ability.toUpperCase()} · atk ${sheet.spellcasting.attackBonus >= 0 ? '+' : ''}${sheet.spellcasting.attackBonus} · save DC ${sheet.spellcasting.saveDC}</span></h3>`;
+        for (const slot of actor.spellSlots) {
+          let pips = '';
+          for (let i = 0; i < slot.max; i++) {
+            const used = i < slot.used;
+            pips += `<span class="slot ${used ? 'used' : 'available'}">${used ? '·' : '◆'}</span>`;
+          }
+          html += `<span class="slot-bar">L${slot.level} ${pips}</span>`;
+        }
+        sc.innerHTML = html;
+        wrap.appendChild(sc);
+      }
+
+      // Resources (class features like Second Wind, Channel Divinity, etc.)
+      if (actor.resources && Object.keys(actor.resources).length > 0) {
+        const res = document.createElement('div');
+        res.className = 'sheet-block';
+        res.innerHTML = '<h3>Resources</h3>' + Object.entries(actor.resources).map(([id, r]) =>
+          `<span class="badge">${id} ${r.max - r.used}/${r.max} <span class="save-meta">(${r.refreshes})</span></span>`
+        ).join('');
+        wrap.appendChild(res);
+      }
+
+      // Hit dice
+      const hd = document.createElement('div');
+      hd.className = 'sheet-block';
+      const total = actor.hitDiceTotal ?? actor.level ?? 0;
+      const used = actor.hitDiceUsed ?? 0;
+      hd.innerHTML = `<h3>Hit Dice</h3><span class="badge">d${actor.hitDie ?? 8} · ${total - used}/${total} remaining</span>`;
+      wrap.appendChild(hd);
+
+      return wrap;
+    }
+
+    function render() {
+      if (!state.session) return;
+      const session = state.session;
+
+      $('#meta-seed').textContent = session.seed ?? '—';
+      $('#meta-fingerprint').textContent = state.engine.rulesFingerprint;
+      $('#meta-round').textContent = session.encounter?.round ?? '—';
+      $('#meta-time').textContent = state.engine.SceneClock.formatTimeOfDay(session.scene.minutes);
+
+      const partyBody = $('#party-body');
+      partyBody.innerHTML = '';
+      const current = session.currentActor();
+      for (const record of STARTER_PARTY) {
+        const actor = session.actor(record.id);
+        const rows = renderActorRow({ ...actor, name: record.name }, current, true);
+        for (const r of rows) partyBody.appendChild(r);
+      }
+      // Wire condition apply/remove buttons in the party table.
+      wireConditionControls(partyBody);
+
+      const foesBody = $('#foes-body');
+      foesBody.innerHTML = '';
+      for (const id of state.foeIds) {
+        try {
+          const actor = session.actor(id);
+          const rows = renderActorRow(actor, current, false);
+          for (const r of rows) foesBody.appendChild(r);
+        } catch (_) { /* removed */ }
+      }
+      if (state.foeIds.size === 0) {
+        foesBody.innerHTML = '<tr><td colspan="5" style="color:var(--muted)">(no foes — spawn a monster to start)</td></tr>';
+      } else {
+        wireConditionControls(foesBody);
+      }
+
+      const attackerSel = $('#attacker');
+      const targetSel = $('#target');
+      const partyIds = STARTER_PARTY.map(r => ({ id: r.id, name: r.name }));
+      const foeOpts = [...state.foeIds].map(id => ({ id, name: session.actor(id).name || id }));
+      const allIds = [...partyIds, ...foeOpts];
+      attackerSel.innerHTML = allIds.map(({ id, name }) => `<option value="${id}">${name}</option>`).join('');
+      targetSel.innerHTML = allIds.map(({ id, name }) => `<option value="${id}">${name}</option>`).join('');
+      if (current && allIds.find(a => a.id === current.id)) attackerSel.value = current.id;
+
+      renderCastPanel(allIds);
+
+      // Log
+      const logList = $('#log-list');
+      logList.innerHTML = '';
+      const tail = session.log.slice(-50);
+      for (const entry of tail) logList.appendChild(renderLogEntry(entry));
+      logList.scrollTop = logList.scrollHeight;
+
+      renderSaveMeta();
+    }
+
+    function wireConditionControls(tbody) {
+      for (const btn of tbody.querySelectorAll('button[data-cond-apply]')) {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.condApply;
+          const sel = tbody.querySelector(`select[data-cond-for="${id}"]`);
+          state.session.applyCondition(id, sel.value);
+          afterMutation();
+        });
+      }
+      for (const btn of tbody.querySelectorAll('button[data-cond-remove]')) {
+        btn.addEventListener('click', () => {
+          const id = btn.dataset.condRemove;
+          const sel = tbody.querySelector(`select[data-cond-for="${id}"]`);
+          state.session.removeCondition(id, sel.value);
+          afterMutation();
+        });
+      }
+    }
+
+    // Re-populate the cast-spell selectors. Casters are party
+    // members with a non-empty spellSlots array (or any cantrips,
+    // but we don't differentiate — cantrips work without slots).
+    function renderCastPanel(allIds) {
+      const session = state.session;
+      const casterSel = $('#cast-caster');
+      const spellSel = $('#cast-spell');
+      const slotSel = $('#cast-slot');
+      const targetSel = $('#cast-target');
+
+      const casters = STARTER_PARTY.filter(r => {
+        const sheet = state.engine.deriveSheet(r);
+        return !!sheet.spellcasting;
+      });
+      const prevCaster = casterSel.value;
+      casterSel.innerHTML = casters.map(r => `<option value="${r.id}">${r.name}</option>`).join('');
+      if (casters.find(c => c.id === prevCaster)) casterSel.value = prevCaster;
+
+      const casterId = casterSel.value;
+      const casterActor = casterId ? session.actor(casterId) : null;
+      const availableSlotLevels = casterActor?.spellSlots?.filter(s => s.used < s.max).map(s => s.level) ?? [];
+
+      // Spells: every entry in the registry up to L2 (the starter
+      // party's ceiling). Filter cantrips separately so the slot
+      // picker knows the cast doesn't consume a slot.
+      const spells = Object.values(state.engine.spells)
+        .filter(s => s.level <= 2)
+        .sort((a, b) => a.level - b.level || a.name.localeCompare(b.name));
+      const prevSpell = spellSel.value;
+      spellSel.innerHTML = spells.map(s => {
+        const tag = s.level === 0 ? 'cantrip' : `L${s.level}`;
+        const dmg = s.damage ? ` · ${s.damage}` : s.healing ? ` · heal ${s.healing}` : '';
+        const save = s.save ? ` · save ${s.save.toUpperCase()}` : '';
+        return `<option value="${s.id}">${tag} · ${s.name}${dmg}${save}</option>`;
+      }).join('');
+      if (spells.find(s => s.id === prevSpell)) spellSel.value = prevSpell;
+
+      // Slot level options derive from the selected spell + caster.
+      const selectedSpell = state.engine.spells[spellSel.value];
+      const prevSlot = slotSel.value;
+      if (selectedSpell && selectedSpell.level === 0) {
+        slotSel.innerHTML = '<option value="0">— (cantrip)</option>';
+      } else if (selectedSpell) {
+        const usable = availableSlotLevels.filter(l => l >= selectedSpell.level);
+        slotSel.innerHTML = usable.length
+          ? usable.map(l => `<option value="${l}">L${l}${l > selectedSpell.level ? ' (upcast)' : ''}</option>`).join('')
+          : '<option value="" disabled>no slots</option>';
+        if (prevSlot && usable.includes(Number(prevSlot))) slotSel.value = prevSlot;
+      } else {
+        slotSel.innerHTML = '<option>—</option>';
+      }
+
+      const prevTarget = targetSel.value;
+      targetSel.innerHTML = '<option value="">(self / no target)</option>' + allIds.map(({ id, name }) => `<option value="${id}">${name}</option>`).join('');
+      if (allIds.find(a => a.id === prevTarget)) targetSel.value = prevTarget;
+    }
+
+    function renderSaveMeta() {
+      const meta = $('#save-meta');
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) { meta.textContent = 'no saved session'; return; }
+      try {
+        const parsed = JSON.parse(raw);
+        meta.textContent = `saved · seed ${parsed.seed} · ${parsed.log?.length ?? 0} log entries`;
+      } catch (_) { meta.textContent = 'corrupt save'; }
+    }
+
+    // Called after any user-driven mutation to re-render + autosave.
+    // `source` is 'user' (button or chat dispatch) or 'gm' (LLM dispatched).
+    // The GM uses it to avoid an infinite loop where it narrates its own
+    // dispatched actions twice.
+    function afterMutation(source = 'user') {
+      render();
+      if (state.autosave) saveSession();
+      if (gm.enabled()) gm.queueNarration({ source });
+    }
+
+    function renderLogEntry(entry) {
+      const div = document.createElement('div');
+      div.className = 'entry';
+      let summary = '';
+      switch (entry.kind) {
+        case 'attack':
+          if (entry.critical) div.classList.add('crit');
+          else if (entry.fumble) div.classList.add('fumble');
+          else if (entry.hit) div.classList.add('hit');
+          else div.classList.add('miss');
+          summary = `${entry.attackerId} → ${entry.targetId}: d20=${entry.d20} total=${entry.total} ${entry.critical ? 'CRIT' : entry.hit ? 'HIT' : 'miss'}${entry.damage ? ` (${entry.damage} dmg)` : ''}`;
+          break;
+        case 'applyDamage':
+          summary = `${entry.targetId} took ${entry.amount} ${entry.type ?? ''} → hp ${entry.hpAfter}${entry.outcome === 'downed' ? ' (DOWN)' : entry.outcome === 'dead' ? ' (DEAD)' : ''}`;
+          if (entry.outcome === 'dead') div.classList.add('death');
+          break;
+        case 'heal':
+          summary = `${entry.targetId} healed ${entry.healed} → hp ${entry.hpAfter}`;
+          div.classList.add('hit');
+          break;
+        case 'applyCondition':
+          summary = `${entry.targetId} gained ${entry.condition}`;
+          break;
+        case 'removeCondition':
+          summary = `${entry.targetId} cleared ${entry.condition}`;
+          break;
+        case 'endTurn':
+          summary = `end of turn (round ${entry.round})`;
+          break;
+        case 'startEncounter':
+          summary = `encounter starts (${entry.participants.join(', ')})`;
+          break;
+        case 'shortRest':
+          summary = `short rest`;
+          break;
+        case 'longRest':
+          summary = `long rest (8h elapsed)`;
+          break;
+        case 'sceneEvents':
+          summary = `scene events: ${entry.events.join(', ')}`;
+          break;
+        case 'oracle':
+          summary = `oracle "${entry.question}" (${entry.odds}) → ${entry.outcome} [d100=${entry.d100}]`;
+          if (entry.outcome.startsWith('yes')) div.classList.add('hit');
+          else div.classList.add('miss');
+          break;
+        case 'twist':
+          summary = `twist: ${entry.text}`;
+          break;
+        case 'complication':
+          summary = `complication: ${entry.text}`;
+          break;
+        case 'timersExpired':
+          summary = `${entry.actorId}: timers expired — ${entry.expired.map(t => t.id).join(', ')}`;
+          break;
+        default:
+          summary = JSON.stringify(entry);
+      }
+      div.innerHTML = `<span class="kind">${entry.kind}</span>${summary}`;
+      return div;
+    }
+
+    function newSession() {
+      state.seed = Number($('#seed-input').value) || Date.now();
+      const engine = createEngine({ rng: Dice.seededRng(state.seed) });
+      // Oracle gets a separate seeded stream so its d100 pulls don't
+      // perturb the dice replay (engine.rollLog wouldn't capture
+      // them, and verifyLog would diverge). Deriving the oracle
+      // seed from the session seed keeps the demo deterministic
+      // overall.
+      const oracle = engine.Solo.oracle({ rng: Dice.seededRng(state.seed ^ 0xA5A5A5A5) });
+      const session = engine.Session.create({
+        seed: state.seed,
+        party: STARTER_PARTY,
+        oracle
+      });
+      state.engine = engine;
+      state.oracle = oracle;
+      state.session = session;
+      state.foeIds = new Set();
+      // Spawn an initial encounter so the demo is interactive on
+      // first load: the four party members vs. a goblin and an orc.
+      // ACs match the SRD monsters registry.
+      const initialFoes = [
+        { id: 'goblin-1', name: 'Goblin', dexterity: 14, speed: 30, hp: 7, hpMax: 7, ac: 15, attacks: [{ name: 'Scimitar', attackBonus: 4, damage: '1d6+2' }] },
+        { id: 'orc-1',    name: 'Orc',    dexterity: 12, speed: 30, hp: 15, hpMax: 15, ac: 13, attacks: [{ name: 'Greataxe', attackBonus: 5, damage: '1d12+3' }] }
+      ];
+      const participants = [
+        ...STARTER_PARTY.map(r => {
+          const sheet = engine.deriveSheet(r);
+          return { id: r.id, name: r.name, dexterity: sheet.abilityScores.final.dex, speed: sheet.speed.walk, hp: sheet.hp.max, hpMax: sheet.hp.max, ac: sheet.ac.value };
+        }),
+        ...initialFoes
+      ];
+      for (const f of initialFoes) state.foeIds.add(f.id);
+      session.startEncounter(participants);
+      session.record('welcome', { message: 'Solo session started. Try asking the oracle a question.' });
+      $('#share-panel').style.display = 'none';
+      render();
+      populateMonsterPicker();
+      gm.reset();
+    }
+
+    function populateMonsterPicker() {
+      const sel = $('#spawn-monster');
+      const ids = Object.keys(state.engine.monsters)
+        .filter(id => (state.engine.monsters[id].cr ?? 1) <= 4)
+        .sort();
+      sel.innerHTML = ids.map(id => `<option value="${id}">${state.engine.monsters[id].name} (CR ${state.engine.monsters[id].cr})</option>`).join('');
+    }
+
+    // ========================================================
+    // GM — LLM-driven chat layer (OpenRouter, tencent/hy3-preview)
+    //
+    // The GM never invents dice or rules. It emits one structured
+    // intent from a closed vocabulary; the dispatcher routes it to
+    // the existing session.* surfaces; then a second LLM call
+    // narrates the actual engine outcomes. Existing buttons skip
+    // the classify call and feed straight into narration.
+    // See /root/.claude/plans/for-solo-mode-i-rippling-emerson.md
+    // ========================================================
+    const GM_KEY_STORAGE = 'bag-of-holding/gm-openrouter-key@1';
+    const GM_MOCK_STORAGE = 'bag-of-holding/gm-mock@1';
+    const GM_MODEL = 'tencent/hy3-preview';
+    const GM_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
+    // Per-session cap. Each chat turn costs up to 3 calls
+    // (classify + narrator + formatter); each engine event triggers
+    // 2 calls (narrator + formatter). 60 ≈ 20 chat turns or 30
+    // button-driven narrations — bumped from 30 when the formatter
+    // pass landed in 2.0.7.
+    const GM_MAX_CALLS = 60;
+    // The narrator's role is creative — let it think and produce a
+    // rich draft (which may include reasoning if the model leaks).
+    // The formatter then compresses to 1-3 clean sentences. Sized
+    // so a verbose reasoning model has room to produce something
+    // usable for the formatter to grab onto.
+    const GM_NARRATOR_MAX_TOKENS = 1500;
+    // Formatter is single-purpose (compress to 1-3 sentences). Low
+    // temperature, low max_tokens for predictable output. If you
+    // swap GM_MODEL to a non-reasoning model and want to save a
+    // call, you can short-circuit formatNarration to return the
+    // narrator's output via sanitizeNarration directly.
+    const GM_FORMATTER_MAX_TOKENS = 250;
+    const GM_DEBOUNCE_MS = 500;
+    const GM_MIN_GAP_MS = 2000;
+
+    // Tolerant JSON extractor. LLMs that don't honor a strict
+    // "JSON-only" instruction commonly wrap their output in
+    // ```json ... ``` fences, prefix it with a sentence, or both.
+    // Reasoning models (hy3-preview, DeepSeek-R1, o1) emit chain-of-
+    // thought BEFORE the final JSON, often referencing hypothetical
+    // shapes mid-reasoning. We scan ALL balanced {…} blocks and
+    // return the LAST one that parses cleanly — that's where
+    // reasoning models put their answer.
+    function tryParseJson(text) {
+      if (!text || typeof text !== 'string') return null;
+      const stripped = text.trim()
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```\s*$/i, '')
+        .trim();
+      // Fast path: the trimmed string is already a JSON object.
+      try { return JSON.parse(stripped); } catch (_) {}
+      // Slow path: scan every balanced {…} object in the text and
+      // remember the LAST one that parsed. Skip braces inside string
+      // literals so something like {"reason": "see ${x}"} doesn't
+      // throw off depth counting.
+      let lastGood = null;
+      const len = stripped.length;
+      for (let outer = 0; outer < len; outer++) {
+        if (stripped[outer] !== '{') continue;
+        let depth = 0;
+        let inStr = false;
+        let escape = false;
+        for (let i = outer; i < len; i++) {
+          const ch = stripped[i];
+          if (escape) { escape = false; continue; }
+          if (inStr) {
+            if (ch === '\\') escape = true;
+            else if (ch === '"') inStr = false;
+            continue;
+          }
+          if (ch === '"') { inStr = true; continue; }
+          if (ch === '{') depth++;
+          else if (ch === '}') {
+            depth--;
+            if (depth === 0) {
+              try { lastGood = JSON.parse(stripped.slice(outer, i + 1)); }
+              catch (_) {}
+              outer = i;  // jump past this block in the outer scan
+              break;
+            }
+          }
+        }
+      }
+      return lastGood;
+    }
+
+    // Reasoning models (tencent/hy3-preview, DeepSeek-R1, o1) often
+    // stream chain-of-thought into `message.content` even when we
+    // ask them not to. We can't always block that at the API level
+    // (the `reasoning: { exclude: true }` hint is only honoured by
+    // some providers), so this is the last-line defence:
+    //
+    //  1. Strip code fences and a "Narration:"-style preamble.
+    //  2. Detect the reasoning fingerprint: leading thinking-aloud
+    //     markers AND a wall of prose. If both fire, treat the
+    //     response as a leak and surface a clear error rather than
+    //     dumping the monologue into the chat.
+    //  3. Otherwise, keep only the first 3 sentences (the
+    //     narration; everything after is usually leftover thinking).
+    function sanitizeNarration(raw) {
+      if (!raw || typeof raw !== 'string') {
+        throw new Error('model returned no narration');
+      }
+      let text = raw.trim()
+        .replace(/^```(?:\w+)?\s*/i, '')
+        .replace(/\s*```\s*$/i, '')
+        .replace(/^(?:narration|gm|answer|response|final)\s*:\s*/i, '')
+        .trim();
+      // Reasoning fingerprint: thinking-aloud opener + long output.
+      // Conservative thresholds so a legitimate "Okay — the door
+      // creaks open." (3 short words, opener) doesn't get blocked.
+      const thinkingMarkers = /^(wait|let me|let's|okay,|first,|so,|right,|hmm,|hmm,|alright,|got it,|the user|given the|the event)/i;
+      if (thinkingMarkers.test(text) && text.length > 600) {
+        console.warn('GM narrator leaked reasoning into content. Raw output:', raw);
+        throw new Error("model leaked chain-of-thought instead of narrating (try a non-reasoning model, e.g. anthropic/claude-haiku or openai/gpt-4o-mini)");
+      }
+      // Cap to first 3 sentences. Splitting on .!? followed by
+      // whitespace handles English prose; the rejoin preserves
+      // punctuation. Drops empty trailing fragments.
+      const sentences = text.split(/(?<=[.!?])\s+/).filter(s => s.trim().length > 0).slice(0, 3);
+      return sentences.join(' ').trim();
+    }
+
+    const gm = {
+      apiKey: localStorage.getItem(GM_KEY_STORAGE) || '',
+      mock: localStorage.getItem(GM_MOCK_STORAGE) === '1',
+      busy: false,
+      callCount: 0,
+      lastCallAt: 0,
+      lastNarratedSeq: 0,
+      pendingNarration: null,   // setTimeout handle
+      chat: [],                 // {role:'you'|'gm'|'system'|'error', text}
+      // Reset on every newSession() / loadSavedSession() so the
+      // queue lines up with the fresh session.log indexing.
+      reset() {
+        this.lastNarratedSeq = state.session?.log?.length ?? 0;
+        this.busy = false;
+        this.pendingNarration && clearTimeout(this.pendingNarration);
+        this.pendingNarration = null;
+        this.chat = [];
+        this.renderTranscript();
+        this.renderHeader();
+      },
+      enabled() {
+        // Enabled if either mock is on or a key exists; AND the
+        // session-call cap hasn't been hit.
+        if (this.callCount >= GM_MAX_CALLS) return false;
+        return this.mock || !!this.apiKey;
+      },
+      addTurn(role, text) {
+        this.chat.push({ role, text });
+        if (this.chat.length > 40) this.chat.splice(0, this.chat.length - 40);
+        this.renderTranscript();
+      },
+      renderHeader() {
+        const keyPill = $('#gm-key-pill');
+        const callsPill = $('#gm-calls-pill');
+        const statusPill = $('#gm-status-pill');
+        keyPill.textContent = this.apiKey ? 'key set' : 'no key';
+        keyPill.className = 'gm-pill ' + (this.apiKey ? 'ok' : 'bad');
+        callsPill.textContent = `calls ${this.callCount}/${GM_MAX_CALLS}`;
+        callsPill.className = 'gm-pill ' + (this.callCount >= GM_MAX_CALLS ? 'bad' : '');
+        $('#gm-mock').checked = this.mock;
+        $('#gm-input').disabled = !this.enabled();
+        $('#gm-send').disabled = !this.enabled();
+        if (this.busy) {
+          statusPill.textContent = 'thinking…';
+          statusPill.className = 'gm-pill';
+          statusPill.style.display = '';
+        } else {
+          statusPill.style.display = 'none';
+        }
+      },
+      renderTranscript() {
+        const el = $('#gm-transcript');
+        if (this.chat.length === 0) {
+          el.innerHTML = '<div class="empty">(GM is quiet — paste a key or enable mock, then say something.)</div>';
+          return;
+        }
+        el.innerHTML = this.chat.map(t => {
+          const role = t.role === 'you' ? 'you' : t.role === 'gm' ? 'GM' : t.role === 'system' ? 'sys' : 'err';
+          return `<div class="turn ${t.role}"><span class="role">${role}</span><span class="text"></span></div>`;
+        }).join('');
+        // Set text via textContent to avoid HTML injection from
+        // either user input or LLM output.
+        const turns = el.querySelectorAll('.turn .text');
+        this.chat.forEach((t, i) => { turns[i].textContent = t.text; });
+        el.scrollTop = el.scrollHeight;
+      },
+      // === Chat submit flow: Prompt A → dispatch → Prompt B ===
+      async submitChat(text) {
+        if (!text || !this.enabled() || this.busy) return;
+        this.addTurn('you', text);
+        this.busy = true; this.renderHeader();
+        try {
+          const intent = await this.classify(text);
+          if (!intent || intent.kind === 'unknown') {
+            this.addTurn('error', `GM didn't understand${intent?.reason ? `: ${intent.reason}` : ''} — try rephrasing.`);
+            // Still advance seq so we don't double-narrate later.
+            this.lastNarratedSeq = state.session.log.length;
+            return;
+          }
+          // Dispatch the intent. The dispatcher pushes 0+ events
+          // onto session.log; afterMutation('gm') schedules
+          // narration through the same debounce path as buttons.
+          const dispatchResult = this.dispatchIntent(intent);
+          if (dispatchResult && dispatchResult.error) {
+            this.addTurn('error', `GM tried "${intent.kind}" but ${dispatchResult.error}.`);
+            this.lastNarratedSeq = state.session.log.length;
+            return;
+          }
+          // Re-render and explicitly trigger narration. Dispatcher
+          // already called session.* which logged events; force a
+          // flush rather than relying on the debounce in case the
+          // intent was narrate-only (no engine events).
+          afterMutation('gm');
+          if (['describe', 'talk', 'look'].includes(intent.kind)) {
+            // Narrate-only intents: synthesize a fake event so
+            // Prompt B has something to riff on.
+            await this.narrateExplicit(intent, text);
+          }
+        } catch (err) {
+          this.addTurn('error', `GM unavailable: ${err.message || err}`);
+          this.lastNarratedSeq = state.session.log.length;
+        } finally {
+          this.busy = false; this.renderHeader();
+        }
+      },
+      // === Classify — Prompt A ===
+      async classify(message) {
+        const snapshot = this.buildSnapshot();
+        // Log entries are already flat ({seq, kind, ...fields}); pass through as-is.
+        const recentLog = state.session.log.slice(-5);
+        const recentChat = this.chat.slice(-4);
+        // The classifier's previous schema was TypeScript-style
+        // pseudo-syntax (`kind:"attack"`, `targetId?`, `|` unions).
+        // Models — especially non-OpenAI ones like Tencent's
+        // hy3-preview — mimicked the format and returned unquoted-
+        // key pseudo-JSON that JSON.parse rejected outright. We
+        // now ship the COMPLETE list of valid shapes as concrete
+        // JSON objects + several few-shot input→output pairs.
+        const shapes = [
+          '{"kind": "attack", "attackerId": "<id>", "targetId": "<id>"}',
+          '{"kind": "cast", "casterId": "<id>", "spellId": "<id>", "slotLevel": 0}',
+          '{"kind": "cast", "casterId": "<id>", "spellId": "<id>", "slotLevel": 1, "targetId": "<id>"}',
+          '{"kind": "cast", "casterId": "<id>", "spellId": "<id>", "slotLevel": 2, "targetId": "<id>"}',
+          '{"kind": "heal", "targetId": "<id>", "amount": 5}',
+          '{"kind": "apply-condition", "targetId": "<id>", "condition": "prone"}',
+          '{"kind": "remove-condition", "targetId": "<id>", "condition": "prone"}',
+          '{"kind": "advance-time", "minutes": 10}',
+          '{"kind": "short-rest"}',
+          '{"kind": "long-rest"}',
+          '{"kind": "end-turn"}',
+          '{"kind": "oracle-ask", "question": "Is the door locked?", "odds": "fifty-fifty"}',
+          '{"kind": "describe"}',
+          '{"kind": "talk"}',
+          '{"kind": "look"}',
+          '{"kind": "unknown", "reason": "ambiguous: could mean attack or move"}'
+        ];
+        const fewShot = [
+          { in: 'I look around the room.', out: '{"kind": "look"}' },
+          { in: 'Describe the chamber.', out: '{"kind": "describe"}' },
+          { in: 'I scan the room for traps.', out: '{"kind": "look"}' },
+          { in: 'I swing my longsword at the goblin.', out: '{"kind": "attack", "attackerId": "thora", "targetId": "goblin-1"}' },
+          { in: 'Merrick casts Fire Bolt at the orc.', out: '{"kind": "cast", "casterId": "merrick", "spellId": "fire-bolt", "slotLevel": 0, "targetId": "orc-1"}' },
+          { in: 'Oran upcasts Cure Wounds at level 2 on Thora.', out: '{"kind": "cast", "casterId": "oran", "spellId": "cure-wounds", "slotLevel": 2, "targetId": "thora"}' },
+          { in: 'We take a long rest.', out: '{"kind": "long-rest"}' },
+          { in: 'Is the door locked?', out: '{"kind": "oracle-ask", "question": "Is the door locked?", "odds": "fifty-fifty"}' },
+          { in: 'I want to chat with the innkeeper.', out: '{"kind": "talk"}' },
+          { in: 'I push the goblin prone.', out: '{"kind": "apply-condition", "targetId": "goblin-1", "condition": "prone"}' },
+          { in: 'End my turn.', out: '{"kind": "end-turn"}' },
+          { in: 'Wait an hour.', out: '{"kind": "advance-time", "minutes": 60}' }
+        ];
+        const systemPrompt = `You convert ONE solo-D&D player message into ONE structured intent.
+
+Respond with a SINGLE valid JSON object and NOTHING else.
+- No markdown code fences.
+- No prose before or after.
+- All keys are double-quoted strings.
+- All string values are double-quoted.
+- Your reply must parse cleanly via JSON.parse.
+
+Valid intent shapes — your reply MUST be exactly one of these (the angle-bracket placeholders are where you substitute real values; never leave them in the output):
+${shapes.join('\n')}
+
+Rules:
+- Use the IDs in the snapshot (e.g. "thora", "goblin-1"), not display names. Look up casterId / attackerId / targetId in snapshot.party and snapshot.foes.
+- spellId must match an id from snapshot.knownSpells (e.g. "fire-bolt", "magic-missile", "cure-wounds").
+- slotLevel is an integer. For cantrips it is 0. For leveled spells it is the slot's level (>= the spell's base level).
+- condition must be one of: ${TOGGLEABLE_CONDITIONS.join(', ')}.
+- odds must be one of: certain, near-certain, very-likely, likely, fifty-fifty, unlikely, very-unlikely, near-impossible, impossible.
+- For exploration / "what do I see" / "describe X" messages, use "describe" or "look".
+- For dialogue / "I say to NPC" messages, use "talk".
+- For binary world-state questions ("does the rope hold?", "is X here?"), use "oracle-ask".
+- If you genuinely cannot map the message to one of the shapes above, use {"kind": "unknown", "reason": "<short reason>"}.
+
+Few-shot examples — replicate this format exactly:
+${fewShot.map(ex => `Message: ${JSON.stringify(ex.in)}\nReply: ${ex.out}`).join('\n\n')}`;
+        const userPrompt = JSON.stringify({
+          snapshot, recentLog, recentChat, message
+        });
+        if (this.mock) return this.mockClassify(message);
+        // NOTE: we deliberately do NOT pass response_format:json_object.
+        // Many non-OpenAI providers on OpenRouter (incl. Tencent's
+        // hy3-preview) reject the field upstream → "Provider returned
+        // error" with HTTP 400. We coerce JSON via prompt instead and
+        // strip any stray markdown fences before parsing.
+        const resp = await this.callOpenRouter([
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt }
+        ], { temperature: 0.2, maxTokens: 1500 });
+        const parsed = tryParseJson(resp);
+        if (!parsed) {
+          // Surface what the model actually returned so the user can
+          // see whether it was empty, fenced, prose-wrapped, or
+          // pseudo-JSON. Full output goes to the devtools console;
+          // a 120-char excerpt rides on the chat error line.
+          console.warn('GM classifier failed to parse response:', resp);
+          const excerpt = String(resp || '(empty response)').replace(/\s+/g, ' ').trim().slice(0, 120);
+          return { kind: 'unknown', reason: `classifier returned non-JSON — raw: "${excerpt}${(resp ?? '').length > 120 ? '…' : ''}"` };
+        }
+        return parsed;
+      },
+      // === Dispatcher: intent → engine call ===
+      // Returns { error } on a recoverable miss; throws only on bugs.
+      dispatchIntent(intent) {
+        const session = state.session;
+        const lookupActor = id => {
+          try { return session.actor(id); } catch (_) { return null; }
+        };
+        switch (intent.kind) {
+          case 'attack': {
+            const attacker = lookupActor(intent.attackerId);
+            const target = lookupActor(intent.targetId);
+            if (!attacker) return { error: `couldn't find "${intent.attackerId}"` };
+            if (!target) return { error: `couldn't find "${intent.targetId}"` };
+            const record = STARTER_PARTY.find(r => r.id === intent.attackerId);
+            let attackBonus = 4, damageDice = '1d6', damageMod = 2;
+            if (record) {
+              const sheet = state.engine.deriveSheet(record);
+              const first = sheet.attacks[0];
+              if (first) { attackBonus = first.attackBonus; damageDice = first.damageDice; damageMod = first.damageMod; }
+            } else if (attacker.attacks?.[0]) {
+              const a = attacker.attacks[0];
+              const m = String(a.damage).match(/^(\d+d\d+)([+-]\d+)?$/);
+              attackBonus = a.attackBonus;
+              damageDice = m ? m[1] : a.damage;
+              damageMod = m && m[2] ? Number(m[2]) : 0;
+            }
+            session.attack({ attackerId: intent.attackerId, targetId: intent.targetId, attackBonus, damageDice, damageMod, ac: target.ac });
+            return {};
+          }
+          case 'cast': {
+            const caster = lookupActor(intent.casterId);
+            const spell = state.engine.spells[intent.spellId];
+            if (!caster) return { error: `couldn't find caster "${intent.casterId}"` };
+            if (!spell) return { error: `unknown spell "${intent.spellId}"` };
+            const args = spell.level > 0 ? { slotLevel: intent.slotLevel ?? spell.level } : {};
+            const result = state.engine.Spellcasting.castSpell(caster, spell, args);
+            if (!result.ok) return { error: result.reason };
+            Object.assign(caster, result.actor);
+            // Reuse the existing doCast effect resolver inline. To
+            // keep the GM honest, we re-use the same damage/save
+            // logic that the button-driven cast uses; here it's
+            // inlined for brevity.
+            const record = STARTER_PARTY.find(r => r.id === intent.casterId);
+            const sheet = state.engine.deriveSheet(record);
+            const target = intent.targetId ? lookupActor(intent.targetId) : null;
+            if (spell.damage && target) {
+              const m = String(spell.damage).match(/^(\d+d\d+)([+-]\d+)?$/);
+              const dice = m ? m[1] : spell.damage;
+              const flat = m && m[2] ? Number(m[2]) : 0;
+              const projectiles = spell.projectiles ?? 1;
+              let total = 0;
+              for (let i = 0; i < projectiles; i++) {
+                const dmg = state.engine.Combat.damageRoll({ damageDice: dice, damageMod: flat });
+                total += dmg.total;
+              }
+              if (spell.save) {
+                const score = target.abilityScores?.[spell.save] ?? 10;
+                const save = state.engine.Checks.savingThrow({
+                  abilityScore: score, proficient: false, proficiencyBonus: 0,
+                  dc: sheet.spellcasting.saveDC
+                });
+                if (save.success) total = Math.floor(total / 2);
+              }
+              session.applyDamage(intent.targetId, { amount: total, type: spell.damageType ?? 'force', source: intent.casterId });
+            } else if (spell.healing && target) {
+              const abilityMod = sheet.abilityScores.mod[sheet.spellcasting.ability];
+              const dice = spell.healing.replace(/\+mod$/, '');
+              const baseRoll = state.engine.Dice.roll(dice);
+              session.heal(intent.targetId, baseRoll.total + abilityMod);
+            }
+            session.record('cast', { casterId: intent.casterId, spellId: intent.spellId, slotLevel: intent.slotLevel, targetId: intent.targetId });
+            return {};
+          }
+          case 'heal': {
+            if (!lookupActor(intent.targetId)) return { error: `couldn't find "${intent.targetId}"` };
+            session.heal(intent.targetId, Number(intent.amount) || 0);
+            return {};
+          }
+          case 'apply-condition': {
+            if (!TOGGLEABLE_CONDITIONS.includes(intent.condition)) return { error: `unknown condition "${intent.condition}"` };
+            if (!lookupActor(intent.targetId)) return { error: `couldn't find "${intent.targetId}"` };
+            session.applyCondition(intent.targetId, intent.condition);
+            return {};
+          }
+          case 'remove-condition': {
+            if (!lookupActor(intent.targetId)) return { error: `couldn't find "${intent.targetId}"` };
+            session.removeCondition(intent.targetId, intent.condition);
+            return {};
+          }
+          case 'advance-time': {
+            session.advanceTime({ minutes: Number(intent.minutes) || 10 });
+            return {};
+          }
+          case 'short-rest': session.shortRest(); return {};
+          case 'long-rest':  session.longRest();  return {};
+          case 'end-turn':
+            try { session.endTurn(); return {}; }
+            catch (e) { return { error: e.message }; }
+          case 'oracle-ask': {
+            const odds = intent.odds || 'fifty-fifty';
+            const result = state.oracle.ask(intent.question || '(?)', odds);
+            session.record('oracle', result);
+            return {};
+          }
+          case 'describe':
+          case 'talk':
+          case 'look':
+            return {};
+          default:
+            return { error: `unhandled intent kind "${intent.kind}"` };
+        }
+      },
+      // === Narrate — Prompt B ===
+      // Called via the debounced queueNarration after engine events
+      // land in session.log. Coalesces a cluster of related events
+      // (attack → applyDamage → applyCondition) into one beat.
+      queueNarration({ source } = {}) {
+        if (!this.enabled()) return;
+        if (this.pendingNarration) clearTimeout(this.pendingNarration);
+        this.pendingNarration = setTimeout(() => this.flushNarration(), GM_DEBOUNCE_MS);
+      },
+      async flushNarration() {
+        this.pendingNarration = null;
+        if (!this.enabled() || this.busy) return;
+        const session = state.session;
+        const newEntries = session.log.slice(this.lastNarratedSeq);
+        if (newEntries.length === 0) return;
+        // Throttle: enforce min gap between LLM calls.
+        const gap = Date.now() - this.lastCallAt;
+        if (gap < GM_MIN_GAP_MS) {
+          this.pendingNarration = setTimeout(() => this.flushNarration(), GM_MIN_GAP_MS - gap);
+          return;
+        }
+        // Snapshot the seq before we send — even if the call fails,
+        // we advance so a stuck loop can't form.
+        const targetSeq = session.log.length;
+        // Log entries are already flat; ship them as-is.
+        const events = newEntries;
+        const deltas = this.computeDeltas(newEntries);
+        this.busy = true; this.renderHeader();
+        try {
+          const text = await this.narrate({ events, deltas });
+          if (text) this.addTurn('gm', text);
+        } catch (err) {
+          this.addTurn('error', `GM unavailable: ${err.message || err}`);
+        } finally {
+          this.lastNarratedSeq = targetSeq;
+          this.busy = false; this.renderHeader();
+        }
+      },
+      computeDeltas(entries) {
+        // Walk the entries; record HP and condition deltas per
+        // actor referenced. Cheap and bounded.
+        const deltas = {};
+        const touch = id => {
+          if (!id) return null;
+          if (!deltas[id]) {
+            let actor;
+            try { actor = state.session.actor(id); } catch (_) { return null; }
+            deltas[id] = {
+              name: actor.name || id,
+              hpAfter: actor.hp,
+              hpMax: actor.hpMax,
+              conditions: [...(actor.conditions || [])]
+            };
+          }
+          return deltas[id];
+        };
+        for (const e of entries) {
+          if (e.targetId) touch(e.targetId);
+          if (e.attackerId) touch(e.attackerId);
+          if (e.casterId) touch(e.casterId);
+          if (e.actorId) touch(e.actorId);
+        }
+        return deltas;
+      },
+      // Narrate pipeline: 2 LLM calls split by responsibility.
+      //
+      // Call B1 (narrator): creative pass. The model gets the events
+      //   + deltas + scene snapshot and produces a rich draft. We do
+      //   NOT enforce strict format here — reasoning models can think
+      //   freely, leak chain-of-thought, ramble, whatever. The
+      //   formatter cleans it up. This is the architectural fix for
+      //   the "model dumped chain-of-thought as narration" bug from
+      //   2.0.5 — instead of begging reasoning models not to reason,
+      //   we let them reason and compress the result.
+      //
+      // Call B2 (formatter): single-purpose pass that takes the
+      //   draft and emits EXACTLY 1-3 sentences of dark-fantasy GM
+      //   prose. Lower temperature (0.3 vs 0.8), tighter max_tokens
+      //   (250 vs 1500). Narrow task → more reliable output even
+      //   from the same reasoning model.
+      async narrate({ events, deltas, freeform }) {
+        const narratorPrompt = `You are the GM of a dark-fantasy solo D&D table.
+
+Given the engine events that just occurred, produce a vivid in-character beat describing what the player perceives — what happens, what's seen, heard, felt. 1 to 3 sentences is ideal, but more is OK; another pass will compress your output.
+
+Content rules:
+- Translate damage into fictional consequence (wounds, stumbles, screams).
+- Avoid mechanics jargon — no "d20", "AC", "HP", "crit", "save DC".
+- Use the actors' display names.
+- No questions to the player unless the events ended on a beat that demands one.
+- Dark-fantasy register: visceral, concrete, sparse.`;
+        const body = {
+          events: events ?? [],
+          deltas: deltas ?? {},
+          freeform: freeform ?? null,
+          scene: { minutes: state.session.scene.minutes }
+        };
+        if (this.mock) return this.mockNarrate(body);
+        // Step 1: narrator draft (creative, verbose ok).
+        const draft = await this.callOpenRouter([
+          { role: 'system', content: narratorPrompt },
+          { role: 'user', content: JSON.stringify(body) }
+        ], { temperature: 0.8, maxTokens: GM_NARRATOR_MAX_TOKENS });
+        if (!draft || !draft.trim()) {
+          throw new Error('narrator returned empty draft');
+        }
+        // Step 2: formatter pass (single-purpose, terse).
+        return await this.formatNarration(draft);
+      },
+      // === Formatter — Prompt C ===
+      // Single-purpose: compress an arbitrary text blob (which may
+      // be clean prose, chain-of-thought, or a mix) into 1-3
+      // sentences of dark-fantasy GM narration. Determinism comes
+      // from (a) narrow task, (b) low temperature, (c) low
+      // max_tokens, (d) sanitization on the output as final guard.
+      async formatNarration(draft) {
+        const formatterPrompt = `You compress text into dark-fantasy game-master narration.
+
+Take the DRAFT below and output EXACTLY 1 to 3 sentences of in-character GM prose. Nothing else.
+
+OUTPUT RULES:
+- Begin your response with the FIRST WORD of the narration.
+- Total length: 1 to 3 sentences. Hard cap.
+- No labels ("Narration:", "Final:", "GM:", etc.). No code fences.
+- Do NOT think aloud. Do NOT use "Wait", "Let me", "Let's", "Okay,", "First,", "So,", "Right,", or any reasoning phrase.
+- Do NOT explain what you did. Output only the sentences.
+
+CONTENT RULES:
+- Keep the most vivid concrete detail (action, visible state, sound, smell).
+- Drop hedging, planning, repetition, hypotheticals, "alternatively" phrasings.
+- Avoid mechanics jargon — no "d20", "AC", "HP", "crit", "save DC".
+- If the draft is empty or pure reasoning with no scene content, write ONE short dark-fantasy sentence from whatever you can salvage.`;
+        const text = await this.callOpenRouter([
+          { role: 'system', content: formatterPrompt },
+          { role: 'user', content: `DRAFT:\n${draft.trim()}` }
+        ], { temperature: 0.3, maxTokens: GM_FORMATTER_MAX_TOKENS });
+        if (!text || !text.trim()) {
+          // Formatter failed; fall back to a heuristic compression
+          // of the narrator draft so the chat at least gets
+          // SOMETHING. Conservative — if the draft itself was a
+          // reasoning blob, sanitizeNarration will throw and we
+          // surface that.
+          return sanitizeNarration(draft);
+        }
+        // Sanitize formatter output as last-line defence (strips
+        // fences / labels, caps at 3 sentences, detects leak
+        // fingerprint).
+        return sanitizeNarration(text);
+      },
+      // Narrate-only intents (describe/talk/look) call this directly
+      // because they produce no engine events.
+      async narrateExplicit(intent, playerMessage) {
+        try {
+          const text = await this.narrate({
+            events: [{ seq: state.session.log.length, kind: intent.kind }],
+            deltas: this.computeDeltas([]),
+            freeform: { intent, playerMessage, party: this.buildSnapshot().party, foes: this.buildSnapshot().foes }
+          });
+          if (text) this.addTurn('gm', text);
+          this.lastNarratedSeq = state.session.log.length;
+        } catch (err) {
+          this.addTurn('error', `GM unavailable: ${err.message || err}`);
+        }
+      },
+      // === OpenRouter HTTP ===
+      async callOpenRouter(messages, { temperature = 0.7, maxTokens = 220 } = {}) {
+        if (this.callCount >= GM_MAX_CALLS) throw new Error('session call cap reached');
+        if (!this.apiKey) throw new Error('no API key');
+        this.callCount += 1;
+        this.lastCallAt = Date.now();
+        this.renderHeader();
+        const body = {
+          model: GM_MODEL,
+          messages,
+          temperature,
+          max_tokens: maxTokens,
+          // Reasoning-model controls (OpenRouter's normalized
+          // surface). Tell the upstream provider to keep
+          // chain-of-thought short AND to omit it from the
+          // response body — otherwise reasoning models like
+          // tencent/hy3-preview stream their entire internal
+          // monologue into `message.content`. `include_reasoning`
+          // is the older flag; the `reasoning` object is the
+          // current one. Providers that don't support either
+          // ignore them.
+          reasoning: { effort: 'low', exclude: true },
+          include_reasoning: false
+        };
+        let resp;
+        try {
+          resp = await fetch(GM_ENDPOINT, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${this.apiKey}`,
+              'Content-Type': 'application/json',
+              // OpenRouter recommends a Referer + Title for app
+              // attribution; the values are harmless metadata.
+              'HTTP-Referer': location.origin || 'https://bag-of-holding.example',
+              'X-Title': 'bag-of-holding solo sandbox'
+            },
+            body: JSON.stringify(body)
+          });
+        } catch (err) {
+          throw new Error('network error');
+        }
+        if (resp.status === 401) {
+          this.apiKey = '';
+          localStorage.removeItem(GM_KEY_STORAGE);
+          this.renderHeader();
+          throw new Error('key rejected (401) — paste a new key');
+        }
+        if (!resp.ok) {
+          // OpenRouter wraps upstream errors as
+          // {error:{message,metadata:{raw}}}. Pull the verbatim
+          // upstream blob into the detail string so a 400 from
+          // Tencent doesn't read as the opaque "Provider returned
+          // error". Read the body as text once and parse it
+          // ourselves — the response stream can only be consumed
+          // a single time.
+          let detail = '';
+          let bodyText = '';
+          try { bodyText = await resp.text(); } catch (_) {}
+          try {
+            const body = JSON.parse(bodyText);
+            const msg = body?.error?.message || '';
+            const raw = body?.error?.metadata?.raw || '';
+            detail = [msg, raw].filter(Boolean).join(' — ') || bodyText.slice(0, 200);
+          } catch (_) {
+            detail = bodyText.slice(0, 200);
+          }
+          console.error('OpenRouter error', resp.status, bodyText);
+          throw new Error(`HTTP ${resp.status}${detail ? `: ${detail}` : ''}`);
+        }
+        const json = await resp.json();
+        // Reasoning models (Tencent hy3-preview, DeepSeek-R1, o1)
+        // often emit their visible reply through `message.content`
+        // but spend output tokens on internal chain-of-thought
+        // FIRST. Some providers surface that as `message.reasoning`
+        // (OpenRouter's normalization) or a sibling `reasoning`
+        // field. Pull from all three candidate paths so a short
+        // max-tokens budget doesn't leave us with empty content
+        // while reasoning ate the entire allotment. We also surface
+        // a content_filter finish-reason as a clear hint to the
+        // user, since some providers silently drop the body.
+        const choice = json.choices?.[0];
+        const msg = choice?.message ?? {};
+        const content = msg.content || msg.reasoning || choice?.text || '';
+        if (!content) {
+          console.warn('OpenRouter returned empty content. Full response:', json);
+          if (choice?.finish_reason === 'content_filter') {
+            throw new Error('upstream content filter blocked the request');
+          }
+          if (choice?.finish_reason === 'length') {
+            throw new Error('model exhausted max_tokens before emitting any visible content (likely a reasoning model — raise maxTokens or pick a non-reasoning model)');
+          }
+          // finish_reason is often null / 'stop' even when content is empty.
+          // Fall through and return '' so the caller can decide.
+        }
+        return content;
+      },
+      // === Snapshot for prompts ===
+      buildSnapshot() {
+        const session = state.session;
+        const partyIdSet = new Set(STARTER_PARTY.map(r => r.id));
+        const dump = id => {
+          try {
+            const a = session.actor(id);
+            const out = { id: a.id, name: a.name || id, hp: a.hp, hpMax: a.hpMax, ac: a.ac, conditions: [...(a.conditions || [])] };
+            if (a.spellSlots) out.spellSlots = a.spellSlots.map(s => ({ level: s.level, remaining: s.max - s.used }));
+            return out;
+          } catch (_) { return null; }
+        };
+        const party = STARTER_PARTY.map(r => dump(r.id)).filter(Boolean);
+        const foes = [...state.foeIds].map(id => dump(id)).filter(Boolean);
+        const current = session.currentActor();
+        // Wizard + cleric know everything ≤ L2 in this sandbox; the
+        // GM picker on the LLM side gets that same list so it can
+        // pick by id.
+        const knownSpells = Object.values(state.engine.spells)
+          .filter(s => s.level <= 2)
+          .map(s => ({ id: s.id, name: s.name, level: s.level, school: s.school }));
+        return {
+          party, foes,
+          scene: { minutes: session.scene.minutes },
+          currentActorId: current?.id ?? null,
+          round: session.encounter?.round ?? null,
+          knownSpells
+        };
+      },
+      // === Mock-mode keyword routers ===
+      mockClassify(message) {
+        const m = message.toLowerCase();
+        const livingPartyId = STARTER_PARTY.map(r => r.id).find(id => {
+          try { return state.session.actor(id).hp > 0; } catch (_) { return false; }
+        });
+        const livingFoeId = [...state.foeIds].find(id => {
+          try { return state.session.actor(id).hp > 0; } catch (_) { return false; }
+        });
+        if (/\b(attack|swing|hit|stab|strike|slash|shoot)\b/.test(m)) {
+          if (!livingPartyId || !livingFoeId) return { kind: 'unknown', reason: 'no valid attacker/target' };
+          return { kind: 'attack', attackerId: livingPartyId, targetId: livingFoeId };
+        }
+        if (/\b(heal|cure|bind)\b/.test(m)) {
+          return { kind: 'heal', targetId: livingPartyId || 'thora', amount: 5 };
+        }
+        if (/\b(rest|sleep|camp)\b/.test(m)) {
+          return /\blong\b/.test(m) ? { kind: 'long-rest' } : { kind: 'short-rest' };
+        }
+        if (/\b(wait|pass|advance|hour|minute)\b/.test(m)) {
+          return { kind: 'advance-time', minutes: /\bhour\b/.test(m) ? 60 : 10 };
+        }
+        if (/\?$/.test(m.trim())) {
+          return { kind: 'oracle-ask', question: message, odds: 'fifty-fifty' };
+        }
+        if (/\b(look|describe|scene|around|room)\b/.test(m)) {
+          return { kind: 'describe' };
+        }
+        if (/\b(say|talk|speak|ask)\b/.test(m)) {
+          return { kind: 'talk' };
+        }
+        return { kind: 'unknown', reason: 'mock router has no match' };
+      },
+      mockNarrate(body) {
+        const eventLines = (body.events || []).map(e => {
+          if (e.kind === 'attack') return e.hit ? `The blow lands.` : `The strike goes wide.`;
+          if (e.kind === 'applyDamage') return `${e.targetId} reels — ${e.amount} of life torn away${e.outcome === 'dead' ? ' (felled)' : e.outcome === 'downed' ? ' (down)' : ''}.`;
+          if (e.kind === 'applyHealing') return `Warm light closes ${e.targetId}'s wounds.`;
+          if (e.kind === 'shortRest') return `The party catches its breath.`;
+          if (e.kind === 'longRest') return `Dawn arrives; bones knit, spells return.`;
+          if (e.kind === 'cast') return `Words of power thread the air.`;
+          if (e.kind === 'oracle') return `The omens answer: ${e.outcome.replaceAll('-', ' ')}.`;
+          if (e.kind === 'describe' || e.kind === 'look') return `Stone walls, torchlight, the smell of damp iron — the room watches you back.`;
+          if (e.kind === 'talk') return `Your voice carries; whether anyone listens is another question.`;
+          return `${e.kind} happens.`;
+        });
+        return eventLines.join(' ') || '(silence)';
+      }
+    };
+
+    // === View toggle (chat-only vs full sandbox) ===
+    // Default is chat-only. The user toggles via the header button;
+    // choice persists in localStorage so the page comes back the
+    // same way next time.
+    const VIEW_MODE_STORAGE = 'bag-of-holding/sandbox-view@1';
+    function applyViewMode() {
+      const expanded = localStorage.getItem(VIEW_MODE_STORAGE) === 'full';
+      document.body.classList.toggle('full-sandbox', expanded);
+      const btn = $('#toggle-view');
+      if (btn) btn.textContent = expanded ? '▥ Chat only' : '▦ Full sandbox';
+    }
+
+    function bindEvents() {
+      $('#toggle-view').addEventListener('click', () => {
+        const nextExpanded = !document.body.classList.contains('full-sandbox');
+        localStorage.setItem(VIEW_MODE_STORAGE, nextExpanded ? 'full' : 'chat');
+        applyViewMode();
+      });
+
+      $('#new-session').addEventListener('click', () => { newSession(); afterMutation(); });
+
+      $('#oracle-ask').addEventListener('click', () => {
+        if (!state.session) return;
+        const q = $('#oracle-q').value || '(unspecified question)';
+        const odds = $('#oracle-odds').value;
+        const result = state.oracle.ask(q, odds);
+        state.session.record('oracle', result);
+        renderOracle(result);
+        afterMutation();
+      });
+      $('#oracle-twist').addEventListener('click', () => {
+        if (!state.session) return;
+        const t = state.oracle.twist();
+        state.session.record('twist', t);
+        afterMutation();
+      });
+      $('#oracle-comp').addEventListener('click', () => {
+        if (!state.session) return;
+        const c = state.oracle.complication();
+        state.session.record('complication', c);
+        afterMutation();
+      });
+
+      document.querySelectorAll('[data-mins]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          if (!state.session) return;
+          const mins = Number(btn.dataset.mins);
+          state.session.advanceTime({ minutes: mins });
+          afterMutation();
+        });
+      });
+
+      $('#do-attack').addEventListener('click', () => {
+        if (!state.session) return;
+        const attackerId = $('#attacker').value;
+        const targetId = $('#target').value;
+        const attacker = state.session.actor(attackerId);
+        const target = state.session.actor(targetId);
+        const record = STARTER_PARTY.find(r => r.id === attackerId);
+        let attackBonus = 4, damageDice = '1d6', damageMod = 2;
+        if (record) {
+          const sheet = state.engine.deriveSheet(record);
+          const first = sheet.attacks[0];
+          if (first) { attackBonus = first.attackBonus; damageDice = first.damageDice; damageMod = first.damageMod; }
+        } else if (attacker.attacks?.[0]) {
+          // Monster damage strings ship as 'XdY+Z'. Split before
+          // calling damageRoll — passing the full spec doubles the
+          // +Z on a crit, which is wrong (crits double dice, not
+          // modifiers per SRD § Critical Hits).
+          const a = attacker.attacks[0];
+          const m = String(a.damage).match(/^(\d+d\d+)([+-]\d+)?$/);
+          attackBonus = a.attackBonus;
+          damageDice = m ? m[1] : a.damage;
+          damageMod = m && m[2] ? Number(m[2]) : 0;
+        }
+        state.session.attack({ attackerId, targetId, attackBonus, damageDice, damageMod, ac: target.ac });
+        afterMutation();
+      });
+
+      $('#end-turn').addEventListener('click', () => {
+        if (!state.session) return;
+        try { state.session.endTurn(); } catch (e) { console.error(e); }
+        afterMutation();
+      });
+
+      $('#short-rest').addEventListener('click', () => {
+        if (!state.session) return;
+        state.session.shortRest();
+        afterMutation();
+      });
+      $('#long-rest').addEventListener('click', () => {
+        if (!state.session) return;
+        state.session.longRest();
+        afterMutation();
+      });
+      $('#heal-target').addEventListener('click', () => {
+        if (!state.session) return;
+        const targetId = $('#target').value;
+        state.session.heal(targetId, 5);
+        afterMutation();
+      });
+
+      $('#do-spawn').addEventListener('click', () => {
+        if (!state.session) return;
+        const baseId = $('#spawn-monster').value;
+        const monster = state.engine.monsters[baseId];
+        if (!monster) return;
+        let n = 1;
+        let spawnId = `${baseId}-${n}`;
+        while (state.foeIds.has(spawnId)) { n++; spawnId = `${baseId}-${n}`; }
+        const participant = {
+          id: spawnId, name: `${monster.name} ${n}`,
+          dexterity: monster.abilityScores.dex,
+          speed: monster.speed,
+          hp: monster.hp, hpMax: monster.hp, ac: monster.ac,
+          attacks: monster.attacks ?? []
+        };
+        state.foeIds.add(spawnId);
+        const encounter = state.session.encounter;
+        const liveParticipants = encounter.order
+          .filter(p => {
+            try { return state.session.actor(p.id).hp > 0; } catch (_) { return false; }
+          })
+          .map(p => ({ ...p, hp: state.session.actor(p.id).hp, hpMax: state.session.actor(p.id).hpMax, ac: state.session.actor(p.id).ac }));
+        state.session.startEncounter([...liveParticipants, participant]);
+        afterMutation();
+      });
+
+      // === Spellcasting ===
+      // When the selected spell changes, the slot-level dropdown
+      // needs to reshuffle, so re-render the cast panel only.
+      $('#cast-caster').addEventListener('change', render);
+      $('#cast-spell').addEventListener('change', render);
+      $('#do-cast').addEventListener('click', doCast);
+
+      // === Conditions === wired per-row in render(); see wireConditionControls.
+
+      // === GM chat ===
+      $('#gm-send').addEventListener('click', () => {
+        const input = $('#gm-input');
+        const text = input.value.trim();
+        if (!text) return;
+        input.value = '';
+        gm.submitChat(text);
+      });
+      $('#gm-input').addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); $('#gm-send').click(); }
+      });
+      $('#gm-mock').addEventListener('change', (e) => {
+        gm.mock = e.target.checked;
+        localStorage.setItem(GM_MOCK_STORAGE, gm.mock ? '1' : '0');
+        gm.renderHeader();
+      });
+      $('#gm-key-save').addEventListener('click', () => {
+        const v = $('#gm-key').value.trim();
+        if (!v) return;
+        gm.apiKey = v;
+        localStorage.setItem(GM_KEY_STORAGE, v);
+        $('#gm-key').value = '';
+        gm.renderHeader();
+        gm.addTurn('system', 'Key saved (stored only in your browser).');
+      });
+      $('#gm-key-clear').addEventListener('click', () => {
+        gm.apiKey = '';
+        localStorage.removeItem(GM_KEY_STORAGE);
+        gm.renderHeader();
+        gm.addTurn('system', 'Key forgotten.');
+      });
+
+      // === Persistence ===
+      $('#save-session').addEventListener('click', () => { saveSession(); renderSaveMeta(); });
+      $('#load-session').addEventListener('click', () => { loadSavedSession(); });
+      $('#clear-saved-session').addEventListener('click', () => {
+        localStorage.removeItem(SAVE_KEY);
+        renderSaveMeta();
+      });
+
+      $('#export-share').addEventListener('click', () => {
+        if (!state.session) return;
+        const payload = state.engine.Replay.share(state.session, { includeLog: true });
+        $('#share-out').textContent = JSON.stringify(payload, null, 2);
+        $('#share-panel').style.display = 'block';
+      });
+      $('#verify-share').addEventListener('click', () => {
+        if (!state.session) return;
+        const payload = state.engine.Replay.share(state.session);
+        const result = state.engine.Replay.verify(payload);
+        const msg = result.ok ? `Replay verified clean: ${payload.rollLog.length} rolls.` : `Diverged at index ${result.divergedAt}`;
+        state.session.record('verify', { result: msg });
+        afterMutation();
+      });
+    }
+
+    function doCast() {
+      const session = state.session;
+      const casterId = $('#cast-caster').value;
+      const spellId = $('#cast-spell').value;
+      const targetId = $('#cast-target').value || null;
+      const slotLevel = Number($('#cast-slot').value) || 0;
+      const caster = session.actor(casterId);
+      const spell = state.engine.spells[spellId];
+      const record = STARTER_PARTY.find(r => r.id === casterId);
+      const sheet = state.engine.deriveSheet(record);
+      const out = $('#cast-result');
+
+      // 1. Cast through the engine — consumes slot, fires onCast hook,
+      //    binds concentration, returns the updated actor.
+      const args = spell.level > 0 ? { slotLevel } : {};
+      const castResult = state.engine.Spellcasting.castSpell(caster, spell, args);
+      if (!castResult.ok) {
+        out.className = 'cast-result bad';
+        out.textContent = `Cast failed: ${castResult.reason}`;
+        return;
+      }
+      Object.assign(caster, castResult.actor);
+
+      // 2. Resolve damage / heal / save effects. The engine's surface
+      //    here is intentionally low-level (the host orchestrates the
+      //    effect kind); see docs/recipes.md § Fireball for the
+      //    canonical save-for-half pattern.
+      let summary = `${record.name} cast ${spell.name}${slotLevel > spell.level ? ` (upcast L${slotLevel})` : ''}`;
+      if (spell.healing && targetId) {
+        // Healing specs ship as 'XdY+mod' — substitute mod with the
+        // caster's spellcasting ability mod.
+        const abilityMod = sheet.abilityScores.mod[sheet.spellcasting.ability];
+        const dice = spell.healing.replace(/\+mod$/, '');
+        const upcastDice = spell.level > 0 ? Math.max(1, slotLevel - spell.level) : 0;
+        const fullSpec = dice + (upcastDice > 0 ? `+${0}` : '');   // placeholder
+        const baseRoll = state.engine.Dice.roll(dice);
+        const upcastRoll = upcastDice > 0 ? state.engine.Dice.roll(`${upcastDice}d${baseRoll.spec.split('d')[1].split('+')[0]}`) : { total: 0 };
+        const healed = baseRoll.total + upcastRoll.total + abilityMod;
+        session.heal(targetId, healed);
+        summary += ` → healed ${targetId} for ${healed}`;
+      } else if (spell.damage && targetId) {
+        // Split 'XdY+Z' into dice + flat mod so a crit doesn't
+        // double the modifier (SRD § Critical Hits).
+        const m = String(spell.damage).match(/^(\d+d\d+)([+-]\d+)?$/);
+        const dice = m ? m[1] : spell.damage;
+        const flat = m && m[2] ? Number(m[2]) : 0;
+        let projectiles = spell.projectiles ?? 1;
+        let total = 0;
+        for (let i = 0; i < projectiles; i++) {
+          const dmg = state.engine.Combat.damageRoll({ damageDice: dice, damageMod: flat });
+          total += dmg.total;
+        }
+        // Save-for-half spells: target rolls a save, halve on success.
+        if (spell.save) {
+          const target = session.actor(targetId);
+          const score = target.abilityScores?.[spell.save] ?? 10;
+          const save = state.engine.Checks.savingThrow({
+            abilityScore: score, proficient: false, proficiencyBonus: 0,
+            dc: sheet.spellcasting.saveDC
+          });
+          if (save.success) total = Math.floor(total / 2);
+          summary += ` → ${targetId} save ${save.success ? 'passed' : 'failed'} (${save.total} vs DC ${sheet.spellcasting.saveDC}); ${total} damage`;
+        } else {
+          summary += ` → ${targetId} took ${total}${projectiles > 1 ? ` (${projectiles} hits)` : ''} damage`;
+        }
+        session.applyDamage(targetId, { amount: total, type: spell.damageType ?? 'force', source: casterId });
+      } else if (spell.level > 0) {
+        summary += ` (slot consumed, host resolves narrative effect)`;
+      } else {
+        summary += ` (cantrip — host resolves narrative effect)`;
+      }
+      session.record('cast', { casterId, spellId, slotLevel, targetId, summary });
+      out.className = 'cast-result ok';
+      out.textContent = summary;
+      afterMutation();
+    }
+
+    // === Persistence helpers ===
+    function saveSession() {
+      if (!state.session) return;
+      try {
+        const payload = state.session.serialize();
+        localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
+      } catch (e) {
+        console.error('save failed', e);
+      }
+    }
+
+    function loadSavedSession() {
+      const raw = localStorage.getItem(SAVE_KEY);
+      if (!raw) { renderSaveMeta(); return false; }
+      try {
+        const payload = JSON.parse(raw);
+        const engine = createEngine({ rng: Dice.seededRng(payload.seed ?? Date.now()) });
+        const oracle = engine.Solo.oracle({ rng: Dice.seededRng((payload.seed ?? 0) ^ 0xA5A5A5A5) });
+        const session = engine.Session.restore(payload);
+        // Recompute foeIds from the encounter's participant list,
+        // minus the party. Foes that were dropped from the encounter
+        // before save won't reappear; this matches the save's
+        // semantics ("the world at save time").
+        const partyIdSet = new Set(STARTER_PARTY.map(r => r.id));
+        const foeIds = new Set();
+        if (session.encounter) {
+          for (const p of session.encounter.order) {
+            if (!partyIdSet.has(p.id)) foeIds.add(p.id);
+          }
+        }
+        state.engine = engine;
+        state.oracle = oracle;
+        state.session = session;
+        state.seed = payload.seed ?? state.seed;
+        state.foeIds = foeIds;
+        state.expandedId = null;
+        state.autosave = true;
+        $('#seed-input').value = state.seed;
+        populateMonsterPicker();
+        $('#share-panel').style.display = 'none';
+        render();
+        gm.reset();
+        return true;
+      } catch (e) {
+        console.error('load failed', e);
+        return false;
+      }
+    }
+
+    function renderOracle(result) {
+      const div = document.createElement('div');
+      div.className = `oracle-out out-${result.outcome}`;
+      div.textContent = `"${result.question}" (${result.odds}) → ${result.outcome.replaceAll('-', ' ')} [d100=${result.d100}, threshold=${result.threshold}]`;
+      const h = $('#oracle-history');
+      h.insertBefore(div, h.firstChild);
+      while (h.children.length > 8) h.removeChild(h.lastChild);
+    }
+
+    bindEvents();
+    applyViewMode();
+    // Boot: try a saved session first; if none, start fresh. Either
+    // way, flip autosave on so subsequent user actions persist.
+    if (!loadSavedSession()) {
+      newSession();
+    }
+    state.autosave = true;
+    renderSaveMeta();
+  </script>
+</body>
+</html>

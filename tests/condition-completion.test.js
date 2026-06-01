@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   apply as applyCondition,
-  has as hasCondition,
   isImmuneTo,
   effectsFor
 } from '../src/conditions.js';
@@ -25,7 +24,7 @@ test('Conditions.apply still applies non-immune conditions to the same actor', (
     id: 'pc', conditionImmunities: ['charmed'], conditions: []
   };
   const next = applyCondition(actor, 'poisoned');
-  assert.ok(hasCondition(next, 'poisoned'));
+  assert.ok(next.conditions.includes('poisoned'));
 });
 
 test('isImmuneTo predicate matches the same data the apply filter reads', () => {

@@ -35,9 +35,14 @@ const ROOT = path.resolve(__dirname, '..');
 //   1.0.0  — 120 kB min / 30 kB gz (initial)
 //   1.5.0  — 160 kB min / 40 kB gz (10 class mechanics, damage
 //            pipeline, condition completion)
+//   1.18.0 — 175 kB min / 42 kB gz (species effects, hazards module)
+//   1.21.0 — 200 kB min / 48 kB gz (tier 3 features, equipment depth,
+//            travel module, mechanic adapters)
+//   1.27.0 — 280 kB min / 65 kB gz (SRD content expansion: all 16
+//            backgrounds, ~30 feats, 104 spells, 102 items, 66 monsters)
 const BUDGETS = {
-  minBytes: 160 * 1024,    // 160 kB approx-minified
-  gzipBytes:  40 * 1024    //  40 kB gzipped
+  minBytes: 280 * 1024,    // 280 kB approx-minified
+  gzipBytes:  65 * 1024    //  65 kB gzipped
 };
 
 async function walk(dir) {

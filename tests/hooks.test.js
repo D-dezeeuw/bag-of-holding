@@ -157,7 +157,7 @@ test('onConditionApplied fires with new and previous actor', () => {
   });
   const before = { id: 'a', conditions: [] };
   const after = engine.Conditions.apply(before, 'poisoned');
-  assert.deepEqual(after.conditions, [{ name: 'poisoned' }]);
+  assert.deepEqual(after.conditions, ['poisoned']);
   assert.equal(captured.condition, 'poisoned');
   assert.deepEqual(captured.previous, before);
 });

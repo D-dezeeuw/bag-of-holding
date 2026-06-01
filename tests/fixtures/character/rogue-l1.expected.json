@@ -17,11 +17,9 @@
   },
   "initiative": 5,
   "speed": { "walk": 30 },
-  "senses": {},
-  "traits": ["Brave", "Halfling Nimbleness", "Luck", "Naturally Stealthy"],
+  "senses": { "darkvision": 0, "blindsight": 0, "truesight": 0 },
   "damageResistances": [],
-  "conditionImmunities": [],
-  "flags": { "halflingLucky": true, "brave": true },
+  "traitFlags": { "brave": true, "halflingNimbleness": true, "lucky": true, "naturallyStealthy": true },
   "saves": {
     "str": { "mod": -1, "proficient": false },
     "dex": { "mod": 5,  "proficient": true  },
@@ -64,6 +62,7 @@
   ],
   "spellcasting": null,
   "passives": { "perception": 10, "insight": 10, "investigation": 11 },
+  "featGrants": { "alert": { "initiativeProficiency": true, "initiativeSwap": true } },
   "carryingCapacity": { "capacity": 120, "push": 240, "lift": 240 },
   "activeEffects": { "conditions": [], "exhaustion": 0 }
 }

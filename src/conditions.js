@@ -146,32 +146,6 @@ const _RAW_CONDITION_EFFECTS = {
 for (const v of Object.values(_RAW_CONDITION_EFFECTS)) Object.freeze(v);
 export const CONDITION_EFFECTS = Object.freeze(_RAW_CONDITION_EFFECTS);
 
-// === Condition entry helpers (since 1.6.1) ===
-//
-// `actor.conditions` entries are now record-shaped:
-//   `{ name, source?, dc?, saveAbility?, endsOn? }`
-// where `endsOn` is `'turnEnd'` or `'turnStart'`.
-//
-// String entries from saves predating v1.6.1 are tolerated on read
-// by every internal site via `nameOf`. The public `apply` API still
-// accepts a plain string and normalises it to `{ name }` on write,
-// preserving idempotent set-semantics for that path.
-
-/** @internal Extract the condition name from a string or record entry. */
-function nameOf(entry) {
-  return typeof entry === 'string' ? entry : entry.name;
-}
-
-/**
- * Public version of `nameOf` — extracts the condition name from a
- * string or a `ConditionRecord`. Useful for hosts iterating
- * `actor.conditions` to build UI labels without re-implementing the
- * shape check.
- */
-export function conditionName(entry) {
-  return nameOf(entry);
-}
-
 /**
  * Compute the union of effect flags from an actor's active
  * conditions. Multiple conditions OR together — applying
@@ -180,12 +154,10 @@ export function conditionName(entry) {
  *
  * `actor.conditions` may be absent (a fresh actor). The result is
  * a plain object the math layer reads with `.something`.
- * Accepts both string entries (legacy) and record entries (v1.6.1+).
  */
 export function effectsFor(actor) {
   const flags = {};
-  for (const entry of actor.conditions ?? []) {
-    const condition = nameOf(entry);
+  for (const condition of actor.conditions ?? []) {
     const effect = CONDITION_EFFECTS[condition];
     if (!effect) continue;
     for (const [k, v] of Object.entries(effect)) {
@@ -231,6 +203,15 @@ export function attackStance({ attacker = {}, target = {}, attackerDistanceFt = 
   // `dodging` is set by `Encounter.dodge`.
   if (target.dodging === true) dis = true;
 
+  // SRD 5.2 § Combat — Unseen Attackers and Targets (since 1.30.0):
+  // an attacker the target can't see has Advantage. A target the
+  // attacker can't see imposes Disadvantage. The host flags this
+  // via `attacker.unseenBy[target.id]` and `target.unseenBy[attacker.id]`,
+  // or the simpler `attacker.unseen` / `target.unseen` booleans for
+  // generic invisibility/darkness.
+  if (attacker.unseen === true) adv = true;
+  if (target.unseen === true) dis = true;
+
   if (adv && dis) return 'normal';
   if (adv) return 'advantage';
   if (dis) return 'disadvantage';
@@ -242,11 +223,9 @@ export function attackStance({ attacker = {}, target = {}, attackerDistanceFt = 
  * array yet) so callers don't have to initialise an empty array on
  * every actor — predicate-style checks should be safe to call on a
  * bare actor record.
- * Accepts both string entries (legacy) and record entries (v1.6.1+).
  */
 export function has(actor, condition) {
-  if (!Array.isArray(actor.conditions)) return false;
-  return actor.conditions.some(e => nameOf(e) === condition);
+  return Array.isArray(actor.conditions) && actor.conditions.includes(condition);
 }
 
 /**
@@ -265,27 +244,17 @@ export function has(actor, condition) {
  * for homebrew without forking this function.
  */
 export function apply(actor, condition, allowedConditions = CONDITIONS) {
-  // Accept both string ('poisoned') and record ({ name: 'poisoned', dc: 11, ... }).
-  const name = typeof condition === 'string' ? condition : condition.name;
-  if (!allowedConditions.includes(name)) throw new Error(`Unknown condition: ${name}`);
+  if (!allowedConditions.includes(condition)) throw new Error(`Unknown condition: ${condition}`);
   // SRD § Monsters — Immunities (since 1.5.0): actors with the
   // condition listed in their `conditionImmunities` are unaffected.
   // We return the unchanged actor rather than throwing so the host
   // chip / UI can render "immune" gracefully without branch logic.
-  if ((actor.conditionImmunities ?? []).includes(name)) return actor;
-
-  if (typeof condition === 'string') {
-    // String call: set semantics — idempotent, no duplicate entries.
-    // Returns the same actor reference when already present so the
-    // engine's hook-fire guard (`next === actor`) skips re-firing.
-    if ((actor.conditions ?? []).some(e => nameOf(e) === name)) return actor;
-    return { ...actor, conditions: [...(actor.conditions ?? []), { name }] };
+  if ((actor.conditionImmunities ?? []).includes(condition)) {
+    return actor;
   }
-
-  // Record call: append semantics — allows multiple applications
-  // from different sources (two casters both using Hold Person, etc.).
-  const entry = { ...condition, name };
-  return { ...actor, conditions: [...(actor.conditions ?? []), entry] };
+  const current = new Set(actor.conditions ?? []);
+  current.add(condition);
+  return { ...actor, conditions: [...current] };
 }
 
 /**
@@ -303,32 +272,11 @@ export function isImmuneTo(actor, condition) {
  * Mirror of `apply`. Doesn't throw on a no-op removal because
  * "clear if present" is the common idiom — forcing callers to check
  * first would just push the boilerplate one level out.
- *
- * Removes ALL entries whose name matches, regardless of source — this
- * is the right behaviour for "cure the condition" operations. Accepts
- * both a string name and a record (uses `.name` from the record).
- * Accepts both string entries (legacy) and record entries (v1.6.1+).
  */
 export function remove(actor, condition) {
-  const name = typeof condition === 'string' ? condition : condition.name;
-  const next = (actor.conditions ?? []).filter(e => nameOf(e) !== name);
-  return { ...actor, conditions: next };
-}
-
-/**
- * Return the condition entries on an actor that require a saving throw
- * at the given `timing` (`'turnEnd'` | `'turnStart'`). Used by the
- * engine's turn-lifecycle bindings to auto-roll saves at each turn
- * boundary.
- *
- * Only entries that carry *both* `saveAbility` and `dc` are returned —
- * entries without those fields were applied without save metadata and
- * cannot be auto-cleared by the engine.
- */
-export function conditionsRequiringSave(actor, timing) {
-  return (actor.conditions ?? [])
-    .map(e => (typeof e === 'string' ? { name: e } : e))
-    .filter(e => e.endsOn === timing && e.saveAbility !== undefined && e.dc !== undefined);
+  const current = new Set(actor.conditions ?? []);
+  current.delete(condition);
+  return { ...actor, conditions: [...current] };
 }
 
 // SRD 5.2 Exhaustion: cumulative levels 0–6.

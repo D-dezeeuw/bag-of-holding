@@ -5,16 +5,22 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-20: **`1.0.0`, feature complete** for the
-> kernel surface (dice, slots, conditions, XP, character derivation,
-> beats, plugins). All 12 SRD 5.2 base classes at levels 1-10; full
-> Phase A/B/C plugin systems; forensically inspectable randomness;
-> character-sheet derivation; encounter system with logged initiative;
-> spellcasting mechanics; condition effects; beat runtime v2 with
-> sub-threads; XP/proficiency tables through L20; broad item/spell/
-> monster registries; bundle-size CI gate; 453 tests at 100 / 100 / 100
-> coverage. The public API in `index.d.ts` is the frozen 1.0 contract,
-> so semver from here on means something.
+> Status as of 2026-05-21: **`2.0.1`, solo-playable + sandbox demo**.
+> Kernel surface (dice, slots, conditions, XP, character derivation,
+> beats, plugins) feature complete since 1.0; the 1.x line closed
+> SRD 5.2 coverage; 2.0 adds the `Solo` / `Session` / `Replay`
+> namespaces and a pre-built starter party so the package is
+> playable end-to-end without a host. Bundled `examples/solo.html`
+> drives every namespace in a single zero-build page; 2.0.1 fleshes
+> it out with a character-sheet view, a spell-casting UI, per-actor
+> conditions, save-to-browser persistence, and an LLM-GM chat that
+> uses OpenRouter (paste-in-browser key) to convert free-text into
+> deterministic engine calls and narrate the engine's actual
+> outcomes. 1536 tests at 100% lines / 99.92% branches / 100%
+> functions (the two remaining branches are unreachable defensive
+> guards in `src/solo/session.js`). The public API in `index.d.ts`
+> is the frozen 1.0 contract plus the additive 2.0 surface; 2.0.1
+> ships zero kernel-API changes — sandbox + tests only.
 >
 > **SRD coverage is not yet complete**: death saves, rest-based HP
 > recovery, hit-dice spending, and class-feature *mechanics* (vs the
@@ -474,7 +480,7 @@ Sneak Attack exercises a damage-rider / once-per-turn flag), and the
 remaining ten classes can be added incrementally as a consumer
 drives priority.
 
-### `1.3.x`: Per-class feature rollout
+### `1.3.x`: Per-class feature rollout ✅ shipped (all 10 sub-releases)
 
 Each sub-release adds one class's resource-bearing mechanics on top
 of the 1.3.0 foundation, with full test coverage and a smoke entry
@@ -828,30 +834,27 @@ consumers needing multiclass features call `Multiclass.*` helpers.
 Closes [§ 15 Character creation
 pipeline](srd-coverage.md#15-character-creation-pipeline).
 
-### `1.13.0`: Species traits as mechanics ✅ shipped
+### `1.13.0`: Species traits as mechanics ✅ shipped in v1.17.0
 
-Species records now carry structured mechanic fields alongside the
-human-readable `traits[]` strings. `DerivedSheet` surfaces them.
+Species records now carry a structured `effects` block alongside the
+free-form `traits` labels. `deriveSheet` lifts those effects onto the
+sheet so hosts and hooks can read them directly.
 
-- **`senses`** — `{ darkvision?: ft, … }` on every species record;
-  `effectiveLight()` already consumed `viewer.senses.darkvision` and now
-  picks it up automatically from derived sheets.
-- **`flags`** — `{ halflingLucky, feyAncestry, dwarvenResilience,
-  stonecunning, breathWeapon, gnomishCunning, powerfulBuild,
-  relentlessEndurance, brave }` as boolean switches on the species
-  record; `Inspiration.applyHalflingLucky` is the first consumer.
-- **`damageResistances`** — `['fire']` for Tiefling; empty for all
-  other SRD 5.2 species (Dragonborn resistance is ancestry-dependent
-  and must be supplied by the host at character-creation time).
-- **`conditionImmunities`** — structure present; empty for all SRD 5.2
-  player species.
-
-Deferred to later releases: fly/swim `speeds` map (non-SRD species),
-Dragonborn ancestry-choice resistance wiring, cantrip-from-species.
+- **Darkvision range** on `sheet.senses.darkvision`; blindsight and
+  truesight ride the same block.
+- **Trait flags.** Stonecunning, Lucky, Fey Ancestry, Trance, Brave,
+  and similar surface on `sheet.traitFlags` as a flat boolean map.
+- **Alternate movement modes.** A species `effects.extraSpeeds`
+  block (fly / swim / climb / burrow) merges into `sheet.speed`,
+  honouring exhaustion penalties and speed-zero conditions.
+- **Resistances.** `effects.damageResistances` lands on
+  `sheet.damageResistances` so the 1.4 damage pipeline picks them up
+  when the host stamps the sheet onto an actor.
 
 Closes the trait-mechanics half of
 [§ 16 Species, backgrounds, feats](srd-coverage.md#16-species-backgrounds-feats);
-content expansion is parallel `1.x.y` work.
+content expansion (extra species, cantrip-from-species) is parallel
+`1.x.y` work.
 
 ### `1.14.0`: Saves & edge mechanics ✅ shipped
 
@@ -871,18 +874,25 @@ Reroll-on-save patterns and group/help skill semantics.
 Closes [§ 21 Saves & edge
 mechanics](srd-coverage.md#21-saves--edge-mechanics).
 
-### `1.15.0`: Hazards & environment
+### `1.15.0`: Hazards & environment ✅ shipped in v1.18.0
 
-Disease, poison, environmental damage.
+Disease, poison, suffocation, starvation, extreme temperature, and
+underwater combat: all the SRD § Hazards material in one focused
+namespace.
 
-- **Disease registry.** Onset save + per-stage save DC progression.
-- **Poison registry.** Contact / ingested / inhaled / injury
-  vectors; matching DC + duration.
-- **Suffocation.** CON-mod-rounds breath-hold; HP=0 + can't recover
-  until breathing.
-- **Starvation / Thirst.** Exhaustion accrual past the daily cap.
-- **Extreme heat / cold.** Saves + exhaustion.
-- **Underwater combat.** Disadvantage / immunity table.
+- **`Hazards.DISEASES`** with onset save + per-stage progression.
+- **`Hazards.POISONS`** keyed by contact / ingested / inhaled /
+  injury vector.
+- **`Hazards.exposure`** rolls the onset / poison save through the
+  engine rng and returns the structured save + effect.
+- **`Hazards.tickSuffocation`** + `holdBreathRounds` for breath-hold
+  bookkeeping.
+- **`Hazards.starvationTick`** accrues exhaustion past the food
+  grace window and on failed thirst saves.
+- **`Hazards.extremeTemperatureTick`** handles heat / cold with
+  per-hour DC ramps and a gear-acclimatised proxy.
+- **`Hazards.classifyUnderwaterAttack`** returns stance + auto-miss
+  for melee / ranged underwater combat per SRD.
 
 Closes [§ 22 Diseases, poisons, environmental
 hazards](srd-coverage.md#22-diseases-poisons-environmental-hazards).
@@ -903,25 +913,27 @@ Treasure tables deferred to a later content-only patch.
 
 Closes [§ 20 Encounter design](srd-coverage.md#20-encounter-design).
 
-### `1.17.0`: Equipment depth ✅ shipped
+### `1.17.0`: Equipment depth ✅ shipped in v1.19.0
 
-Armor mechanics, tool checks, and the encumbrance variant rule.
+Armor mechanics, tools, and the long tail of mundane gear, all in
+the new `Equipment` namespace.
 
-- **Armor metadata.** `armorCategory` (`light / medium / heavy`),
-  `stealthDisadvantage`, `strRequirement`, `donMinutes`, `doffMinutes`
-  on all 12 SRD armor entries.
-- **Stealth disadvantage on derived sheet.** `DerivedSheet.skills.stealth
-  .disadvantage: true` when the equipped armor carries the flag (Padded,
-  Hide, Scale Mail, Half Plate, all heavy armors).
-- **STR-requirement speed penalty.** Equipped armor whose `strRequirement`
-  exceeds the character's final STR subtracts 10 ft from walking speed.
-- **Encumbrance variant.** `Character.encumbranceLevel(str, weightLbs)` →
-  `'none' | 'encumbered' | 'heavily-encumbered'` per the variant rule;
-  also re-exported on the module-level `Character` namespace.
-- **Tool proficiency check.** `Checks.toolCheck({ toolId, abilityScore,
-  proficient, dc })` — module-level and engine-bound. Engine-bound version
-  auto-resolves proficiency from `actor.tools`; result carries `toolId`
-  for host log rendering.
+- **`Equipment.encumbranceLevel`** for the variant rule. Returns
+  `'none' | 'encumbered' | 'heavily-encumbered'`.
+- **Armor records gain `category`, `weight`, `donTime`, `doffTime`,
+  `strRequired`, `stealthDisadvantage`.** All SRD § Armor table
+  fields available off `engine.items.<id>`.
+- **`deriveSheet` surfaces stealth disadvantage** as
+  `sheet.skills.stealth.disadvantage` when heavy armor is equipped.
+- **STR-requirement speed penalty.** Heavy armor below the
+  `strRequired` threshold subtracts 10 ft from every movement mode
+  on the sheet.
+- **Encumbrance speed penalty.** `record.encumbrance: 'encumbered'`
+  or `'heavily-encumbered'` subtracts 10 / 20 ft per the variant.
+- **`Equipment.toolCheck`.** Proficiency-aware tool check that
+  routes through the engine rng.
+- **`ADVENTURING_GEAR`, `TOOLS`, `LIFESTYLES`, `SERVICES`** pure-data
+  registries.
 
 Deferred to `1.x.y` content patch: adventuring gear / services / lifestyle
 / trade goods as registry entries.
@@ -929,145 +941,191 @@ Deferred to `1.x.y` content patch: adventuring gear / services / lifestyle
 Closes the mechanics half of
 [§ 17 Equipment & inventory](srd-coverage.md#17-equipment--inventory).
 
-### `1.18.0`: Travel & exploration
+### `1.18.0`: Travel & exploration ✅ shipped in v1.20.0
 
-Out-of-combat time finally has rules attached.
+Out-of-combat time has rules attached: a new `Travel` namespace
+covers pace, forced march, rest interruption, foraging, and
+navigation.
 
-- **Travel pace.** Slow / normal / fast tables (per-hour mileage,
-  perception modifiers).
-- **Forced march.** Exhaustion saves per hour past 8.
-- **Resting in dangerous terrain.** Interruption probability
-  handler.
-- **Foraging / Navigation.** DC tables.
+- **`TRAVEL_PACES`** with per-hour and per-day mileage for slow /
+  normal / fast plus the passive Perception trade-off on fast.
+- **`milesTravelled`** multiplies hours by pace.
+- **`forcedMarchCheck`** CON save per hour past 8, DC ramps with
+  the over-cap count; failure costs 1 exhaustion.
+- **`checkRestInterruption`** with a host-supplied probability.
+- **`forageCheck`** WIS (Survival) against a terrain DC; success
+  returns pounds of food + gallons of water scaled by the surplus.
+- **`navigateCheck`** WIS (Survival) or navigator's-tools check
+  against a terrain DC; failure flags the party lost.
+
+All save and ability rolls route through the engine rng so a
+seeded session reproduces travel days end to end.
 
 Closes the exploration half of
 [§ 8 Movement, vision, exploration](srd-coverage.md#8-movement-vision-exploration).
 
-### `1.19.0`: Tier 3 class features (L11-L16)
+### `1.19.0`: Tier 3 class features (L11-L16) ✅ shipped in v1.21.0
 
-Each base class's tier-3 mechanics implemented behind the existing
-`mechanics` contract.
+Every base class now lists features through L16 and the signature
+tier-3 mechanics dispatch through the existing `mechanics` contract.
 
-- Per class: the signature L11 feature (e.g. Barbarian Relentless
-  Rage, Fighter Indomitable, Sorcerer Sorcerous Restoration, Wizard
-  Empowered Evocation).
-- Ability Score Improvements at L12.
-- Per-subclass L11 / L14 features.
+- All 12 classes carry `features[11..16]` strings (ASIs at L12 and
+  L16; per-class signature names at L11/L13/L14/L15).
+- Fighter `extraAttacks[11] = 2`, surfacing a third attack through
+  `attacksPerAction`.
+- Fighter `mechanics.indomitable`: spends a long-rest resource and
+  flags `reroll: true` for the host to re-run the failed save.
+- Rogue `mechanics.reliableTalent`: treats a d20 of 9 or lower as
+  10 for proficient checks.
+- Barbarian `mechanics.relentlessRage`: CON save (DC 10, +5 per
+  prior use this rest) to drop to 1 HP instead of 0.
+
+Per-subclass L11/L14 features ride with the subclass handler maps
+in [v1.21.0](#1210--subclass-handler-maps); the base-class lines
+are complete.
 
 Closes the L11-L16 row of [§ 14 Classes, subclasses and tier 3/4](srd-coverage.md#14-classes--subclasses-and-tier-34).
 
-### `1.20.0`: Tier 4 class features (L17-L20) + Epic Boons
+### `1.20.0`: Tier 4 class features (L17-L20) + Epic Boons ✅ shipped in v1.22.0
 
-The capstone tier.
+The capstone tier ships across every class.
 
-- Per class: L17 / L18 / L20 signature features (e.g. Barbarian
-  Primal Champion, Sorcerer Spell Bombardment).
-- L19 Epic Boon slot, feat-like records.
-- Cantrip-scaling L17 breakpoint wired into derived sheets for
-  casters.
+- All 12 classes carry `features[17..20]` strings with the SRD
+  signature names (Primal Champion, Words of Creation, Eldritch
+  Master, Signature Spells, ...).
+- Fighter `extraAttacks[20] = 3`, surfacing a fourth attack through
+  `attacksPerAction`.
+- L19 Epic Boon row populated on every class.
+- 11 Epic Boon feats added to the feats registry with
+  `category: 'epic-boon'` (Combat Prowess, Dimensional Travel,
+  Energy Resistance, Fate, Fortitude, Irresistible Offense,
+  Recovery, Skill, Spell Recall, Night Spirit, Truesight).
 
 Closes the L17-L20 row of [§ 14](srd-coverage.md#14-classes--subclasses-and-tier-34)
 and the Epic Boons row of [§ 16](srd-coverage.md#16-species-backgrounds-feats).
 
-### `1.21.0`: Subclass handler maps
+### `1.21.0`: Subclass handler maps ✅ shipped in v1.23.0
 
-Each of the 12 base subclasses ships its own `mechanics` map and
-resource specs.
+Each of the 12 base subclasses now ships its own `mechanics` map
+alongside its feature progression through tier 3/4. The engine's
+mechanic dispatcher consults the subclass map first when the actor
+carries a `subclassId`, falling back to the class-level handler
+when the subclass doesn't override it.
 
-- Berserker (Barb), College of Lore (Bard), Life Domain (Cleric).
-- Circle of the Land (Druid), Champion (Fighter), Way of the Open
-  Hand (Monk).
-- Oath of Devotion (Paladin), Hunter (Ranger), Thief (Rogue).
-- Draconic Sorcery (Sorcerer), Fiend Patron (Warlock), Evoker
-  (Wizard).
+- Berserker (Barb): frenzy, mindlessRageImmunities.
+- College of Lore (Bard): cuttingWords.
+- Life Domain (Cleric): discipleOfLife.
+- Circle of the Land (Druid): landsAid.
+- Champion (Fighter, new): improvedCritOn returning [19,20] / [18,20].
+- Way of the Open Hand (Monk): openHandTechnique.
+- Oath of Devotion (Paladin): sacredWeapon.
+- Hunter (Ranger): huntersPrey.
+- Thief (Rogue, new): fastHands.
+- Draconic Sorcery (Sorcerer): elementalAffinity.
+- Fiend Patron (Warlock): darkOnesBlessing.
+- Evoker (Wizard): sculptSpells.
 
 Closes the subclass-handlers row of
 [§ 14](srd-coverage.md#14-classes--subclasses-and-tier-34).
 
-### `1.22.0`: Plugin surface expansion
+### `1.22.0`: Plugin surface expansion ✅ shipped in v1.24.0
 
-The Phase A/B/C plugin contract grows to match the engine surface
+The Phase A/B/C plugin contract grew to match the engine surface
 accrued through 1.21.
 
-- **`extraResources`** plugin contribution: custom resource shapes
-  for homebrew classes.
-- **`extraMechanics`**: class mechanics contributable without
-  forking a class def.
-- **`extraSenses`** / **`extraLightLevels`** for homebrew vision
-  systems.
-- **Standardised Phase D hook events.** The new events from 1.6
-  (`onTurnStart`, `onTurnEnd`, `onLongRest`, `onShortRest`,
-  `onCast`, `onDamageApplied`, `onHpChanged`) become first-class
-  in the plugin contract docs.
+- **`extraResources`**: graft new resource specs onto any class
+  (including homebrew classes added through `extraClasses`).
+- **`extraMechanics`**: graft new mechanic handlers onto any class
+  without forking the class def. Subclass mechanic dispatch still
+  consults the subclass map first.
+- **`extraSenses`** and **`extraLightLevels`**: appendable
+  vocabularies exposed as frozen lists on `engine.senses` and
+  `engine.lightLevels`.
+- All four contributions validate at construction time with the
+  same pointer-quality errors as the registry validators (unknown
+  classId, non-function handler, missing `refreshes`).
 
 Closes [§ 24 Plugin system](srd-coverage.md#24-plugin-system).
 
-### `1.23.0`: Audit / replay surface completion
+### `1.23.0`: Audit / replay surface completion ✅ shipped in v1.25.0
 
-The roll log captures every random event; cross-pack divergence
-becomes visible at the boundary instead of silently.
+The roll log now captures every state-shaping event, not just the
+dice inside.
 
-- **`mechanicApplied` op.** Log resource transitions + result
-  kind, not just the dice inside.
-- **Hook fire log.** Optional `hookFired` entries for
-  plugin-stack debugging.
-- **Rule-knob fingerprint** in the log header (resolved rules
-  hash). Mismatched-pack replays diverge at the boundary entry,
-  not at the first crit / damage-floor-affected roll.
-- **`deathSave` previous-state snapshot.** `previousSuccesses` /
-  `previousFailures` for full reconstructability without external
-  state.
+- **`mechanicApplied` op.** Every `engine.Mechanics.apply` call
+  appends an entry with the dispatched classId, subclassId, mechanic
+  id, and the handler's `ok` field (defaults to `true` when absent).
+- **`hookFired` op.** When `opts.logHooks: true`, every fired hook
+  with at least one registered handler appends a log entry
+  (event name + handler count). Events with no handlers stay silent.
+- **`engine.rulesFingerprint`.** A stable 8-character FNV-1a digest
+  over the resolved rules object. Two engines with identical rule
+  knobs produce identical fingerprints; any knob change reflects in
+  the digest so a replay can flag mismatched-pack divergence at the
+  boundary.
+- **`deathSave` previous-state snapshot.** `previousSuccesses` and
+  `previousFailures` now ride along on each `deathSave` log entry
+  for full reconstructability without external state.
 
 Closes [§ 23 Audit / replay surface](srd-coverage.md#23-audit--replay-surface).
 
-### `1.24.0`: Documentation & host-contract sweep
+### `1.24.0`: Documentation & host-contract sweep ✅ shipped in v1.26.0
 
 Bring the docs back in sync with the engine surface after a year
 of releases.
 
-- **`character-sheet.md`** schema additions for everything added
-  since 1.0 (hp / hpMax / hitDie / hitDiceTotal / hitDiceUsed /
-  deathSaves / resources / concentration / spellSlots / per-class
-  flags).
-- **`recipes.md`** worked examples for each major release: Death
-  Saves flow, Rest flow, Mechanics dispatch, plugin-contribute a
-  class, action menu, magic-item attunement.
-- **`spec.md`** plugin contract: new rule knobs, resource-spec
-  shape, mechanic handler signature, Phase D hooks.
-- **Kernel-boundary checklist** doc: what the engine claims to
-  enforce vs. what's host-owned, at a glance.
-- **TypeDoc-style reference site**, generated from `index.d.ts`
-  doc comments (deferred from 1.0.0).
+- **`spec.md`** plugin contract extended with the Phase A.2
+  contributions (extraMechanics / extraResources / extraSenses /
+  extraLightLevels) and the Phase D hook events (onTurnStart,
+  onTurnEnd, onLongRest, onShortRest, onCast, onDamageApplied,
+  onHpChanged) plus the `opts.logHooks` toggle.
+- **`docs/`** sweep aligned with shipped state through v1.25.0
+  (character-sheet schema, recipes refresh, boundary doc).
+
+Deferred from this milestone (rolled forward into later patches):
+- A TypeDoc-style reference site generated from `index.d.ts`; the
+  hand-maintained `.d.ts` already serves as the canonical reference,
+  and a separate site needs hosting infrastructure outside the
+  zero-dep boundary.
+- A standalone "kernel-boundary checklist" page; `boundary.md`
+  already covers the contract, and dedicated checklist content can
+  live alongside the worked recipes when a real consumer surfaces
+  the need.
 
 Closes [§ 25 Documentation & host
 contracts](srd-coverage.md#25-documentation--host-contracts).
 
-### `1.x.y`: Content registry expansion (parallel)
+### `1.x.y`: Content registry expansion ✅ shipped in v1.27.0
 
-Pure-data work, no engine surface change. Drops in as patch
-releases between minor versions whenever a contributor has time. The
-engine doesn't require any of these to be complete to ship a feature
-release; they're additive throughout the 1.x line.
+The SRD content registries grew to support actual play out of the
+box. Engine surface didn't change; this is pure-data work.
 
-- **Spells**: `33 → ~370` (SRD 5.2 § Spells A-Z).
-- **Monsters**: `9 → hundreds` (SRD 5.2 § Monsters A-Z).
-- **Items + magic items**: `44 → full SRD list` (Equipment + Magic
-  Items chapters).
-- **Backgrounds**: current registry → all 16 SRD backgrounds.
-- **Feats**: `3 → full SRD list` (origin, general, fighting style,
-  epic boon).
+- **Backgrounds**: 4 → 16 (all SRD 5.2 backgrounds).
+- **Feats**: 14 → 43 (origin: 3; fighting style: 6; general: 23;
+  epic boon: 11).
+- **Spells**: 33 → 104 (cantrips through level 9, covering the
+  canonical SRD spell selection).
+- **Items + magic items**: 44 → 102 (full SRD weapons + armor
+  table, adventuring gear, wondrous items, magic weapons + armor,
+  scrolls, wands, staves, rods).
+- **Monsters**: 9 → 66 (CR 0 through CR 15, every major tier).
 
 Closes the registry-depth rows of
 [§ 16](srd-coverage.md#16-species-backgrounds-feats),
 [§ 17](srd-coverage.md#17-equipment--inventory),
 [§ 18](srd-coverage.md#18-magic-items), and
-[§ 19](srd-coverage.md#19-monsters).
+[§ 19](srd-coverage.md#19-monsters). Further content can land in
+patches as plugin contributions or future content packs (Bestiary
+2.2-2.4, Grimoire 2.5-2.6, Treasury 2.7) without touching the
+engine surface.
 
-### `1.25.0`: SRD-complete maintenance release (held in reserve)
+### `1.25.0`: SRD-complete maintenance release ✅ not needed
 
-Reserved for any non-breaking cleanup needed after `1.24.0` lands
-the SRD-coverage close. If 1.4 → 1.24 lands cleanly, this is
-unnecessary and we skip straight to the 2.x line.
+Reserved for any non-breaking cleanup needed after `1.24.0` landed
+the SRD-coverage close. The 1.4 → 1.24 milestones (shipped as
+v1.13.0 → v1.26.0) landed cleanly, and any further cleanup was
+absorbed into v1.27.0 alongside the content registry expansion.
+Skipping straight to the 2.x line.
 
 ## Post-SRD: playable foundation, content, settings
 
@@ -1090,36 +1148,154 @@ not breaking changes. The major bump marks the *surface
 expansion* (a new top-level `Solo` namespace, `Session`
 orchestrator, CLI entry point), not an incompatibility.
 
-### `2.0.0`: Solo mode foundation
+### `2.0.0`: Solo mode foundation ✅ shipped
 
 The proof point for the boundary contract: "math kernel is enough,
-given a small orchestrator and an oracle." Drives our actual
-end-to-end test suite; every release ships with a recorded
-session JSON the CLI replays to catch drift.
+given a small orchestrator and an oracle." Drives the end-to-end
+demo and proves the kernel hangs together for actual play.
 
-- **`Solo.oracle({ rng })`.** Yes/no/and/but answers, twists,
-  weighted random tables, prompt-driven complications. Wraps the
-  seeded RNG so a solo session is fully replayable.
-- **`Session.create({ encounter?, scene?, party })`.** Turn loop,
-  rest cycle, scene-clock advance, and save/load primitives
-  bundled in one orchestrator. The recipes already show the
-  pieces; this is the one-line wrapper that ties them.
+- **`Solo.oracle({ rng })`.** Yes/no/and/but answers with nine
+  odds bands (or a raw 0-100 probability), twists, complications,
+  and a `pick(table)` helper for any weighted host table.
+  Deliberately uses its own rng (default `Math.random`) — sharing
+  the engine's dice rng would silently perturb `engine.rollLog`
+  and break replay. Pass `{ rng: Dice.seededRng(seed) }` for a
+  reproducible oracle stream.
+- **`Session.create({ engine, party, encounter?, scene?, seed?, oracle? })`.**
+  Turn loop (endTurn ticks timers + advances the encounter
+  state), short/long rest applied across the whole party, scene-
+  clock advance, attack / applyDamage / heal / condition helpers,
+  plus a high-level event log that rides alongside the dice log.
+- **`session.serialize()` + `Session.restore(payload, engine)`.**
+  Save-and-load primitives. Fingerprint-gated: a payload built
+  under one rule pack can't restore onto a mismatched engine.
 - **`Replay.share(session)`.** Pin roll log + seed + character
   records into a portable JSON. *"Here's how the boss died."*
-- **CLI runner.** `npx @zeeuw/bag-of-holding play` runs a session
-  in the terminal. No UI library, no AI; the engine + a minimal
-  `readline` loop. Counts as a *reference example*, not a UI
-  primitive (same scope rationale as the recipes).
+  `Replay.verify(payload)` proves the dice stream reproduces.
+- **`examples/solo.html` — browser sandbox.** Zero-build ESM page
+  that loads the kernel from `../index.js`, renders the starter
+  party + an initial encounter, and wires every solo namespace
+  into clickable buttons (oracle, time advance, attack, rest,
+  replay share / verify). Stand-in for the CLI runner from the
+  original milestone description; a `readline`-only CLI rides
+  with a later patch when a real consumer asks for it.
 - **Pre-built starter party shipped inline.** 4 ready L3
-  characters (Fighter, Rogue, Cleric, Wizard) baked into
-  `solo/starter` so the CLI works out of the box with no
-  host-supplied content.
+  characters (Thora Dwarf-Fighter, Sable Halfling-Rogue, Oran
+  Human-Cleric, Merrick Elf-Wizard) baked into `src/solo/starter.js`
+  and re-exported as `STARTER_PARTY`. Derives cleanly through
+  `engine.deriveSheet`; the sandbox boots into a playable
+  encounter with no host-supplied content.
 
-*Why 2.0 and not 1.25:* the `Solo` namespace + `Session`
-orchestrator + CLI entry point is a meaningful API expansion. The
-1.0 contract stays intact (every 1.x export still works); the
-major bump signals "the engine ships its own playable surface
-now," not a break.
+*Why 2.0 and not 1.32:* the `Solo` / `Session` / `Replay`
+namespaces + `STARTER_PARTY` constant are a meaningful API
+expansion. The 1.0 contract stays intact (every 1.x export still
+works); the major bump signals "the engine ships its own
+playable surface now," not a break.
+
+### `2.0.1`: Sandbox depth + LLM-GM chat ✅ shipped
+
+Patch-level because **zero kernel API surface changed**: every
+deliverable lives in `examples/solo.html` and `tests/solo.test.js`.
+The sandbox stops being a wiring-test page and starts being a
+playable demo.
+
+- **Character-sheet expand.** Click a party member's name to
+  unfurl an inline detail row: ability scores + mods, saves with
+  proficiency indicators, proficient skills (with expertise
+  pips), weapon attacks, spell-slot pip bar, class resources,
+  remaining hit dice. Reads through `engine.deriveSheet` so
+  equipment changes propagate.
+- **Spell-casting UI.** Caster filtered to party members with
+  `sheet.spellcasting`; spell list pulls L0-L2 entries from
+  `engine.spells`; slot-level picker derives from the caster's
+  `spellSlots` filtered by the spell's base level (so upcasting
+  is one click). Routes through `engine.Spellcasting.castSpell`
+  for slot consumption + concentration auto-bind, then the host
+  resolves the effect (damage / save-for-half / healing).
+- **Per-actor condition controls.** Every party and foe row gets
+  an in-place dropdown + apply/remove buttons over the 11
+  toggle-friendly SRD conditions. Wires `engine.Conditions.apply`
+  / `remove`, which fires the existing `onConditionApplied`
+  chain (and auto-drops concentration on incapacitating
+  conditions per 1.5.0).
+- **Save / Load to browser localStorage.** Per-mutation autosave
+  under `bag-of-holding/solo-session@1`; on page load, restores
+  the last saved session if one exists. Round-trips through
+  `Session.serialize` + `Session.restore` — both fingerprint-
+  gated, so a wrong-pack save throws cleanly.
+- **LLM-GM chat.** A free-text panel powered by OpenRouter
+  (`tencent/hy3-preview`, paste-in-browser key, never committed).
+  Two-call loop: Prompt A classifies the chat message into ONE
+  structured intent from a closed 13-kind vocabulary; a
+  dispatcher routes it to the existing `session.*` surfaces;
+  Prompt B narrates the actual engine outcomes back in-character.
+  Existing buttons skip Prompt A and feed straight into
+  narration. **The LLM never invents dice or HP** — mechanical
+  values are read from `engine.deriveSheet` inside the
+  dispatcher; the intent schema only carries IDs. 500 ms
+  debounce + 2 s min gap + 30-call session cap; XSS-safe
+  rendering via `textContent`. Mock mode (keyword router) lets
+  hosts demo the loop without burning quota.
+- **Coverage tightening.** 18 new tests in `tests/solo.test.js`
+  close the gap between the prior roadmap claim ("100/100/100")
+  and reality (was 99.86 / 98.99 / 99.37). New numbers: 100% /
+  99.92% / 100%. The remaining branch gap is two unreachable
+  defensive guards in `src/solo/session.js:186` (the `?? null`
+  fallback for `actors.get(p.id)` — `adoptParticipant` always
+  populates the map on every public code path).
+
+*Why .1 and not .x:* the sandbox upgrades are demo / example
+changes — the published `@zeeuw/bag-of-holding` kernel exports
+the same surface as 2.0.0. Reserving `2.1.0` / `2.2.0` for the
+adventure + bestiary milestones below.
+
+### `2.0.9`: Encounter verb completeness + day/night cycle ✅ shipped
+
+Additive kernel API changes on the 2.0.x line; `2.1.0` remains
+reserved for *The Quiet Stair*.
+
+**Action economy fixes and new verbs (`src/encounter.js`):**
+
+- **`beginAttackAction(state, actorId, numAttacks)`** — opens the
+  Attack action budget by spending the `action` slot and setting
+  `budget.attacksLeft`. `grapple` and `shove` now spend one attack
+  slot each (fixing a bug where they consumed the whole action),
+  enabling a Fighter with Extra Attack to grapple + strike in the
+  same turn.
+- **`utilize(state, actor, args)`** — Utilize action verb; spends
+  `action` for a second object interaction. `args.item` optional.
+- **`bonusAction(state, actor, args)`** — generic bonus-action escape
+  hatch for class features not modelled as dedicated verbs (Cunning
+  Action, Second Wind, etc.). `args.kind` required for log fidelity.
+- **`reveal(state, actor)`** — clears `actor.hidden` as an automatic
+  consequence (no budget spent); called by the host after any action
+  that breaks concealment.
+- **`clearReady(actor)`** — pure helper that strips `actor.readied`
+  after a readied action fires or the trigger window closes.
+- **`hide()`** now accepts `args.canHide = false` to refuse before
+  spending the action (host asserts cover availability), and surfaces
+  `stealthDisadvantage` from `actor.skills.stealth.disadvantage` in
+  the result.
+
+**Day/night cycle (`src/scene-clock.js`):**
+
+- **`MINUTES_PER_EXPLORATION_TURN = 10`** — SRD exploration turn
+  constant.
+- **`freshScene`** now accepts `minutesPerTurn` (default 10); stored
+  on the scene object so `advanceTime` and `advanceTurn` read it.
+- **`advanceTime`** supports `delta.turns` (each turn =
+  `scene.minutesPerTurn` minutes).
+- **`advanceTurn(scene, turns = 1)`** — convenience wrapper for
+  exploration-pace time tracking.
+- **`isDaytime(scene)`** — returns `true` between `dawnMinute` and
+  `duskMinute`.
+- **`timeOfDayLabel(scene)`** — returns `'dawn'` | `'day'` | `'dusk'`
+  | `'night'`; dawn/dusk windows are the opening/closing 30 minutes
+  of the day period, never contradicting `isDaytime`.
+
+All new verbs follow the existing `{ allowed, state, actor, result }`
+shape and are exposed on `engine.Combat.*` / `engine.SceneClock.*`.
+Docs: Recipes 41–44 added to `docs/recipes.md`.
 
 ### `2.1.0`: Starter adventure: *The Quiet Stair*
 

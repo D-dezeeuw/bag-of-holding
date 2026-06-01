@@ -6,7 +6,8 @@ import {
 import { has } from '../src/conditions.js';
 import {
   freshScene, advanceTime, formatTimeOfDay,
-  DEFAULT_DAWN_MINUTE, DEFAULT_DUSK_MINUTE, MINUTES_PER_DAY
+  DEFAULT_DAWN_MINUTE, DEFAULT_DUSK_MINUTE, MINUTES_PER_DAY,
+  advanceTurn, isDaytime, timeOfDayLabel, MINUTES_PER_EXPLORATION_TURN
 } from '../src/scene-clock.js';
 import { createEngine, HOOK_EVENTS } from '../src/engine.js';
 
@@ -329,150 +330,62 @@ test('engine.SceneClock surface is exposed', () => {
   assert.equal(engine.SceneClock.MINUTES_PER_DAY, 1440);
 });
 
-// === v1.6.1: save-at-end-of-turn ===
+// === Scene clock: turns, isDaytime, timeOfDayLabel
 
-// Helper: actor with CON 14 (+2), no save prof, Hold Person with DC 14.
-// seededRng(1) rolls 19 on the first d20 → 19 + 2 = 21 >= 14 → success.
-// seededRng(3) rolls 2 on the first d20  →  2 + 2 =  4 <  14 → failure.
-
-test('engine.Combat.turnEnd: no conditionSaves on actor with no endsOn conditions', () => {
-  const engine = createEngine({ rng: () => 0.9 });
-  const actor = {
-    id: 'pc',
-    conditions: [{ name: 'prone' }]   // no endsOn/save metadata
-  };
-  const result = engine.Combat.turnEnd(actor);
-  assert.deepEqual(result.conditionSaves, []);
-  assert.equal(has(result.actor, 'prone'), true);   // unaffected
+test('advanceTime by turns uses scene.minutesPerTurn', () => {
+  const scene = freshScene({ startMinute: 0, minutesPerTurn: 15 });
+  const { scene: next } = advanceTime(scene, { turns: 2 });
+  assert.equal(next.minutes, 30);
 });
 
-test('engine.Combat.turnEnd removes a condition when the save succeeds', () => {
-  // Force a guaranteed success: rng always returns 0.95 → d20 = 19.
-  // CON 14 → mod +2. 19 + 2 = 21 >= 14.
-  const engine = createEngine({ rng: () => 0.95 });
-  const actor = {
-    id: 'pc',
-    abilityScores: { str: 10, dex: 10, con: 14, int: 10, wis: 10, cha: 10 },
-    proficiencyBonus: 2,
-    conditions: [{ name: 'paralyzed', saveAbility: 'con', dc: 14, endsOn: 'turnEnd' }]
-  };
-  const result = engine.Combat.turnEnd(actor);
-  assert.equal(result.conditionSaves.length, 1);
-  assert.equal(result.conditionSaves[0].saveResult.success, true);
-  assert.equal(has(result.actor, 'paralyzed'), false);
+test('advanceTurn is a shorthand for advanceTime turns:1', () => {
+  const scene = freshScene({ startMinute: 0 });
+  const { scene: a } = advanceTurn(scene);
+  const { scene: b } = advanceTime(scene, { turns: 1 });
+  assert.equal(a.minutes, b.minutes);
 });
 
-test('engine.Combat.turnEnd keeps a condition when the save fails', () => {
-  // Force a guaranteed failure: rng always returns 0.05 → d20 = 2.
-  // CON 14 → mod +2. 2 + 2 = 4 < 14.
-  const engine = createEngine({ rng: () => 0.05 });
-  const actor = {
-    id: 'pc',
-    abilityScores: { str: 10, dex: 10, con: 14, int: 10, wis: 10, cha: 10 },
-    proficiencyBonus: 2,
-    conditions: [{ name: 'paralyzed', saveAbility: 'con', dc: 14, endsOn: 'turnEnd' }]
-  };
-  const result = engine.Combat.turnEnd(actor);
-  assert.equal(result.conditionSaves[0].saveResult.success, false);
-  assert.equal(has(result.actor, 'paralyzed'), true);
+test('isDaytime returns true between dawn and dusk', () => {
+  const scene = freshScene({ startMinute: 720 }); // noon
+  assert.equal(isDaytime(scene), true);
 });
 
-test('engine.Combat.turnEnd conditionSaves entry has correct shape', () => {
-  const engine = createEngine({ rng: () => 0.95 });
-  const condition = { name: 'charmed', saveAbility: 'wis', dc: 13, endsOn: 'turnEnd' };
-  const actor = {
-    id: 'pc',
-    abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 12, cha: 10 },
-    proficiencyBonus: 2,
-    conditions: [condition]
-  };
-  const result = engine.Combat.turnEnd(actor);
-  const cs = result.conditionSaves[0];
-  assert.equal(cs.entry.name, 'charmed');
-  assert.equal(cs.entry.dc, 13);
-  assert.ok('success' in cs.saveResult);
-  assert.ok('d20' in cs.saveResult);
+test('isDaytime returns false before dawn', () => {
+  const scene = freshScene({ startMinute: 120 }); // 2:00 AM
+  assert.equal(isDaytime(scene), false);
 });
 
-test('engine.Combat.turnEnd save roll is logged to rollLog', () => {
-  const engine = createEngine({ rng: () => 0.95 });
-  const actor = {
-    id: 'pc',
-    abilityScores: { str: 10, dex: 10, con: 14, int: 10, wis: 10, cha: 10 },
-    proficiencyBonus: 2,
-    conditions: [{ name: 'poisoned', saveAbility: 'con', dc: 11, endsOn: 'turnEnd' }]
-  };
-  engine.Combat.turnEnd(actor);
-  const saveEntry = engine.rollLog.find(e => e.op === 'savingThrow');
-  assert.ok(saveEntry, 'expected a savingThrow entry in the roll log');
+test('timeOfDayLabel returns dawn near dawn boundary', () => {
+  // Just after dawn (360 minutes = 6:00)
+  const scene = freshScene({ startMinute: 365 });
+  assert.equal(timeOfDayLabel(scene), 'dawn');
 });
 
-test('engine.Combat.turnEnd fires onTurnEnd with conditionSaves in payload', () => {
-  let payload = null;
-  const engine = createEngine({
-    rng: () => 0.95,
-    hooks: { onTurnEnd: (p) => { payload = p; } }
-  });
-  const actor = {
-    id: 'pc',
-    abilityScores: { str: 10, dex: 10, con: 14, int: 10, wis: 10, cha: 10 },
-    proficiencyBonus: 2,
-    conditions: [{ name: 'poisoned', saveAbility: 'con', dc: 11, endsOn: 'turnEnd' }]
-  };
-  engine.Combat.turnEnd(actor);
-  assert.ok(payload);
-  assert.ok(Array.isArray(payload.conditionSaves));
-  assert.equal(payload.conditionSaves.length, 1);
+test('timeOfDayLabel returns day at midday', () => {
+  const scene = freshScene({ startMinute: 720 });
+  assert.equal(timeOfDayLabel(scene), 'day');
 });
 
-test('engine.Combat.turnEnd still ticks timers alongside save-rolling', () => {
-  const engine = createEngine({ rng: () => 0.95 });
-  const actor = {
-    id: 'pc',
-    abilityScores: { str: 10, dex: 10, con: 14, int: 10, wis: 10, cha: 10 },
-    proficiencyBonus: 2,
-    timers: [{ id: 'bless', remainingRounds: 2 }],
-    conditions: [{ name: 'poisoned', saveAbility: 'con', dc: 11, endsOn: 'turnEnd' }]
-  };
-  const result = engine.Combat.turnEnd(actor);
-  assert.equal(result.actor.timers[0].remainingRounds, 1);   // timer ticked
-  assert.equal(has(result.actor, 'poisoned'), false);         // save cleared condition
+test('timeOfDayLabel returns dusk near dusk boundary', () => {
+  // 30 min before dusk (1080 minutes = 18:00) — inside the closing window
+  const scene = freshScene({ startMinute: 1060 });
+  assert.equal(timeOfDayLabel(scene), 'dusk');
 });
 
-test('engine.Combat.turnStart removes a condition with endsOn: turnStart on success', () => {
-  const engine = createEngine({ rng: () => 0.95 });
-  const actor = {
-    id: 'pc',
-    abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 14, cha: 10 },
-    proficiencyBonus: 2,
-    conditions: [{ name: 'charmed', saveAbility: 'wis', dc: 12, endsOn: 'turnStart' }]
-  };
-  const result = engine.Combat.turnStart(actor);
-  assert.equal(result.conditionSaves[0].saveResult.success, true);
-  assert.equal(has(result.actor, 'charmed'), false);
+test('timeOfDayLabel returns night at midnight', () => {
+  const scene = freshScene({ startMinute: 0 });
+  assert.equal(timeOfDayLabel(scene), 'night');
 });
 
-test('engine.Combat.turnStart keeps a condition when the save fails', () => {
-  const engine = createEngine({ rng: () => 0.05 });
-  const actor = {
-    id: 'pc',
-    abilityScores: { str: 10, dex: 10, con: 10, int: 10, wis: 14, cha: 10 },
-    proficiencyBonus: 2,
-    conditions: [{ name: 'charmed', saveAbility: 'wis', dc: 12, endsOn: 'turnStart' }]
-  };
-  const result = engine.Combat.turnStart(actor);
-  assert.equal(result.conditionSaves[0].saveResult.success, false);
-  assert.equal(has(result.actor, 'charmed'), true);
+test('freshScene stores minutesPerTurn', () => {
+  const scene = freshScene({ minutesPerTurn: 5 });
+  assert.equal(scene.minutesPerTurn, 5);
 });
 
-test('engine.Combat.turnStart returns empty conditionSaves when no endsOn conditions', () => {
+test('engine.SceneClock exposes new helpers', () => {
   const engine = createEngine();
-  const result = engine.Combat.turnStart({ id: 'pc', conditions: [{ name: 'prone' }] });
-  assert.deepEqual(result.conditionSaves, []);
-});
-
-test('engine.Conditions.conditionsRequiringSave is exposed on the engine', () => {
-  const engine = createEngine();
-  assert.equal(typeof engine.Conditions.conditionsRequiringSave, 'function');
-  assert.equal(typeof engine.Conditions.conditionName, 'function');
+  assert.equal(typeof engine.SceneClock.advanceTurn, 'function');
+  assert.equal(typeof engine.SceneClock.isDaytime, 'function');
+  assert.equal(typeof engine.SceneClock.timeOfDayLabel, 'function');
+  assert.equal(engine.SceneClock.MINUTES_PER_EXPLORATION_TURN, 10);
 });

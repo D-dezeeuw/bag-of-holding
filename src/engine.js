@@ -46,6 +46,13 @@ import * as MovementBase from './movement.js';
 import * as MulticlassBase from './multiclass.js';
 import * as InspirationBase from './inspiration.js';
 import * as EncounterDesignBase from './encounter-design.js';
+import * as HazardsBase from './hazards.js';
+import * as EquipmentBase from './equipment.js';
+import * as TravelBase from './travel.js';
+import * as MountedCombatBase from './mounted-combat.js';
+import { oracle as soloOracle, ODDS_BANDS, OUTCOMES } from './solo/oracle.js';
+import { create as createSession, restore as restoreSession } from './solo/session.js';
+import { share as shareReplay, verify as verifyReplay } from './solo/replay-share.js';
 import { verifyLog } from './replay.js';
 import { buildRules } from './rules.js';
 import { buildHookRegistry, HOOK_EVENTS } from './hooks.js';
@@ -58,7 +65,7 @@ import defaultItems       from './srd/items.js';
 import defaultMonsters    from './srd/monsters.js';
 
 const REGISTRY_VALIDATORS = {
-  species:     { required: ['id', 'name', 'size', 'speed'], arrayFields: ['traits', 'damageResistances', 'conditionImmunities'] },
+  species:     { required: ['id', 'name', 'size', 'speed'], arrayFields: ['traits'] },
   classes:     { required: ['id', 'name', 'hitDie'] },
   backgrounds: { required: ['id', 'name', 'abilityScores', 'skillProficiencies', 'originFeat'] },
   feats:       { required: ['id', 'name', 'category'] },
@@ -107,6 +114,74 @@ function mergeRegistry(registry, defaults, extras = {}) {
     validateRecord(registry, id, record);
   }
   return { ...defaults, ...extras };
+}
+
+// Defaults for the senses + light-levels registries. Plugins append
+// through opts.extraSenses / opts.extraLightLevels (since 1.24.0).
+const DEFAULT_SENSES = Object.freeze(['darkvision', 'blindsight', 'truesight']);
+const DEFAULT_LIGHT_LEVELS = Object.freeze(['bright', 'dim', 'darkness']);
+
+/**
+ * Cheap deterministic fingerprint of the resolved rules object.
+ * Not a security hash; a stable hex digest over JSON-canonical
+ * key order, used so a replay can fail loudly when the playback
+ * engine has different rule knobs than the recording engine.
+ */
+function computeRulesFingerprint(rules) {
+  const keys = Object.keys(rules).sort();
+  const canonical = keys.map((k) => `${k}=${JSON.stringify(rules[k])}`).join('|');
+  // 32-bit FNV-1a, hex-encoded.
+  let hash = 0x811c9dc5;
+  for (let i = 0; i < canonical.length; i++) {
+    hash ^= canonical.charCodeAt(i);
+    hash = (hash * 0x01000193) >>> 0;
+  }
+  return hash.toString(16).padStart(8, '0');
+}
+
+/**
+ * Graft `extraMechanics` and `extraResources` onto existing class
+ * defs (since 1.24.0). Each is a `Record<classId, Record<key, value>>`.
+ * Last-write-wins on key collision, matching the rest of the plugin
+ * merge convention. Unknown classIds throw with a pointer to the
+ * offending entry rather than silently dropping the contribution.
+ */
+function mergeClassExtensions(classes, extraMechanics = {}, extraResources = {}) {
+  for (const classId of Object.keys(extraMechanics)) {
+    if (!classes[classId]) {
+      throw new Error(`Plugin contribution extraMechanics: unknown classId '${classId}'`);
+    }
+    const handlers = extraMechanics[classId];
+    for (const [mechId, handler] of Object.entries(handlers)) {
+      if (typeof handler !== 'function') {
+        throw new Error(`Plugin contribution extraMechanics.${classId}.${mechId} must be a function`);
+      }
+    }
+  }
+  for (const classId of Object.keys(extraResources)) {
+    if (!classes[classId]) {
+      throw new Error(`Plugin contribution extraResources: unknown classId '${classId}'`);
+    }
+    const resources = extraResources[classId];
+    for (const [resId, spec] of Object.entries(resources)) {
+      if (!spec || typeof spec !== 'object' || !('refreshes' in spec)) {
+        throw new Error(`Plugin contribution extraResources.${classId}.${resId} must declare 'refreshes'`);
+      }
+    }
+  }
+  if (Object.keys(extraMechanics).length === 0 && Object.keys(extraResources).length === 0) {
+    return classes;
+  }
+  const out = { ...classes };
+  for (const [classId, handlers] of Object.entries(extraMechanics)) {
+    const base = out[classId];
+    out[classId] = { ...base, mechanics: { ...(base.mechanics ?? {}), ...handlers } };
+  }
+  for (const [classId, resources] of Object.entries(extraResources)) {
+    const base = out[classId];
+    out[classId] = { ...base, resources: { ...(base.resources ?? {}), ...resources } };
+  }
+  return out;
 }
 
 /**
@@ -172,8 +247,6 @@ function buildConditions(extraConditions = []) {
     remove: ConditionsBase.remove,
     effectsFor: ConditionsBase.effectsFor,
     attackStance: ConditionsBase.attackStance,
-    conditionName: ConditionsBase.conditionName,
-    conditionsRequiringSave: ConditionsBase.conditionsRequiringSave,
     exhaustion: ConditionsBase.exhaustion
   };
 }
@@ -226,12 +299,23 @@ function buildConditions(extraConditions = []) {
  */
 export function createEngine(opts = {}) {
   const species     = mergeRegistry('species',     defaultSpecies,     opts.extraSpecies);
-  const classes     = mergeRegistry('classes',     Classes,            opts.extraClasses);
+  const baseClasses = mergeRegistry('classes',     Classes,            opts.extraClasses);
   const backgrounds = mergeRegistry('backgrounds', defaultBackgrounds, opts.extraBackgrounds);
   const feats       = mergeRegistry('feats',       defaultFeats,       opts.extraFeats);
   const spells      = mergeRegistry('spells',      defaultSpells,      opts.extraSpells);
   const items       = mergeRegistry('items',       defaultItems,       opts.extraItems);
   const monsters    = mergeRegistry('monsters',    defaultMonsters,    opts.extraMonsters);
+
+  // Phase A.2 plugin contributions: extraMechanics and extraResources
+  // graft onto an existing class without forking its record. Last-write
+  // -wins on id collision per the same plugin merge convention.
+  const classes = mergeClassExtensions(baseClasses, opts.extraMechanics, opts.extraResources);
+
+  // Extra senses and light levels live as small registries the host
+  // can iterate when surfacing affordances. The default sets remain
+  // the SRD canon; plugins extend without losing the defaults.
+  const senses = Object.freeze([...DEFAULT_SENSES, ...(opts.extraSenses ?? [])]);
+  const lightLevels = Object.freeze([...DEFAULT_LIGHT_LEVELS, ...(opts.extraLightLevels ?? [])]);
 
   const ConditionsBoundBase = buildConditions(opts.extraConditions);
 
@@ -239,7 +323,23 @@ export function createEngine(opts = {}) {
   const rules = buildRules(opts.rules);
 
   // === Phase C behavioural hooks ===
-  const hooks = buildHookRegistry(opts.hooks);
+  const baseHooks = buildHookRegistry(opts.hooks);
+  // When opts.logHooks is set, wrap `fire` so every hook event lands
+  // in the rollLog. Counts (handler count per event) stay zero for
+  // disabled events, so the wrapper short-circuits when nobody is
+  // listening to avoid dead log entries.
+  const hooks = opts.logHooks
+    ? {
+        ...baseHooks,
+        fire: (event, payload) => {
+          const merged = baseHooks.fire(event, payload);
+          if (baseHooks.count(event) > 0) {
+            record('hookFired', { event, handlerCount: baseHooks.count(event) });
+          }
+          return merged;
+        }
+      }
+    : baseHooks;
 
   // Conditions namespace bound to fire hooks on apply/exhaustion-death.
   // We wrap the base bound namespace rather than re-implementing it
@@ -258,12 +358,11 @@ export function createEngine(opts = {}) {
       // petrified / unconscious / incapacitated. The exhaustion
       // pathway fires `onDeath` separately when level 6 is reached;
       // here we close the second drop pathway.
-      const condName = typeof condition === 'string' ? condition : condition.name;
-      const effect = ConditionsBase.CONDITION_EFFECTS[condName];
+      const effect = ConditionsBase.CONDITION_EFFECTS[condition];
       if (effect?.incapacitates && next.concentration) {
         next = Spellcasting.endConcentration(next);
       }
-      hooks.fire('onConditionApplied', { actor: next, condition: condName, previous: actor });
+      hooks.fire('onConditionApplied', { actor: next, condition, previous: actor });
       return next;
     },
     exhaustion: {
@@ -293,6 +392,12 @@ export function createEngine(opts = {}) {
   const rollLogCap = opts.rollLogCap ?? Infinity;
   const rollLog = [];
   let rollCount = 0;
+
+  // Rules fingerprint (since 1.25.0): a stable hash of the resolved
+  // rule-knob bundle plus key engine identifiers, so a replay across
+  // mismatched rule packs diverges at the header entry instead of
+  // silently at the first crit / damage-floor-affected roll.
+  const rulesFingerprint = computeRulesFingerprint(rules);
 
   const record = (op, payload, context) => {
     const entry = { index: rollCount++, op, ...payload };
@@ -338,6 +443,8 @@ export function createEngine(opts = {}) {
   const ChecksBound = {
     modFromScore: Checks.modFromScore,
     clampDC: Checks.clampDC,
+    // Passive checks don't roll dice; no logging needed. Pass-through.
+    passiveCheck: Checks.passiveCheck,
     abilityCheck: (args, context) => {
       const result = Checks.abilityCheck(args, rng);
       record('abilityCheck', {
@@ -370,31 +477,15 @@ export function createEngine(opts = {}) {
         ...result
       }, context);
       return result;
-    },
-    toolCheck: (args, context) => {
-      // Auto-resolve tool proficiency when an actor is supplied, so
-      // callers can pass { actor, toolId, abilityScore, dc } without
-      // having to look up actor.tools themselves.
-      let augmented = args;
-      if (args.actor !== undefined && args.toolId !== undefined) {
-        const proficient = args.proficient
-          ?? MulticlassBase.isProficientWithTool(args.actor, args.toolId);
-        const proficiencyBonus = args.proficiencyBonus
-          ?? args.actor.proficiencyBonus
-          ?? 2;
-        augmented = { ...args, proficient, proficiencyBonus };
-      }
-      const result = Checks.toolCheck(augmented, rng);
-      record('toolCheck', {
-        toolId: args.toolId,
-        abilityScore: args.abilityScore,
-        proficient: augmented.proficient ?? false,
-        proficiencyBonus: augmented.proficiencyBonus ?? 2,
-        ...result
-      }, context);
-      return result;
     }
   };
+
+  // Adapter that lets sub-systems (Hazards) reuse the bound
+  // savingThrow so their save rolls flow into the same rollLog. The
+  // sub-system passes only the structured save args (abilityScore,
+  // dc, ...) plus its own rng; the wrapper drops the rng argument
+  // because the engine binding always uses the engine's seeded rng.
+  const hazardSaver = (args) => ChecksBound.savingThrow(args, 'hazard');
 
   // Combat — bind both the mastery handler table (plugin contracts)
   // AND the rolling wrappers (logging contracts). `applyMastery`
@@ -506,6 +597,11 @@ export function createEngine(opts = {}) {
     shove: EncounterBase.shove,
     offHandAttack: EncounterBase.offHandAttack,
     improvisedAttack: EncounterBase.improvisedAttack,
+    beginAttackAction: EncounterBase.beginAttackAction,
+    utilize: EncounterBase.utilize,
+    bonusAction: EncounterBase.bonusAction,
+    reveal: EncounterBase.reveal,
+    clearReady: EncounterBase.clearReady,
 
     // === Death saves (since 1.1.0) ===
     //
@@ -523,9 +619,19 @@ export function createEngine(opts = {}) {
       return { ...withUnconscious, hp: 0, deathSaves: CombatBase.freshDeathSaves() };
     },
     deathSave: (actor, context) => {
+      // Snapshot the pre-roll death-save tracker so the log entry
+      // is fully reconstructable without external state (since 1.25.0).
+      const prev = actor.deathSaves ?? {};
+      const previousSuccesses = prev.successes ?? 0;
+      const previousFailures = prev.failures ?? 0;
       const result = CombatBase.deathSave(actor, rng, rules);
       if (result.d20 !== 0) {
-        record('deathSave', { d20: result.d20, outcome: result.outcome }, context);
+        record('deathSave', {
+          d20: result.d20,
+          outcome: result.outcome,
+          previousSuccesses,
+          previousFailures
+        }, context);
       }
       if (result.outcome === 'dead') {
         hooks.fire('onDeath', { actor: result.actor, cause: 'deathSave', previous: actor });
@@ -541,6 +647,10 @@ export function createEngine(opts = {}) {
     },
     stabilize: CombatBase.stabilize,
     reviveTo: CombatBase.reviveTo,
+    // SRD 5.2 § Damage and Healing (Stabilizing): rolls the 1d4-hour
+    // timer for stable-creature regen through the engine rng so the
+    // tick is replay-deterministic.
+    rollStableRegenHours: () => CombatBase.rollStableRegenHours(rng),
 
     // === Damage pipeline (since 1.4.0) ===
     //
@@ -560,7 +670,7 @@ export function createEngine(opts = {}) {
     grantTempHp: CombatBase.grantTempHp,
     applyDamage: (actor, args) => {
       const wasDead = actor.deathSaves?.dead ?? false;
-      const wasUnconscious = ConditionsBase.has(actor, 'unconscious');
+      const wasUnconscious = (actor.conditions ?? []).includes('unconscious');
       const result = CombatBase.applyDamage(actor, args);
       if (result.outcome === 'dead' && !wasDead) {
         hooks.fire('onDeath', { actor: result.actor, cause: 'damage', previous: actor });
@@ -612,48 +722,16 @@ export function createEngine(opts = {}) {
     addTimer: CombatBase.addTimer,
     tickTimers: CombatBase.tickTimers,
     turnStart: (actor, context) => {
-      // Auto-roll saves for conditions with endsOn: 'turnStart'.
-      let current = actor;
-      const conditionSaves = [];
-      for (const entry of ConditionsBase.conditionsRequiringSave(current, 'turnStart')) {
-        const saveResult = ChecksBound.savingThrow({
-          abilityScore: current.abilityScores?.[entry.saveAbility] ?? 10,
-          proficient: Array.isArray(current.proficiencies?.saves) &&
-            current.proficiencies.saves.includes(entry.saveAbility),
-          proficiencyBonus: current.proficiencyBonus ?? 2,
-          dc: entry.dc,
-          actor: current,
-          ability: entry.saveAbility
-        }, context);
-        conditionSaves.push({ entry, saveResult });
-        if (saveResult.success) current = ConditionsBound.remove(current, entry.name);
-      }
-      hooks.fire('onTurnStart', { actor: current, previous: actor, conditionSaves, context });
-      return { actor: current, conditionSaves };
+      hooks.fire('onTurnStart', { actor, context });
+      return { actor };
     },
     turnEnd: (actor, context) => {
-      // Tick timers first, then auto-roll saves for endsOn: 'turnEnd'.
-      const timerResult = CombatBase.turnEnd(actor);
-      let current = timerResult.actor;
-      const conditionSaves = [];
-      for (const entry of ConditionsBase.conditionsRequiringSave(current, 'turnEnd')) {
-        const saveResult = ChecksBound.savingThrow({
-          abilityScore: current.abilityScores?.[entry.saveAbility] ?? 10,
-          proficient: Array.isArray(current.proficiencies?.saves) &&
-            current.proficiencies.saves.includes(entry.saveAbility),
-          proficiencyBonus: current.proficiencyBonus ?? 2,
-          dc: entry.dc,
-          actor: current,
-          ability: entry.saveAbility
-        }, context);
-        conditionSaves.push({ entry, saveResult });
-        if (saveResult.success) current = ConditionsBound.remove(current, entry.name);
-      }
+      const result = CombatBase.turnEnd(actor);
       hooks.fire('onTurnEnd', {
-        actor: current, previous: actor,
-        expired: timerResult.expired, conditionSaves, context
+        actor: result.actor, previous: actor,
+        expired: result.expired, context
       });
-      return { actor: current, expired: timerResult.expired, conditionSaves };
+      return result;
     }
   };
 
@@ -682,13 +760,15 @@ export function createEngine(opts = {}) {
       }
       return result;
     },
-    longRest: (actor) => {
-      const next = RestBase.longRest(actor, rules);
+    longRest: (actor, opts) => {
+      const next = RestBase.longRest(actor, rules, opts);
       // Phase D (since 1.6.0). onLongRest fires after all rest
       // recovery is applied so plugins observing it can inspect the
       // restored state; the `previous` field surfaces the actor as
-      // it stood when the rest began.
-      hooks.fire('onLongRest', { actor: next, previous: actor });
+      // it stood when the rest began. On an interrupted rest the
+      // hook still fires so plugins can react, but the actor is
+      // unchanged per SRD 5.2 § Long Rest.
+      hooks.fire('onLongRest', { actor: next, previous: actor, interrupted: opts?.interrupted === true });
       return next;
     },
     shortRest: (actor) => {
@@ -725,8 +805,13 @@ export function createEngine(opts = {}) {
     apply: (actor, id, args, context) => {
       const classDef = classes[actor.classId];
       if (!classDef) throw new Error(`Unknown class for mechanic dispatch: ${actor.classId}`);
-      const handlers = classDef.mechanics;
-      if (!handlers || !handlers[id]) {
+      // Subclass mechanics override class-level handlers when the
+      // actor has a subclassId that matches a registered subclass.
+      const subclassDef = actor.subclassId ? classDef.subclasses?.[actor.subclassId] : null;
+      const subclassHandlers = subclassDef?.mechanics ?? {};
+      const handlers = classDef.mechanics ?? {};
+      const handler = subclassHandlers[id] ?? handlers[id];
+      if (!handler) {
         throw new Error(`Unknown class mechanic: ${classDef.id}.${id}`);
       }
       // Intercept rollDie so the engine's audit trail captures any
@@ -738,15 +823,36 @@ export function createEngine(opts = {}) {
           record('rollDie', { sides, value }, context);
           return value;
         },
-        modFromScore: Checks.modFromScore
+        modFromScore: Checks.modFromScore,
+        saver: hazardSaver
       };
-      return handlers[id](actor, args ?? {}, ctx);
+      const result = handler(actor, args ?? {}, ctx);
+      // Log a mechanicApplied entry so the audit trail captures the
+      // resource transition + result kind, not just the dice inside.
+      // The 'ok' field is the SRD convention: handlers that succeed
+      // return `{ ok: true, ... }`; some always succeed and omit it.
+      const ok = result && typeof result === 'object' && 'ok' in result ? result.ok : true;
+      record('mechanicApplied', {
+        classId: classDef.id,
+        subclassId: subclassDef?.id ?? null,
+        mechanic: id,
+        ok
+      }, context);
+      return result;
     }
   };
 
-  return {
+  const engineInstance = {
     // Data registries — plain objects, mutate at your own risk.
     species, classes, backgrounds, feats, spells, items, monsters,
+    // Plugin-extensible vocabularies (since 1.24.0). Each is a
+    // frozen, deduplicated list combining the SRD defaults with any
+    // `opts.extraSenses` / `opts.extraLightLevels` contributions.
+    senses, lightLevels,
+    // Stable hex digest over the resolved rule knobs (since 1.25.0).
+    // Replay verifier compares this against the recorded fingerprint
+    // and surfaces a mismatched-pack divergence at the header entry.
+    rulesFingerprint,
     // Math + helpers (bound to this engine's data + rng + rules).
     Dice: DiceBound,
     Checks: ChecksBound,
@@ -780,6 +886,14 @@ export function createEngine(opts = {}) {
           const cancel = fireOnCast(actor, spell, { ...(args ?? {}), ritual: true });
           if (cancel) return cancel;
           return Spellcasting.castAsRitual(actor, spell, args);
+        },
+        // Spell scroll casting (since 1.29.0; SRD § Magic Items —
+        // Spell Scroll). Rolls the higher-level check through the
+        // engine rng; scroll consumption is the host's job.
+        castFromScroll: (actor, spell, args) => {
+          const cancel = fireOnCast(actor, spell, args);
+          if (cancel) return cancel;
+          return Spellcasting.castFromScroll(actor, spell, args, rng);
         }
       };
     })(),
@@ -796,7 +910,11 @@ export function createEngine(opts = {}) {
       formatTimeOfDay: SceneClock.formatTimeOfDay,
       DEFAULT_DAWN_MINUTE: SceneClock.DEFAULT_DAWN_MINUTE,
       DEFAULT_DUSK_MINUTE: SceneClock.DEFAULT_DUSK_MINUTE,
-      MINUTES_PER_DAY: SceneClock.MINUTES_PER_DAY
+      MINUTES_PER_DAY: SceneClock.MINUTES_PER_DAY,
+      MINUTES_PER_EXPLORATION_TURN: SceneClock.MINUTES_PER_EXPLORATION_TURN,
+      advanceTurn: SceneClock.advanceTurn,
+      isDaytime: SceneClock.isDaytime,
+      timeOfDayLabel: SceneClock.timeOfDayLabel
     }),
     // Magic items lifecycle (since 1.9.0). rechargeItem accepts the
     // engine's rng via the binding so dice-based recoveries (e.g.
@@ -806,6 +924,63 @@ export function createEngine(opts = {}) {
       ENCOUNTER_BUDGETS: EncounterDesignBase.ENCOUNTER_BUDGETS,
       budgetFor: EncounterDesignBase.budgetFor,
       classifyEncounter: EncounterDesignBase.classifyEncounter
+    }),
+    // Hazards & environment (since 1.18.0; closes the 1.15.0
+    // milestone). Saves route through the engine's rng so a seeded
+    // session reproduces every disease, poison, and exposure roll.
+    Hazards: Object.freeze({
+      DISEASES: HazardsBase.DISEASES,
+      POISONS: HazardsBase.POISONS,
+      POISON_VECTORS: HazardsBase.POISON_VECTORS,
+      UNDERWATER_OK_MELEE: HazardsBase.UNDERWATER_OK_MELEE,
+      UNDERWATER_OK_RANGED: HazardsBase.UNDERWATER_OK_RANGED,
+      UNDERWATER_RESISTED_DAMAGE: HazardsBase.UNDERWATER_RESISTED_DAMAGE,
+      exposure: (args) => HazardsBase.exposure(args, rng, hazardSaver),
+      tickPoison: HazardsBase.tickPoison,
+      tickSuffocation: HazardsBase.tickSuffocation,
+      holdBreathRounds: HazardsBase.holdBreathRounds,
+      starvationTick: (actor, opts) => HazardsBase.starvationTick(actor, opts, rng, hazardSaver),
+      extremeTemperatureTick: (actor, opts) => HazardsBase.extremeTemperatureTick(actor, opts, rng, hazardSaver),
+      classifyUnderwaterAttack: HazardsBase.classifyUnderwaterAttack
+    }),
+    // Equipment depth (since 1.19.0; closes 1.17.0 milestone).
+    // Encumbrance + armor mechanics + tool proficiency.
+    Equipment: Object.freeze({
+      ENCUMBRANCE_MULT: EquipmentBase.ENCUMBRANCE_MULT,
+      ADVENTURING_GEAR: EquipmentBase.ADVENTURING_GEAR,
+      TOOLS: EquipmentBase.TOOLS,
+      LIFESTYLES: EquipmentBase.LIFESTYLES,
+      SERVICES: EquipmentBase.SERVICES,
+      MOUNTS: EquipmentBase.MOUNTS,
+      VEHICLES: EquipmentBase.VEHICLES,
+      TRADE_GOODS: EquipmentBase.TRADE_GOODS,
+      TREASURE_HOARDS: EquipmentBase.TREASURE_HOARDS,
+      INDIVIDUAL_TREASURE: EquipmentBase.INDIVIDUAL_TREASURE,
+      encumbranceLevel: EquipmentBase.encumbranceLevel,
+      encumbranceSpeedPenalty: EquipmentBase.encumbranceSpeedPenalty,
+      armorStrengthPenalty: EquipmentBase.armorStrengthPenalty,
+      carriedWeight: (itemIds) => EquipmentBase.carriedWeight(itemIds, items),
+      donTime: (armorId) => EquipmentBase.donTime(armorId, items),
+      doffTime: (armorId) => EquipmentBase.doffTime(armorId, items),
+      toolCheck: (args) => EquipmentBase.toolCheck(args, rng)
+    }),
+    // Travel & exploration (since 1.20.0; closes 1.18.0 milestone).
+    Travel: Object.freeze({
+      TRAVEL_PACES: TravelBase.TRAVEL_PACES,
+      milesTravelled: TravelBase.milesTravelled,
+      forcedMarchCheck: (actor, opts) => TravelBase.forcedMarchCheck(actor, opts, rng, hazardSaver),
+      checkRestInterruption: (opts) => TravelBase.checkRestInterruption(opts, rng),
+      forageCheck: (args) => TravelBase.forageCheck(args, rng),
+      navigateCheck: (args) => TravelBase.navigateCheck(args, rng)
+    }),
+    // Mounted Combat (since 1.30.0; SRD 5.2 § Combat — Mount).
+    // Pure helpers, no logging needed.
+    MountedCombat: Object.freeze({
+      mount: MountedCombatBase.mount,
+      dismount: MountedCombatBase.dismount,
+      isMountedOn: MountedCombatBase.isMountedOn,
+      legalMountActions: MountedCombatBase.legalMountActions,
+      CONTROLLED_MOUNT_ACTIONS: MountedCombatBase.CONTROLLED_MOUNT_ACTIONS
     }),
     Inspiration: Object.freeze({
       hasInspiration: InspirationBase.hasInspiration,
@@ -884,8 +1059,31 @@ export function createEngine(opts = {}) {
     // Phase C: read-only hook registry. Hosts can inspect counts
     // and fire ad-hoc events (e.g. `onDeath` from non-exhaustion
     // causes the host detects, like dropping below 0 hp).
-    hooks
+    hooks,
+    // Solo-play oracle (since 2.0.0). Engine-bound surface; pass
+    // `{ rng: Dice.seededRng(seed) }` for replay-deterministic oracle
+    // answers. The oracle deliberately does NOT share the engine's
+    // dice rng — oracle pulls would silently perturb the dice
+    // stream and break replay of the rolls in `engine.rollLog`.
+    Solo: Object.freeze({
+      oracle: (opts = {}) => soloOracle(opts),
+      ODDS_BANDS,
+      OUTCOMES
+    })
   };
+
+  // Session.create + Replay.share need a back-reference to the
+  // engine they were built from. Stamp them on after the engine
+  // object is constructed so the closure captures the final shape.
+  engineInstance.Session = Object.freeze({
+    create: (opts) => createSession({ engine: engineInstance, ...(opts ?? {}) }),
+    restore: (payload) => restoreSession(payload, engineInstance)
+  });
+  engineInstance.Replay = Object.freeze({
+    share: shareReplay,
+    verify: (payload) => verifyReplay(payload, engineInstance)
+  });
+  return engineInstance;
 }
 
 export { HOOK_EVENTS };

@@ -426,11 +426,14 @@ test('engine.Mechanics.apply dispatches against the registered class', () => {
   const result = engine.Mechanics.apply(actor, 'secondWind', {}, 'turn 1');
   assert.equal(result.ok, true);
   assert.ok(result.die > 0 && result.die <= 10);
-  // The die was logged.
+  // The die roll lands in the log; the mechanicApplied entry follows it.
+  const dieEntry = engine.rollLog.findLast((e) => e.op === 'rollDie');
+  assert.equal(dieEntry.sides, 10);
+  assert.equal(dieEntry.context, 'turn 1');
   const last = engine.rollLog.at(-1);
-  assert.equal(last.op, 'rollDie');
-  assert.equal(last.sides, 10);
-  assert.equal(last.context, 'turn 1');
+  assert.equal(last.op, 'mechanicApplied');
+  assert.equal(last.mechanic, 'secondWind');
+  assert.equal(last.ok, true);
 });
 
 test('engine.Mechanics.apply throws on an unknown class', () => {

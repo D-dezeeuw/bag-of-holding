@@ -75,6 +75,14 @@ recipe points to the milestone where it gets a first-class helper.
 - [37. Counterspell intercept via the onCast hook](#37-counterspell-intercept-via-the-oncast-hook)
 - [38. Fireball: AoE targeting + save-for-half](#38-fireball-aoe-targeting--save-for-half)
 - [39. Monster legendary actions in a round](#39-monster-legendary-actions-in-a-round)
+- [41. Attack action with grapple + follow-up strike (Extra Attack)](#41-attack-action-with-grapple--follow-up-strike-extra-attack)
+- [42. Hide from stealth — full governor loop](#42-hide-from-stealth--full-governor-loop)
+- [43. Bonus action class features (Cunning Action, Second Wind)](#43-bonus-action-class-features-cunning-action-second-wind)
+- [44. Day/night cycle — scene clock and exploration turns](#44-daynight-cycle--scene-clock-and-exploration-turns)
+
+### Solo mode (since 2.0.0)
+
+- [40. Solo mode: oracle + session + share](#40-solo-mode-oracle--session--share-since-200)
 
 ---
 
@@ -290,6 +298,8 @@ const attackerWins = attacker.total > defender.total;  // strict > = ties favour
 **Coming in `0.4.0`:** `engine.Checks.contest({ a, b })` returns
 `{ winner, marginA, marginB }` directly. The recipe collapses to
 two lines.
+
+**Encounter verbs:** Within a live encounter, use `engine.Combat.beginAttackAction(state, actorId, numAttacks)` first, then `engine.Combat.grapple(state, actor, args)` or `engine.Combat.shove(state, actor, args)`. Each call consumes one attack from the `attacksLeft` budget — a Fighter with Extra Attack can grapple and still have an attack remaining.
 
 ## 9. Death save tracker
 
@@ -985,7 +995,11 @@ const fighter = {
   id: 'pc', abilityScores: { str: 16 }, proficiencyBonus: 3
 };
 
-const attempt = engine.Combat.grapple(state, fighter, { targetId: 'orc' });
+// 1. Open the Attack action budget (Fighter has 1 attack at level 1).
+let { state: s1 } = engine.Combat.beginAttackAction(state, fighter.id, 1);
+
+// 2. Grapple consumes one attack from the budget.
+const attempt = engine.Combat.grapple(s1, fighter, { targetId: 'orc' });
 // attempt.result.save  → { dc: 14, abilities: ['str', 'dex'] }
 // attempt.result.onFail → { condition: 'grappled' }
 
@@ -1005,7 +1019,9 @@ const orcAfter = save.success
 ```
 
 `engine.Combat.shove(state, actor, { choice: 'push' })` follows the
-same shape, with `onFail.pushFt = 5` instead of a condition.
+same shape, with `onFail.pushFt = 5` instead of a condition. Like
+`grapple`, `shove` requires a prior `engine.Combat.beginAttackAction`
+call to open the attack budget.
 
 ## 31. Two-weapon fighting with Nick mastery
 
@@ -1429,3 +1445,228 @@ if (engine.Monsters.lairActionAvailable(dragon,
 `engine.Monsters.castInnate(actor, dragon, 'fireball')` decrements
 the per-day counter for tracked spells (3/day, 1/day) and reports
 at-will spells succeeding without depletion.
+
+## 40. Solo mode: oracle + session + share (since 2.0.0)
+
+**Use case:** Run a solo session with no human DM — engine drives
+the dice and the bookkeeping, the oracle drives the rulings, the
+session ties it together, and a portable share payload lets you
+hand the session to a friend or a CI replay rig.
+
+```js
+import {
+  createEngine, Dice,
+  Solo, Session, Replay,
+  STARTER_PARTY
+} from '@zeeuw/bag-of-holding';
+
+// 1. Seeded engine for replay-determinism.
+const engine = createEngine({ rng: Dice.seededRng(2026) });
+
+// 2. Oracle gets its OWN seeded rng. Sharing the engine's dice
+//    rng would silently advance the dice stream and break the
+//    rollLog replay; keeping them separate is the whole point of
+//    the 2.0 design.
+const oracle = engine.Solo.oracle({ rng: Dice.seededRng(7777) });
+
+// 3. One-line session with the starter party + an encounter.
+const session = engine.Session.create({
+  seed: 2026,
+  party: STARTER_PARTY,
+  oracle,
+  encounter: {
+    participants: [
+      // Mix party + monsters as the participant list.
+      ...STARTER_PARTY.map(r => {
+        const s = engine.deriveSheet(r);
+        return { id: r.id, dexterity: s.abilityScores.final.dex, speed: s.speed.walk, hp: s.hp.max, hpMax: s.hp.max, ac: s.ac.value };
+      }),
+      { id: 'goblin-1', dexterity: 14, speed: 30, hp: 7, hpMax: 7, ac: 13 }
+    ]
+  }
+});
+
+// 4. Run a turn. Oracle answers a question. Attack. End turn.
+const ruling = oracle.ask('Does the goblin notice us first?', 'unlikely');
+session.record('oracle', ruling);          // log the ruling for narrative trace-back
+
+session.attack({
+  attackerId: 'thora',
+  targetId: 'goblin-1',
+  attackBonus: 5,
+  damageDice: '1d8',
+  damageMod: 3
+});
+
+session.endTurn();
+session.advanceTime({ minutes: 30 });
+
+// 5. Save / restore / share.
+const save = session.serialize();
+// → portable JSON the host can persist; restore via
+//   engine.Session.restore(save) on the same-fingerprint engine.
+
+const share = engine.Replay.share(session);
+const verified = engine.Replay.verify(share);
+// verified.ok === true; dice stream reproduces from the seed.
+```
+
+The browser sandbox at `examples/solo.html` is the live worked
+example — it wires every namespace this recipe touches into
+clickable buttons.
+
+## 41. Attack action with grapple + follow-up strike (Extra Attack)
+
+**Use case:** A level-5 Fighter uses their Attack action to grapple an orc (replacing one attack), then makes their second attack normally.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+let state = engine.Combat.startEncounter([
+  { id: 'fighter', dexterity: 14, speed: 30 },
+  { id: 'orc', dexterity: 10, speed: 30 }
+]);
+
+const fighter = { id: 'fighter', abilityScores: { str: 18 }, proficiencyBonus: 3 };
+
+// Level-5 Fighter gets 2 attacks per Attack action.
+const numAttacks = engine.Combat.attacksPerAction(engine.classes.fighter, 5);  // 2
+
+// Open the Attack action budget.
+({ state } = engine.Combat.beginAttackAction(state, fighter.id, numAttacks));
+
+// First "attack" — grapple instead of striking.
+const grappleResult = engine.Combat.grapple(state, fighter, { targetId: 'orc' });
+// grappleResult.result.save  → { dc: 15, abilities: ['str', 'dex'] }
+({ state } = grappleResult);
+
+// Second attack — a normal strike (host calls attackRoll separately).
+const strike = engine.Combat.attackRoll({ attackBonus: 7, ac: 13 });
+// The attacksLeft budget is now 0; the action is spent.
+```
+
+Grapple and shove each consume exactly one `attacksLeft` slot, so the Fighter's second attack is still available. Calling `grapple` without `beginAttackAction` first returns `{ allowed: false, reason: 'call beginAttackAction first' }`.
+
+## 42. Hide from stealth — full governor loop
+
+**Use case:** A Rogue uses Hide as an action, rolls Stealth (with optional armor disadvantage), attacks from hidden, then is automatically revealed.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+let state = engine.Combat.startEncounter([
+  { id: 'rogue', dexterity: 18, speed: 30 },
+  { id: 'guard', dexterity: 10, speed: 30 }
+]);
+
+let rogue = {
+  id: 'rogue',
+  skills: { stealth: { mod: 7, disadvantage: false } }
+};
+
+// 1. Guard must not have line-of-sight; host asserts canHide.
+const hideResult = engine.Combat.hide(state, rogue, { canHide: true });
+// hideResult.result → { needsStealthCheck: true, stealthDisadvantage: false }
+
+// 2. Host rolls Stealth vs guard's passive Perception (DC).
+const stealthRoll = engine.Dice.roll('1d20') + rogue.skills.stealth.mod;
+const guardPassivePerception = 13;
+if (stealthRoll >= guardPassivePerception) {
+  rogue = { ...rogue, hidden: true };
+}
+({ state } = hideResult);
+
+// 3. Rogue attacks from hiding → Sneak Attack applies.
+const attack = engine.Combat.attackRoll({ attackBonus: 7, ac: 14, advantage: true });
+
+// 4. Attacking reveals you — host calls reveal after any attack.
+if (rogue.hidden) {
+  const { actor } = engine.Combat.reveal(state, rogue);
+  rogue = actor;   // rogue.hidden === false
+}
+```
+
+Passing `{ canHide: false }` to `hide()` (e.g. the character is in open sight of an enemy) returns `{ allowed: false, reason: 'no cover available' }` without spending the action.
+
+## 43. Bonus action class features (Cunning Action, Second Wind)
+
+**Use case:** Use `bonusAction` as the generic budget gate for class features that spend a bonus action but aren't modeled as dedicated engine verbs.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+let state = engine.Combat.startEncounter([
+  { id: 'rogue', dexterity: 18, speed: 30 }
+]);
+let rogue = { id: 'rogue' };
+
+// Rogue uses Cunning Action to Dash as a bonus action.
+const dash = engine.Combat.bonusAction(state, rogue, { kind: 'cunning-action' });
+// dash.allowed === true
+// dash.result  → { kind: 'cunning-action' }
+({ state } = dash);
+
+// Bonus action budget is now exhausted:
+const second = engine.Combat.bonusAction(state, rogue, { kind: 'cunning-action' });
+// second.allowed === false
+```
+
+For dedicated bonus-action mechanics that exist as first-class verbs (e.g. `offHandAttack`), use those directly — `bonusAction` is the escape hatch for everything else.
+
+## 44. Day/night cycle — scene clock and exploration turns
+
+**Use case:** Track in-world time across dungeon exploration (10 minutes per turn), display time-of-day labels, react to dawn and dusk events for spell expiry and magic-item recharge.
+
+```js
+import { createEngine } from '@zeeuw/bag-of-holding';
+
+const engine = createEngine();
+
+// Start at dusk on a custom schedule (short northern day).
+let scene = engine.SceneClock.freshScene({
+  startMinute: 900,           // 15:00
+  dawnMinute: 480,            // 08:00
+  duskMinute: 960,            // 16:00
+  minutesPerTurn: 10          // configurable; default is 10
+});
+
+engine.SceneClock.isDaytime(scene);              // true  (15:00 is between 08:00–16:00)
+engine.SceneClock.timeOfDayLabel(scene);         // 'day'
+
+// --- Exploration: one dungeon turn passes ---
+let { scene: s1, events: e1 } = engine.SceneClock.advanceTurn(scene);
+// s1.minutes === 910 (15:10); no boundary crossed
+
+// --- Several turns later, dusk hits ---
+let { scene: s2, events: e2 } = engine.SceneClock.advanceTime(scene, { turns: 6 });
+// s2.minutes === 960 (16:00)
+// e2 === ['dusk']
+
+engine.SceneClock.isDaytime(s2);                 // false
+engine.SceneClock.timeOfDayLabel(s2);            // 'dusk'
+
+// React to dusk: expire concentration spells, start night-watch timers…
+if (e2.includes('dusk')) {
+  // host-side handlers fire here
+}
+
+// --- Overnight rest: advance 8 hours, crossing dawn ---
+let { scene: s3, events: e3 } = engine.SceneClock.advanceTime(s2, { hours: 8 });
+// e3 === ['dawn']
+
+// Recharge magic items that recover at dawn.
+if (e3.includes('dawn')) {
+  for (const item of actor.attunedItems ?? []) {
+    if (item.charges?.rechargeOn === 'dawn') {
+      ({ actor } = engine.MagicItems.rechargeItem(actor, item));
+    }
+  }
+}
+
+engine.SceneClock.formatTimeOfDay(s3.minutes);   // '00:00' (midnight + 8h = next morning)
+```
+
+`timeOfDayLabel` uses 30-minute transition windows around dawn and dusk, so a character entering a room just before sunrise sees `'dawn'` rather than `'night'`. Combine with `advanceTime({ rounds: N })` for combat-paced time (10 rounds = 1 minute, per SRD).
