@@ -13,6 +13,19 @@
 //   greatsword                     → graze
 //   spear/trident                  → push
 //   light-hammer                   → nick
+//
+// Armor fields (since v1.17.0):
+//   armorCategory    — 'light' | 'medium' | 'heavy'.
+//   stealthDisadvantage — true when the armor imposes Stealth
+//                      disadvantage per SRD Armor table. Omitted
+//                      (i.e. falsy) when the armor has no penalty.
+//   strRequirement   — minimum STR score required; speed –10 ft when
+//                      unmet. Heavy armor only (chain mail, splint,
+//                      plate). Omitted when there is no requirement.
+//   donMinutes       — minutes to don (light: 1, medium: 5, heavy: 10).
+//   doffMinutes      — minutes to doff (light: 1, medium: 1, heavy: 5).
+//   Shields use an action to don/doff and carry no donMinutes /
+//   doffMinutes field.
 
 export default {
   // Simple melee weapons
@@ -51,20 +64,26 @@ export default {
   'longbow':        { id: 'longbow',        name: 'Longbow',         type: 'weapon', damage: '1d8',  damageType: 'piercing',    properties: ['heavy', 'ranged', 'two-handed'], mastery: 'slow' },
   'crossbow-heavy': { id: 'crossbow-heavy', name: 'Heavy Crossbow',  type: 'weapon', damage: '1d10', damageType: 'piercing',    properties: ['heavy', 'ranged', 'two-handed'], mastery: 'push' },
 
-  // Armor
-  'padded':           { id: 'padded',           name: 'Padded Armor',     type: 'armor', ac: 11, addsDex: true },
-  'leather-armor':    { id: 'leather-armor',    name: 'Leather Armor',    type: 'armor', ac: 11, addsDex: true },
-  'studded-leather':  { id: 'studded-leather',  name: 'Studded Leather',  type: 'armor', ac: 12, addsDex: true },
-  'hide':             { id: 'hide',             name: 'Hide',             type: 'armor', ac: 12, addsDex: true, maxDex: 2 },
-  'chain-shirt':      { id: 'chain-shirt',      name: 'Chain Shirt',      type: 'armor', ac: 13, addsDex: true, maxDex: 2 },
-  'scale-mail':       { id: 'scale-mail',       name: 'Scale Mail',       type: 'armor', ac: 14, addsDex: true, maxDex: 2 },
-  'breastplate':      { id: 'breastplate',      name: 'Breastplate',      type: 'armor', ac: 14, addsDex: true, maxDex: 2 },
-  'half-plate':       { id: 'half-plate',       name: 'Half Plate',       type: 'armor', ac: 15, addsDex: true, maxDex: 2 },
-  'ring-mail':        { id: 'ring-mail',        name: 'Ring Mail',        type: 'armor', ac: 14, addsDex: false },
-  'chain-mail':       { id: 'chain-mail',       name: 'Chain Mail',       type: 'armor', ac: 16, addsDex: false },
-  'splint':           { id: 'splint',           name: 'Splint',           type: 'armor', ac: 17, addsDex: false },
-  'plate':            { id: 'plate',            name: 'Plate Armor',      type: 'armor', ac: 18, addsDex: false },
-  'shield':           { id: 'shield',           name: 'Shield',           type: 'armor', acBonus: 2 },
+  // Light armor — no STR requirement, no stealth disadvantage (except Padded).
+  'padded':           { id: 'padded',          name: 'Padded Armor',    type: 'armor', ac: 11, addsDex: true,                   armorCategory: 'light',  stealthDisadvantage: true,  donMinutes: 1,  doffMinutes: 1 },
+  'leather-armor':    { id: 'leather-armor',   name: 'Leather Armor',   type: 'armor', ac: 11, addsDex: true,                   armorCategory: 'light',                              donMinutes: 1,  doffMinutes: 1 },
+  'studded-leather':  { id: 'studded-leather', name: 'Studded Leather', type: 'armor', ac: 12, addsDex: true,                   armorCategory: 'light',                              donMinutes: 1,  doffMinutes: 1 },
+
+  // Medium armor — no STR requirement; Hide, Scale Mail, Half Plate have stealth disadvantage.
+  'hide':             { id: 'hide',            name: 'Hide',            type: 'armor', ac: 12, addsDex: true,  maxDex: 2,        armorCategory: 'medium', stealthDisadvantage: true,  donMinutes: 5,  doffMinutes: 1 },
+  'chain-shirt':      { id: 'chain-shirt',     name: 'Chain Shirt',     type: 'armor', ac: 13, addsDex: true,  maxDex: 2,        armorCategory: 'medium',                             donMinutes: 5,  doffMinutes: 1 },
+  'scale-mail':       { id: 'scale-mail',      name: 'Scale Mail',      type: 'armor', ac: 14, addsDex: true,  maxDex: 2,        armorCategory: 'medium', stealthDisadvantage: true,  donMinutes: 5,  doffMinutes: 1 },
+  'breastplate':      { id: 'breastplate',     name: 'Breastplate',     type: 'armor', ac: 14, addsDex: true,  maxDex: 2,        armorCategory: 'medium',                             donMinutes: 5,  doffMinutes: 1 },
+  'half-plate':       { id: 'half-plate',      name: 'Half Plate',      type: 'armor', ac: 15, addsDex: true,  maxDex: 2,        armorCategory: 'medium', stealthDisadvantage: true,  donMinutes: 5,  doffMinutes: 1 },
+
+  // Heavy armor — all have stealth disadvantage; chain mail, splint, plate need STR.
+  'ring-mail':        { id: 'ring-mail',       name: 'Ring Mail',       type: 'armor', ac: 14, addsDex: false,                   armorCategory: 'heavy',  stealthDisadvantage: true,  donMinutes: 10, doffMinutes: 5 },
+  'chain-mail':       { id: 'chain-mail',      name: 'Chain Mail',      type: 'armor', ac: 16, addsDex: false, strRequirement: 13, armorCategory: 'heavy', stealthDisadvantage: true,  donMinutes: 10, doffMinutes: 5 },
+  'splint':           { id: 'splint',          name: 'Splint',          type: 'armor', ac: 17, addsDex: false, strRequirement: 15, armorCategory: 'heavy', stealthDisadvantage: true,  donMinutes: 10, doffMinutes: 5 },
+  'plate':            { id: 'plate',           name: 'Plate Armor',     type: 'armor', ac: 18, addsDex: false, strRequirement: 15, armorCategory: 'heavy', stealthDisadvantage: true,  donMinutes: 10, doffMinutes: 5 },
+
+  // Shield — don/doff as a free action or bonus action; no donMinutes field.
+  'shield':           { id: 'shield',          name: 'Shield',          type: 'armor', acBonus: 2 },
 
   // Consumables
   'potion-healing':         { id: 'potion-healing',         name: 'Potion of Healing',         type: 'consumable', heals: '2d4+2' },

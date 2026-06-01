@@ -23,6 +23,31 @@ export type ConditionName =
   | 'poisoned' | 'prone' | 'restrained' | 'stunned' | 'unconscious'
   | string;
 
+/**
+ * Full condition record shape (since v1.6.1). Hosts can apply a plain
+ * string for simple boolean conditions, or a record to attach save
+ * metadata. The engine normalises string `apply` calls to `{ name }`
+ * internally; `actor.conditions` always contains records at runtime.
+ */
+export interface ConditionRecord {
+  name: ConditionName;
+  /** Arbitrary source tag (actor id, spell id, etc.) for bookkeeping. */
+  source?: unknown;
+  /** Save DC the affected creature rolls against to end the condition. */
+  dc?: number;
+  /** Ability used for the save (`'con'`, `'wis'`, etc.). */
+  saveAbility?: Ability;
+  /** When to auto-roll the save: at the end or start of the affected
+   *  creature's turn. Omit if the condition has no recurring save. */
+  endsOn?: 'turnEnd' | 'turnStart';
+}
+
+/** One entry in the `conditionSaves` array returned by `turnEnd` / `turnStart`. */
+export interface ConditionSaveResult {
+  entry: ConditionRecord;
+  saveResult: ReturnType<ChecksNamespace['savingThrow']>;
+}
+
 /** The eight SRD 5.2 weapon mastery property names. */
 export type MasteryName =
   | 'cleave' | 'graze' | 'nick' | 'push'
@@ -35,6 +60,20 @@ export interface Species {
   size: Size;
   speed: number;
   traits?: string[];
+  /** Sense ranges in feet. Key is the sense name (`darkvision`, etc.);
+   *  value is the range. Omit or leave empty for no special senses. */
+  senses?: Record<string, number>;
+  /** Damage types the species resists by default (e.g. `['fire']` for
+   *  Tiefling). Dragonborn resistance is omitted here — it depends on
+   *  the character's chosen draconic ancestry. */
+  damageResistances?: string[];
+  /** Conditions the species is immune to by default. None for SRD 5.2
+   *  player species, but available for homebrew / monster entries. */
+  conditionImmunities?: ConditionName[];
+  /** Boolean trait switches consumed by rules modules. Keys are
+   *  camelCase trait identifiers (e.g. `halflingLucky`, `feyAncestry`);
+   *  a `true` value means the character possesses the trait. */
+  flags?: Record<string, boolean>;
 }
 
 /** Spellcasting progression tier. `full` = Wizard/Cleric/Druid/Bard/
@@ -152,6 +191,20 @@ export interface Item {
   acBonus?: number;
   addsDex?: boolean;
   maxDex?: number;
+  /** Armor weight class (since v1.17.0). */
+  armorCategory?: 'light' | 'medium' | 'heavy';
+  /** True when the armor imposes Stealth disadvantage per the SRD
+   *  Armor table (since v1.17.0). Omitted (falsy) when no penalty. */
+  stealthDisadvantage?: boolean;
+  /** Minimum STR score required to wear at full speed (since v1.17.0).
+   *  Heavy armor only. Below this threshold, speed is reduced by 10
+   *  ft. Omitted when there is no requirement. */
+  strRequirement?: number;
+  /** Minutes to don this armor (since v1.17.0). Omitted for shields
+   *  (which use an action). */
+  donMinutes?: number;
+  /** Minutes to doff this armor (since v1.17.0). Omitted for shields. */
+  doffMinutes?: number;
   // Consumable-only fields.
   heals?: string;
 }
@@ -267,6 +320,21 @@ export interface AbilityCheckResult {
   success: boolean;
 }
 
+/** Args for a tool proficiency check (since v1.17.0). */
+export interface ToolCheckArgs extends AbilityCheckArgs {
+  /** Tool id used for logging and auto-proficiency lookup. */
+  toolId?: string;
+  /** Actor object — when provided alongside `toolId`, the engine-bound
+   *  version resolves proficiency from `actor.tools` automatically. */
+  actor?: Actor;
+}
+
+/** Result of a tool check — same shape as `AbilityCheckResult` plus
+ *  the `toolId` echo when one was supplied. */
+export interface ToolCheckResult extends AbilityCheckResult {
+  toolId?: string;
+}
+
 export interface ChecksNamespace {
   modFromScore(score: number): number;
   clampDC(dc: number): number;
@@ -275,6 +343,11 @@ export interface ChecksNamespace {
    *  version takes an optional `rng` instead. */
   abilityCheck(args: AbilityCheckArgs, context?: unknown): AbilityCheckResult;
   savingThrow(args: AbilityCheckArgs, context?: unknown): AbilityCheckResult;
+  /** Roll a tool proficiency check (since v1.17.0). Mechanically
+   *  identical to an ability check; named separately for log clarity.
+   *  The engine-bound version auto-resolves proficiency from
+   *  `actor.tools` when `actor` and `toolId` are both provided. */
+  toolCheck(args: ToolCheckArgs, context?: unknown): ToolCheckResult;
 }
 
 // ============================================================
@@ -505,11 +578,12 @@ export interface CombatNamespace {
   addTimer(actor: Actor, timer: ActorTimer): Actor;
   /** Decrement every timer; return new actor + expired list. */
   tickTimers(actor: Actor): { actor: Actor; expired: ActorTimer[] };
-  /** Turn-start signal. Fires `onTurnStart`; returns the actor. */
-  turnStart(actor: Actor, context?: unknown): { actor: Actor };
-  /** Turn-end lifecycle. Ticks timers, fires `onTurnEnd` with the
-   *  expired list, returns the new actor. */
-  turnEnd(actor: Actor, context?: unknown): { actor: Actor; expired: ActorTimer[] };
+  /** Turn-start signal. Fires `onTurnStart`. Auto-rolls saves for any
+   *  conditions with `endsOn: 'turnStart'` and removes cleared ones. */
+  turnStart(actor: Actor, context?: unknown): { actor: Actor; conditionSaves: ConditionSaveResult[] };
+  /** Turn-end lifecycle. Ticks timers, auto-rolls saves for conditions
+   *  with `endsOn: 'turnEnd'`, fires `onTurnEnd`, returns the new actor. */
+  turnEnd(actor: Actor, context?: unknown): { actor: Actor; expired: ActorTimer[]; conditionSaves: ConditionSaveResult[] };
 }
 
 export interface ActorTimer {
@@ -573,7 +647,9 @@ export interface DeathSaveResult {
 
 export interface Actor {
   id?: string;
-  conditions?: ConditionName[];
+  /** Active conditions. Entries are `ConditionRecord` objects at runtime;
+   *  legacy string values are tolerated on read for backward compatibility. */
+  conditions?: (ConditionRecord | ConditionName)[];
   exhaustion?: number;
   /** Class-feature resource counters (since 1.3.0). Keyed by
    *  resource id (`secondWind`, `rage`, …). */
@@ -626,8 +702,21 @@ export interface ConditionsNamespace {
   readonly CONDITIONS: readonly ConditionName[];
   readonly EXHAUSTION_MAX: number;
   has(actor: Actor, condition: ConditionName): boolean;
-  apply(actor: Actor, condition: ConditionName): Actor;
-  remove(actor: Actor, condition: ConditionName): Actor;
+  /** Apply a condition. Pass a plain string for a simple boolean condition
+   *  (idempotent, set semantics) or a `ConditionRecord` to attach save
+   *  metadata for save-at-turn-end/start enforcement (append semantics,
+   *  allows multiple sources). */
+  apply(actor: Actor, condition: ConditionName | ConditionRecord): Actor;
+  /** Remove all entries with the given condition name. */
+  remove(actor: Actor, condition: ConditionName | ConditionRecord): Actor;
+  /** Extract the condition name from a string or record entry. */
+  conditionName(entry: ConditionName | ConditionRecord): ConditionName;
+  /** Return entries that carry save metadata matching `timing`. Used
+   *  internally by `turnEnd` / `turnStart`; also useful for host UI. */
+  conditionsRequiringSave(actor: Actor, timing: 'turnEnd' | 'turnStart'): ConditionRecord[];
+  effectsFor(actor: Actor): Record<string, boolean | string>;
+  attackStance(args: { attacker?: Actor; target?: Actor; attackerDistanceFt?: number }): 'normal' | 'advantage' | 'disadvantage';
+  isImmuneTo(actor: Actor, condition: ConditionName): boolean;
   exhaustion: ExhaustionNamespace;
 }
 
@@ -809,7 +898,7 @@ export interface CharacterRecord {
     expertise?: SkillId[];
   };
   feats?: OriginFeatRef[];
-  conditions?: ConditionName[];
+  conditions?: (ConditionRecord | ConditionName)[];
   exhaustion?: number;
   spells?: {
     known?: string[];
@@ -847,6 +936,9 @@ export interface DerivedSkill {
   mod: number;
   proficient: boolean;
   expertise: boolean;
+  /** Present and `true` only on the `stealth` skill when the equipped
+   *  armor imposes Stealth disadvantage per SRD (since v1.17.0). */
+  disadvantage?: boolean;
 }
 
 /**
@@ -877,6 +969,24 @@ export interface DerivedSheet {
   };
   initiative: number;
   speed: { walk: number };
+  /** Sense ranges derived from species (since v1.13.0). Key is the
+   *  sense name (`darkvision`, etc.); value is range in feet. Empty
+   *  object `{}` for species with no special senses. */
+  senses: Record<string, number>;
+  /** Human-readable species trait labels (since v1.13.0). Copied from
+   *  the species record — useful for UI trait-list rendering. */
+  traits: string[];
+  /** Damage types this character resists by default (since v1.13.0).
+   *  Sourced from species; hosts may also provide character-level
+   *  resistances in the future. */
+  damageResistances: string[];
+  /** Conditions this character is immune to by default (since v1.13.0).
+   *  Sourced from species. */
+  conditionImmunities: ConditionName[];
+  /** Boolean trait switches from species (since v1.13.0). A `true`
+   *  value means the character possesses the named trait. Keys match
+   *  the species `flags` map — see `Species.flags` for the list. */
+  flags: Record<string, boolean>;
   saves: Record<Ability, DerivedSave>;
   skills: Record<SkillId, DerivedSkill>;
   attacks: DerivedAttack[];
@@ -890,7 +1000,7 @@ export interface DerivedSheet {
   passives: { perception: number; insight: number; investigation: number };
   carryingCapacity: { capacity: number; push: number; lift: number };
   activeEffects: {
-    conditions: ConditionName[];
+    conditions: (ConditionRecord | ConditionName)[];
     exhaustion: number;
   };
 }
@@ -917,6 +1027,10 @@ export interface CharacterNamespace {
   /** The 18 SRD 5.2 skills with their governing abilities. Exported
    *  so hosts can render skill UIs without duplicating the table. */
   readonly SKILL_ABILITY: Readonly<Record<SkillId, Ability>>;
+  /** Encumbrance level per SRD 5.2 variant rule (since v1.17.0).
+   *  @param str        The character's STR score (final, after bumps).
+   *  @param weightLbs  Total carried weight in pounds. */
+  encumbranceLevel(str: number, weightLbs: number): 'none' | 'encumbered' | 'heavily-encumbered';
 }
 
 // ============================================================

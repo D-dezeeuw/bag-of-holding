@@ -17,6 +17,11 @@
   },
   "initiative": 2,
   "speed": { "walk": 30 },
+  "senses": { "darkvision": 60 },
+  "traits": ["Darkvision 60ft", "Fey Ancestry", "Keen Senses", "Trance"],
+  "damageResistances": [],
+  "conditionImmunities": [],
+  "flags": { "feyAncestry": true },
   "saves": {
     "str": { "mod": -1, "proficient": false },
     "dex": { "mod": 2,  "proficient": false },

@@ -274,19 +274,25 @@ function deriveInitiative(allFeats, profBonus, dexMod) {
 }
 
 /**
- * Walking speed after exhaustion and movement-cancelling conditions.
- * Per SRD 5.2, Exhaustion subtracts 5 ft per level (handled by
- * `Conditions.exhaustion.speedPenalty`). Grappled / Paralyzed /
- * Petrified / Restrained / Stunned / Unconscious all set speed to 0
- * — we hard-zero on any of them so a paralyzed PC's sheet doesn't
- * misleadingly show "25 ft (exhausted from 30)".
+ * Walking speed after exhaustion, movement-cancelling conditions, and
+ * the heavy-armor STR-requirement penalty (since v1.17.0).
+ *
+ * Per SRD 5.2:
+ *   - Grappled / Paralyzed / Petrified / Restrained / Stunned /
+ *     Unconscious hard-zero speed — we short-circuit so a paralyzed
+ *     PC's sheet doesn't misleadingly show any movement.
+ *   - Exhaustion subtracts 5 ft per level.
+ *   - If the equipped armor has a `strRequirement` and the character's
+ *     STR (final, after background bumps) is below it, speed is
+ *     reduced by an additional 10 ft.
  */
-function deriveSpeed(species, conditions, exhaustionLevel) {
-  if (conditions.some((c) => SPEED_ZERO_CONDITIONS.includes(c))) {
+function deriveSpeed(species, conditions, exhaustionLevel, strScore, armorRecord) {
+  if (conditions.some((c) => SPEED_ZERO_CONDITIONS.includes(typeof c === 'string' ? c : c.name))) {
     return { walk: 0 };
   }
   const penalty = Exhaustion.speedPenalty({ exhaustion: exhaustionLevel });
-  return { walk: Math.max(0, species.speed - penalty) };
+  const strPenalty = (armorRecord?.strRequirement && strScore < armorRecord.strRequirement) ? 10 : 0;
+  return { walk: Math.max(0, species.speed - penalty - strPenalty) };
 }
 
 /**
@@ -462,10 +468,15 @@ export function deriveSheet(record, registries) {
   const conditions = Array.isArray(record.conditions) ? record.conditions : [];
   const exhaustionLevel = Exhaustion.level({ exhaustion: record.exhaustion });
 
+  // Look up the equipped armor once — used for AC, stealth disadvantage,
+  // and the STR-requirement speed penalty. Pulled out here so each
+  // sub-deriver receives the resolved record, not a raw id.
+  const armorRecord = record.equipment.armorId ? items[record.equipment.armorId] : null;
+
   const hp = { max: deriveMaxHp(record, classDef, abilityMods.con) };
   const ac = deriveAc(record, items, abilityMods.dex);
   const initiative = deriveInitiative(allFeats, profBonus, abilityMods.dex);
-  const speed = deriveSpeed(species, conditions, exhaustionLevel);
+  const speed = deriveSpeed(species, conditions, exhaustionLevel, abilityFinal.str, armorRecord);
   const saves = deriveSaves(classDef, record.proficiencies?.saves, profBonus, abilityMods);
   const skills = deriveSkills(
     background,
@@ -474,8 +485,23 @@ export function deriveSheet(record, registries) {
     profBonus,
     abilityMods
   );
+  // Armor stealth disadvantage (since v1.17.0). Patched onto the
+  // stealth line after general skill derivation so the main loop
+  // stays clean and the patch is easy to audit in one place.
+  if (armorRecord?.stealthDisadvantage) {
+    skills.stealth = { ...skills.stealth, disadvantage: true };
+  }
   const attacks = deriveAttacks(record, items, profBonus, abilityMods);
   const spellcasting = deriveSpellcasting(classDef, profBonus, abilityMods);
+
+  // Species mechanic fields (since v1.13.0). Copy so a plugin that
+  // hands us a mutable object doesn't get its record frozen by the
+  // deepFreeze below.
+  const senses = { ...(species.senses ?? {}) };
+  const traits = [...(species.traits ?? [])];
+  const damageResistances = [...(species.damageResistances ?? [])];
+  const conditionImmunities = [...(species.conditionImmunities ?? [])];
+  const flags = { ...(species.flags ?? {}) };
 
   const passives = {
     perception:    10 + skills.perception.mod,
@@ -509,6 +535,11 @@ export function deriveSheet(record, registries) {
     ac,
     initiative,
     speed,
+    senses,
+    traits,
+    damageResistances,
+    conditionImmunities,
+    flags,
     saves,
     skills,
     attacks,
@@ -522,6 +553,35 @@ export function deriveSheet(record, registries) {
   };
 
   return deepFreeze(sheet);
+}
+
+/**
+ * Encumbrance level per SRD 5.2 variant rule (§ Equipment — Carrying
+ * Capacity). Three tiers based on the character's STR score and the
+ * total weight currently carried:
+ *
+ *   `'none'`              — weight ≤ STR × 5, no penalty.
+ *   `'encumbered'`        — STR × 5 < weight ≤ STR × 10:
+ *                           speed –10 ft, disadvantage on STR / DEX /
+ *                           CON ability checks and attack rolls.
+ *   `'heavily-encumbered'`— weight > STR × 10:
+ *                           speed –20 ft, disadvantage on all ability
+ *                           checks, attack rolls, and saves.
+ *
+ * This is a variant rule — hosts opt into it by calling this function
+ * and enforcing the speed / disadvantage consequences themselves.
+ * The standard-rule carry limit (STR × 15) is already on the sheet as
+ * `carryingCapacity`.
+ *
+ * @param {number} str        The character's STR score (final, after
+ *                            background bumps).
+ * @param {number} weightLbs  Total carried weight in pounds.
+ * @returns {'none' | 'encumbered' | 'heavily-encumbered'}
+ */
+export function encumbranceLevel(str, weightLbs) {
+  if (weightLbs > str * 10) return 'heavily-encumbered';
+  if (weightLbs > str * 5)  return 'encumbered';
+  return 'none';
 }
 
 /**

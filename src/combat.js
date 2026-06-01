@@ -1,7 +1,7 @@
 import { rollDie, roll as rollDice, rollExplosive } from './dice.js';
 import { modFromScore } from './checks.js';
 import { DEFAULT_RULES } from './rules.js';
-import { attackStance, apply as applyCondition, remove as removeCondition, effectsFor } from './conditions.js';
+import { attackStance, apply as applyCondition, remove as removeCondition, effectsFor, has as hasCondition } from './conditions.js';
 
 /**
  * Initiative is mechanically just `d20 + DEX mod`, but it lives in
@@ -706,7 +706,7 @@ export function heal(actor, amount) {
   const healed = hpAfter - hpBefore;
   let next = { ...actor, hp: hpAfter };
   if (hpBefore <= 0 && hpAfter > 0) {
-    if ((actor.conditions ?? []).includes('unconscious')) {
+    if (hasCondition(actor, 'unconscious')) {
       next = removeCondition(next, 'unconscious');
     }
     if (next.deathSaves) next = { ...next, deathSaves: freshDeathSaves() };

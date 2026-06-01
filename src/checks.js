@@ -50,6 +50,30 @@ export function abilityCheck({ abilityScore, proficient = false, proficiencyBonu
 }
 
 /**
+ * Roll a tool check against a DC. Mechanically identical to an ability
+ * check (d20 + ability mod ± tool proficiency bonus vs DC) but named
+ * separately so call sites read closer to the rule being applied, and
+ * so the roll log can tag entries with the `toolId` for host-side
+ * rendering ("rolled Thieves' Tools check vs DC 15").
+ *
+ * The governing ability (DEX for lockpicking, WIS for herbalism, STR
+ * for smithing) is caller-supplied — the SRD leaves this open for
+ * context-driven GM rulings. The engine-bound version auto-resolves
+ * proficiency from `actor.tools` when an `actor` is passed.
+ *
+ * @param {object} args
+ * @param {string}  [args.toolId]         Optional id for logging.
+ * @param {number}   args.abilityScore     Governing ability score.
+ * @param {boolean} [args.proficient]      Whether the actor is proficient.
+ * @param {number}  [args.proficiencyBonus] Prof bonus (default 2).
+ * @param {number}   args.dc               Target DC.
+ */
+export function toolCheck({ toolId, ...checkArgs }, rng = Math.random) {
+  const result = abilityCheck(checkArgs, rng);
+  return toolId !== undefined ? { ...result, toolId } : result;
+}
+
+/**
  * In 5e the math for a saving throw is identical to an ability check
  * (d20 + ability mod ± proficiency vs DC); the two are conceptually
  * distinct (active reach vs passive resistance), so the engine keeps

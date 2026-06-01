@@ -8,6 +8,7 @@ import {
   heal,
   dropToZero
 } from '../src/combat.js';
+import { has as hasCondition } from '../src/conditions.js';
 import { createEngine } from '../src/engine.js';
 import { seededRng } from '../src/dice.js';
 
@@ -161,7 +162,7 @@ test('applyDamage: dropToZero on crossing 0 HP, fires Unconscious', () => {
   const result = applyDamage(actor, { amount: 5 });
   assert.equal(result.outcome, 'downed');
   assert.equal(result.actor.hp, 0);
-  assert.ok(result.actor.conditions.includes('unconscious'));
+  assert.ok(hasCondition(result.actor, 'unconscious'));
   assert.ok(result.actor.deathSaves);
 });
 
@@ -279,7 +280,7 @@ test('heal at 0 HP wakes up an Unconscious actor and clears death saves', () => 
   let actor = dropToZero({ id: 'pc', hpMax: 20, conditions: [] });
   const result = heal(actor, 3);
   assert.equal(result.actor.hp, 3);
-  assert.ok(!result.actor.conditions.includes('unconscious'));
+  assert.ok(!hasCondition(result.actor, 'unconscious'));
   assert.equal(result.actor.deathSaves.successes, 0);
   assert.equal(result.actor.deathSaves.failures, 0);
 });

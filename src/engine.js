@@ -58,7 +58,7 @@ import defaultItems       from './srd/items.js';
 import defaultMonsters    from './srd/monsters.js';
 
 const REGISTRY_VALIDATORS = {
-  species:     { required: ['id', 'name', 'size', 'speed'], arrayFields: ['traits'] },
+  species:     { required: ['id', 'name', 'size', 'speed'], arrayFields: ['traits', 'damageResistances', 'conditionImmunities'] },
   classes:     { required: ['id', 'name', 'hitDie'] },
   backgrounds: { required: ['id', 'name', 'abilityScores', 'skillProficiencies', 'originFeat'] },
   feats:       { required: ['id', 'name', 'category'] },
@@ -172,6 +172,8 @@ function buildConditions(extraConditions = []) {
     remove: ConditionsBase.remove,
     effectsFor: ConditionsBase.effectsFor,
     attackStance: ConditionsBase.attackStance,
+    conditionName: ConditionsBase.conditionName,
+    conditionsRequiringSave: ConditionsBase.conditionsRequiringSave,
     exhaustion: ConditionsBase.exhaustion
   };
 }
@@ -256,11 +258,12 @@ export function createEngine(opts = {}) {
       // petrified / unconscious / incapacitated. The exhaustion
       // pathway fires `onDeath` separately when level 6 is reached;
       // here we close the second drop pathway.
-      const effect = ConditionsBase.CONDITION_EFFECTS[condition];
+      const condName = typeof condition === 'string' ? condition : condition.name;
+      const effect = ConditionsBase.CONDITION_EFFECTS[condName];
       if (effect?.incapacitates && next.concentration) {
         next = Spellcasting.endConcentration(next);
       }
-      hooks.fire('onConditionApplied', { actor: next, condition, previous: actor });
+      hooks.fire('onConditionApplied', { actor: next, condition: condName, previous: actor });
       return next;
     },
     exhaustion: {
@@ -364,6 +367,29 @@ export function createEngine(opts = {}) {
         abilityScore: args.abilityScore,
         proficient: args.proficient ?? false,
         proficiencyBonus: args.proficiencyBonus ?? 2,
+        ...result
+      }, context);
+      return result;
+    },
+    toolCheck: (args, context) => {
+      // Auto-resolve tool proficiency when an actor is supplied, so
+      // callers can pass { actor, toolId, abilityScore, dc } without
+      // having to look up actor.tools themselves.
+      let augmented = args;
+      if (args.actor !== undefined && args.toolId !== undefined) {
+        const proficient = args.proficient
+          ?? MulticlassBase.isProficientWithTool(args.actor, args.toolId);
+        const proficiencyBonus = args.proficiencyBonus
+          ?? args.actor.proficiencyBonus
+          ?? 2;
+        augmented = { ...args, proficient, proficiencyBonus };
+      }
+      const result = Checks.toolCheck(augmented, rng);
+      record('toolCheck', {
+        toolId: args.toolId,
+        abilityScore: args.abilityScore,
+        proficient: augmented.proficient ?? false,
+        proficiencyBonus: augmented.proficiencyBonus ?? 2,
         ...result
       }, context);
       return result;
@@ -534,7 +560,7 @@ export function createEngine(opts = {}) {
     grantTempHp: CombatBase.grantTempHp,
     applyDamage: (actor, args) => {
       const wasDead = actor.deathSaves?.dead ?? false;
-      const wasUnconscious = (actor.conditions ?? []).includes('unconscious');
+      const wasUnconscious = ConditionsBase.has(actor, 'unconscious');
       const result = CombatBase.applyDamage(actor, args);
       if (result.outcome === 'dead' && !wasDead) {
         hooks.fire('onDeath', { actor: result.actor, cause: 'damage', previous: actor });
@@ -586,16 +612,48 @@ export function createEngine(opts = {}) {
     addTimer: CombatBase.addTimer,
     tickTimers: CombatBase.tickTimers,
     turnStart: (actor, context) => {
-      hooks.fire('onTurnStart', { actor, context });
-      return { actor };
+      // Auto-roll saves for conditions with endsOn: 'turnStart'.
+      let current = actor;
+      const conditionSaves = [];
+      for (const entry of ConditionsBase.conditionsRequiringSave(current, 'turnStart')) {
+        const saveResult = ChecksBound.savingThrow({
+          abilityScore: current.abilityScores?.[entry.saveAbility] ?? 10,
+          proficient: Array.isArray(current.proficiencies?.saves) &&
+            current.proficiencies.saves.includes(entry.saveAbility),
+          proficiencyBonus: current.proficiencyBonus ?? 2,
+          dc: entry.dc,
+          actor: current,
+          ability: entry.saveAbility
+        }, context);
+        conditionSaves.push({ entry, saveResult });
+        if (saveResult.success) current = ConditionsBound.remove(current, entry.name);
+      }
+      hooks.fire('onTurnStart', { actor: current, previous: actor, conditionSaves, context });
+      return { actor: current, conditionSaves };
     },
     turnEnd: (actor, context) => {
-      const result = CombatBase.turnEnd(actor);
+      // Tick timers first, then auto-roll saves for endsOn: 'turnEnd'.
+      const timerResult = CombatBase.turnEnd(actor);
+      let current = timerResult.actor;
+      const conditionSaves = [];
+      for (const entry of ConditionsBase.conditionsRequiringSave(current, 'turnEnd')) {
+        const saveResult = ChecksBound.savingThrow({
+          abilityScore: current.abilityScores?.[entry.saveAbility] ?? 10,
+          proficient: Array.isArray(current.proficiencies?.saves) &&
+            current.proficiencies.saves.includes(entry.saveAbility),
+          proficiencyBonus: current.proficiencyBonus ?? 2,
+          dc: entry.dc,
+          actor: current,
+          ability: entry.saveAbility
+        }, context);
+        conditionSaves.push({ entry, saveResult });
+        if (saveResult.success) current = ConditionsBound.remove(current, entry.name);
+      }
       hooks.fire('onTurnEnd', {
-        actor: result.actor, previous: actor,
-        expired: result.expired, context
+        actor: current, previous: actor,
+        expired: timerResult.expired, conditionSaves, context
       });
-      return result;
+      return { actor: current, expired: timerResult.expired, conditionSaves };
     }
   };
 

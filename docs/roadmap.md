@@ -828,20 +828,26 @@ consumers needing multiclass features call `Multiclass.*` helpers.
 Closes [§ 15 Character creation
 pipeline](srd-coverage.md#15-character-creation-pipeline).
 
-### `1.13.0`: Species traits as mechanics
+### `1.13.0`: Species traits as mechanics ✅ shipped
 
-Species records carry `traits: string[]` today; this release turns
-them into actionable mechanics.
+Species records now carry structured mechanic fields alongside the
+human-readable `traits[]` strings. `DerivedSheet` surfaces them.
 
-- **Darkvision range** derivation onto the sheet's senses block.
-- **Stonecunning, Lucky, Fey Ancestry, Trance, Brave** as effect
-  flags read by 1.6 hooks.
-- **Half movement modes.** Aarakocra fly, Triton swim, etc., surfaced
-  through the `speeds` map.
-- **Resistances.** Tiefling fire, Dragonborn elemental; feed the
-  1.4 damage pipeline.
-- **Cantrip-from-species.** High Elf cantrip slot becomes a real
-  spell entry on the sheet.
+- **`senses`** — `{ darkvision?: ft, … }` on every species record;
+  `effectiveLight()` already consumed `viewer.senses.darkvision` and now
+  picks it up automatically from derived sheets.
+- **`flags`** — `{ halflingLucky, feyAncestry, dwarvenResilience,
+  stonecunning, breathWeapon, gnomishCunning, powerfulBuild,
+  relentlessEndurance, brave }` as boolean switches on the species
+  record; `Inspiration.applyHalflingLucky` is the first consumer.
+- **`damageResistances`** — `['fire']` for Tiefling; empty for all
+  other SRD 5.2 species (Dragonborn resistance is ancestry-dependent
+  and must be supplied by the host at character-creation time).
+- **`conditionImmunities`** — structure present; empty for all SRD 5.2
+  player species.
+
+Deferred to later releases: fly/swim `speeds` map (non-SRD species),
+Dragonborn ancestry-choice resistance wiring, cantrip-from-species.
 
 Closes the trait-mechanics half of
 [§ 16 Species, backgrounds, feats](srd-coverage.md#16-species-backgrounds-feats);
@@ -897,22 +903,31 @@ Treasure tables deferred to a later content-only patch.
 
 Closes [§ 20 Encounter design](srd-coverage.md#20-encounter-design).
 
-### `1.17.0`: Equipment depth
+### `1.17.0`: Equipment depth ✅ shipped
 
-Armor mechanics, tools, and the long tail of mundane gear.
+Armor mechanics, tool checks, and the encumbrance variant rule.
 
-- **Encumbrance variant.** `Character.encumbranceLevel(actor)`
-  returns `'none' | 'encumbered' | 'heavily-encumbered'`.
-- **Armor donning / doffing time.** Fields + helper.
-- **Stealth disadvantage on heavy armor**, applied to the derived
-  Stealth skill.
-- **STR-requirement speed penalty.** Heavy armor below the STR
-  requirement reduces speed by 10 ft.
-- **Tools as proficiency.** `record.tools`; `Checks.toolCheck`.
-- **Adventuring gear / services / lifestyle / trade goods** as
-  registry entries (pure data).
+- **Armor metadata.** `armorCategory` (`light / medium / heavy`),
+  `stealthDisadvantage`, `strRequirement`, `donMinutes`, `doffMinutes`
+  on all 12 SRD armor entries.
+- **Stealth disadvantage on derived sheet.** `DerivedSheet.skills.stealth
+  .disadvantage: true` when the equipped armor carries the flag (Padded,
+  Hide, Scale Mail, Half Plate, all heavy armors).
+- **STR-requirement speed penalty.** Equipped armor whose `strRequirement`
+  exceeds the character's final STR subtracts 10 ft from walking speed.
+- **Encumbrance variant.** `Character.encumbranceLevel(str, weightLbs)` →
+  `'none' | 'encumbered' | 'heavily-encumbered'` per the variant rule;
+  also re-exported on the module-level `Character` namespace.
+- **Tool proficiency check.** `Checks.toolCheck({ toolId, abilityScore,
+  proficient, dc })` — module-level and engine-bound. Engine-bound version
+  auto-resolves proficiency from `actor.tools`; result carries `toolId`
+  for host log rendering.
 
-Closes [§ 17 Equipment & inventory](srd-coverage.md#17-equipment--inventory).
+Deferred to `1.x.y` content patch: adventuring gear / services / lifestyle
+/ trade goods as registry entries.
+
+Closes the mechanics half of
+[§ 17 Equipment & inventory](srd-coverage.md#17-equipment--inventory).
 
 ### `1.18.0`: Travel & exploration
 

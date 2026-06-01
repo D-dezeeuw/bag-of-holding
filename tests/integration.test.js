@@ -75,7 +75,7 @@ test('integration: full party combat round-trip', () => {
   // === 7. Apply poisoned condition to the orc — fires the hook.
   let orcActor = { id: 'orc', conditions: [] };
   orcActor = engine.Conditions.apply(orcActor, 'poisoned');
-  assert.deepEqual(orcActor.conditions, ['poisoned']);
+  assert.deepEqual(orcActor.conditions, [{ name: 'poisoned' }]);
   assert.ok(events.some(e => e.kind === 'condition' && e.who === 'orc'));
 
   // === 8. Attack the poisoned orc — stance is normal (orc poisoned

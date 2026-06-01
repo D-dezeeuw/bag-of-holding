@@ -102,8 +102,8 @@ boxes are always the live worklist.
 - [x] **Condition immunity**: `actor.conditionImmunities[]` filter on `apply`; `isImmuneTo` predicate *(v1.5.0)*
 - [x] **Auto-fail STR/DEX saves** under paralyzed / stunned / petrified / unconscious; engine binding short-circuits via `autoFailed: true` *(v1.5.0)*
 - [x] **Auto-crit from within 5 ft** on paralyzed / unconscious / petrified / stunned; `attackRoll` honours the target's `critIfAttackerWithin5` flag *(v1.5.0)*
-- [ ] **Per-application metadata**: condition entries stay as strings in 1.5; record-shape `{ name, source?, dc?, saveAbility?, endsOn? }` planned for [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking)
-- [ ] **Save-to-end-of-turn** ongoing effects *(SRD: Hold Person, Hideous Laughter, Charm Monster, etc.)*; planned for [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking)
+- [x] **Per-application metadata**: record-shape `{ name, source?, dc?, saveAbility?, endsOn? }` on `actor.conditions[]`; string `apply` calls normalise to `{ name }` with idempotent set-semantics; record calls allow multiple sources *(v1.6.1)*
+- [x] **Save-to-end-of-turn** ongoing effects *(SRD: Hold Person, Hideous Laughter, Charm Monster, etc.)*; engine `turnEnd` / `turnStart` auto-roll saves for entries with `endsOn` + `saveAbility` + `dc` and remove cleared conditions *(v1.6.1)*
 
 ## 5. Damage pipeline
 
@@ -174,7 +174,7 @@ boxes are always the live worklist.
 **Planned:** core round/scene-clock surfaces in [v1.6.0](roadmap.md#160--turn-lifecycle-hooks--time-tracking); save-end-of-turn + spell-duration auto-binding ride with 1.6.1 / 1.8.0.
 
 - [x] **Round timer**: `actor.timers[]` + `Combat.tickTimers` / `Combat.turnEnd` *(v1.6.0)*
-- [ ] **Save-at-end-of-turn**: applied condition record with `{ saveAbility, saveDC, endsOn: 'turnEnd' }`; deferred to 1.6.1
+- [x] **Save-at-end-of-turn**: condition records carry `{ saveAbility, dc, endsOn: 'turnEnd' | 'turnStart' }`; engine `turnEnd` / `turnStart` auto-roll and return `conditionSaves[]` *(v1.6.1)*
 - [x] **Minute / hour / day clocks**: `SceneClock.{freshScene,advanceTime,formatTimeOfDay}` *(v1.6.0)*
 - [ ] **Spell-duration ticker**: auto-register a timer from a spell's `duration` field on cast; rides with 1.8.0 spellcasting completion
 - [x] **Dawn / dusk event**: `SceneClock.advanceTime` enumerates `'dawn'` / `'dusk'` crossings chronologically *(v1.6.0)*
@@ -284,11 +284,11 @@ boxes are always the live worklist.
 
 *(SRD § Character Origins)*
 
-**Planned:** species trait *mechanics* in [v1.13.0](roadmap.md#1130--species-traits-as-mechanics); fighting styles ride in with [v1.7.0](roadmap.md#170--combat-actions-menu) or the related class subrelease; Epic Boons in [v1.20.0](roadmap.md#1200--tier-4-class-features-l17l20--epic-boons); registry *depth* tracked under [v1.x.y](roadmap.md#1xy--content-registry-expansion-parallel).
+**Planned:** fighting styles ride in with [v1.7.0](roadmap.md#170--combat-actions-menu) or the related class subrelease; Epic Boons in [v1.20.0](roadmap.md#1200--tier-4-class-features-l17l20--epic-boons); registry *depth* tracked under [v1.x.y](roadmap.md#1xy--content-registry-expansion-parallel).
 
 - [x] 9 species, 16 backgrounds (data only), 3 feats *(v0.0.0)*
 - [x] Species `speed`, `size`, `traits[]` strings *(v0.0.0)*
-- [ ] **Species traits as mechanics**: Darkvision range, Stonecunning, Lucky, Fey Ancestry, etc.
+- [x] **Species traits as mechanics**: `senses` (darkvision ranges), `damageResistances` (Tiefling fire), `conditionImmunities`, `flags` (halflingLucky, feyAncestry, dwarvenResilience, stonecunning, etc.) — surfaces on `DerivedSheet`; `effectiveLight()` already consumes `senses.darkvision` *(v1.13.0)*
 - [ ] **Full SRD background coverage** (*check registry headcount against SRD's 16*)
 - [ ] **Origin feats** beyond the 3 currently shipped *(SRD § Feats, Origin Feats)*
 - [ ] **General feats**: Alert, Lucky, Tough, Mage Slayer, etc. *(SRD § Feats, General Feats)*
@@ -299,14 +299,16 @@ boxes are always the live worklist.
 
 *(SRD § Equipment)*
 
-**Planned:** [v1.17.0](roadmap.md#1170--equipment-depth); registry depth tracked under [v1.x.y](roadmap.md#1xy--content-registry-expansion-parallel).
+**Planned:** registry depth tracked under [v1.x.y](roadmap.md#1xy--content-registry-expansion-parallel).
 
 - [x] Items registry, 44 entries, weapon mastery linked *(v0.0.0)*
 - [x] Carrying capacity (STR × 15 × size multiplier) *(v0.1.5)*
-- [ ] **Encumbrance variant** *(SRD § Equipment, Carrying Capacity)*
-- [ ] **Armor donning / doffing time** *(SRD § Equipment, Armor)*
-- [ ] **Stealth disadvantage on heavy armor** *(SRD § Equipment, Armor)*
-- [ ] **STR-requirement speed penalty** for heavy armor below requirement *(SRD § Equipment, Armor)*
+- [x] **Encumbrance variant**: `Character.encumbranceLevel(str, weightLbs)` → `'none' | 'encumbered' | 'heavily-encumbered'` *(v1.17.0)*
+- [x] **Armor donning / doffing time**: `donMinutes` / `doffMinutes` on all armor items *(v1.17.0)*
+- [x] **Stealth disadvantage on armor**: `item.stealthDisadvantage` flag; surfaces as `sheet.skills.stealth.disadvantage: true` on derived sheet *(v1.17.0)*
+- [x] **STR-requirement speed penalty**: `item.strRequirement`; unmet → speed –10 ft on derived sheet *(v1.17.0)*
+- [x] **Armor category field**: `item.armorCategory` (`'light' | 'medium' | 'heavy'`) on all armor items *(v1.17.0)*
+- [x] **Tool proficiency check**: `Checks.toolCheck({ toolId, abilityScore, proficient, dc })` — engine-bound version auto-resolves proficiency from `actor.tools` *(v1.17.0)*
 - [ ] **Adventuring gear**: full coverage of mundane items *(SRD § Equipment, Adventuring Gear)*
 - [ ] **Tools**: artisan's, gaming, musical instruments *(SRD § Equipment, Tools)*
 - [ ] **Mounts and vehicles** *(SRD § Equipment, Mounts and Vehicles)*

@@ -17,6 +17,11 @@
   },
   "initiative": 5,
   "speed": { "walk": 30 },
+  "senses": {},
+  "traits": ["Brave", "Halfling Nimbleness", "Luck", "Naturally Stealthy"],
+  "damageResistances": [],
+  "conditionImmunities": [],
+  "flags": { "halflingLucky": true, "brave": true },
   "saves": {
     "str": { "mod": -1, "proficient": false },
     "dex": { "mod": 5,  "proficient": true  },

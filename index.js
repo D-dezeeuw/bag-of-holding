@@ -48,7 +48,8 @@ export const {
 // common case ("just give me the sheet").
 export const Character = Object.freeze({
   deriveSheet: CharacterModule.deriveSheet,
-  SKILL_ABILITY: CharacterModule.SKILL_ABILITY
+  SKILL_ABILITY: CharacterModule.SKILL_ABILITY,
+  encumbranceLevel: CharacterModule.encumbranceLevel
 });
 
 // Back-compat `SRD` namespace: groups the data registries the way

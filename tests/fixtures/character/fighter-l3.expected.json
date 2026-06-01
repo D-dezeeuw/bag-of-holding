@@ -17,6 +17,11 @@
   },
   "initiative": 2,
   "speed": { "walk": 30 },
+  "senses": {},
+  "traits": ["Resourceful", "Skillful", "Versatile"],
+  "damageResistances": [],
+  "conditionImmunities": [],
+  "flags": {},
   "saves": {
     "str": { "mod": 5,  "proficient": true  },
     "dex": { "mod": 2,  "proficient": false },
