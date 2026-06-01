@@ -546,9 +546,6 @@ export function ability(state, actor, args = {}) {
  * fails.
  */
 export function grapple(state, actor, args = {}) {
-  if (state.budgets[actor.id]?.attacksLeft === null || state.budgets[actor.id]?.attacksLeft === undefined) {
-    return { allowed: false, reason: 'call beginAttackAction first' };
-  }
   const proficiencyBonus = actor.proficiencyBonus ?? 2;
   const strMod = modFromScore(actor.abilityScores?.str ?? 10);
   const dc = 8 + strMod + proficiencyBonus;
@@ -572,9 +569,6 @@ export function grapple(state, actor, args = {}) {
  * straight away. `args.choice` declares which.
  */
 export function shove(state, actor, args = {}) {
-  if (state.budgets[actor.id]?.attacksLeft === null || state.budgets[actor.id]?.attacksLeft === undefined) {
-    return { allowed: false, reason: 'call beginAttackAction first' };
-  }
   const choice = args.choice ?? 'prone';
   if (!['prone', 'push'].includes(choice)) {
     return { allowed: false, reason: "args.choice must be 'prone' or 'push'" };

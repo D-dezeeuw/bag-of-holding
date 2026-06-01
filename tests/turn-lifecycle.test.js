@@ -366,8 +366,8 @@ test('timeOfDayLabel returns day at midday', () => {
 });
 
 test('timeOfDayLabel returns dusk near dusk boundary', () => {
-  // Just after dusk (1080 minutes = 18:00)
-  const scene = freshScene({ startMinute: 1085 });
+  // 30 min before dusk (1080 minutes = 18:00) — inside the closing window
+  const scene = freshScene({ startMinute: 1060 });
   assert.equal(timeOfDayLabel(scene), 'dusk');
 });
 

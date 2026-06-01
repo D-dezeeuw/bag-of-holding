@@ -235,7 +235,7 @@ test('grapple and shove refuse when beginAttackAction not called', () => {
   const state = buildState();
   const g = grapple(state, { id: 'pc' }, { targetId: 'orc' });
   assert.equal(g.allowed, false);
-  assert.match(g.reason, /beginAttackAction/);
+  assert.match(g.reason, /attacksLeft/);
   const s = shove(state, { id: 'pc' }, { targetId: 'orc' });
   assert.equal(s.allowed, false);
 });

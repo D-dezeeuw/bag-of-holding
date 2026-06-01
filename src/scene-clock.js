@@ -128,8 +128,11 @@ export function timeOfDayLabel(scene) {
   const dawn = scene.dawnMinute ?? DEFAULT_DAWN_MINUTE;
   const dusk = scene.duskMinute ?? DEFAULT_DUSK_MINUTE;
   const WINDOW = 30;
-  if (tod >= dawn - WINDOW && tod < dawn + WINDOW) return 'dawn';
-  if (tod >= dusk - WINDOW && tod < dusk + WINDOW) return 'dusk';
+  // Transition windows sit *inside* the day/night periods so the label
+  // never contradicts isDaytime: 'dawn' is the opening 30 min of day,
+  // 'dusk' is the closing 30 min of day.
+  if (tod >= dawn && tod < dawn + WINDOW) return 'dawn';
+  if (tod >= dusk - WINDOW && tod < dusk) return 'dusk';
   if (tod >= dawn && tod < dusk) return 'day';
   return 'night';
 }

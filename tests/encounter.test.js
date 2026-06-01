@@ -411,7 +411,7 @@ test('grapple refuses when attacksLeft not opened', () => {
   const state = startEncounter([ACTOR_A, { id: 'orc', dexterity: 12, speed: 30, hp: 15 }], seededRng(104));
   const r = grapple(state, ACTOR_A, { targetId: 'orc' });
   assert.equal(r.allowed, false);
-  assert.match(r.reason, /beginAttackAction/);
+  assert.match(r.reason, /attacksLeft/);
 });
 
 // === shove
@@ -430,7 +430,7 @@ test('shove refuses when attacksLeft not opened', () => {
   const state = startEncounter([ACTOR_A, { id: 'orc', dexterity: 12, speed: 30, hp: 15 }], seededRng(106));
   const r = shove(state, ACTOR_A, { choice: 'prone' });
   assert.equal(r.allowed, false);
-  assert.match(r.reason, /beginAttackAction/);
+  assert.match(r.reason, /attacksLeft/);
 });
 
 // === utilize
