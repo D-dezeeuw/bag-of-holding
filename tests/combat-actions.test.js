@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {
   dash, disengage, dodge, help, hide, ready, ability,
   grapple, shove, offHandAttack, improvisedAttack,
-  startEncounter, opportunityAttack
+  startEncounter, opportunityAttack, beginAttackAction
 } from '../src/encounter.js';
 import { attackStance } from '../src/conditions.js';
 import { createEngine } from '../src/engine.js';
@@ -231,19 +231,28 @@ test('ready refuses when the action is already spent (first guard)', () => {
   assert.equal(result.allowed, false);
 });
 
-test('grapple and shove refuse when the action is already spent', () => {
-  let state = buildState();
-  ({ state } = dash(state, 'pc'));
+test('grapple and shove refuse when beginAttackAction not called', () => {
+  const state = buildState();
   const g = grapple(state, { id: 'pc' }, { targetId: 'orc' });
   assert.equal(g.allowed, false);
+  assert.match(g.reason, /beginAttackAction/);
   const s = shove(state, { id: 'pc' }, { targetId: 'orc' });
   assert.equal(s.allowed, false);
+});
+
+test('grapple and shove refuse when attacksLeft exhausted', () => {
+  let state = buildState();
+  ({ state } = beginAttackAction(state, 'pc', 1));
+  ({ state } = grapple(state, { id: 'pc' }, { targetId: 'orc' }));
+  const g = grapple(state, { id: 'pc' }, { targetId: 'orc' });
+  assert.equal(g.allowed, false);
 });
 
 test('shove on an actor without abilityScores or proficiencyBonus uses the L1 defaults', () => {
   // Covers the `?? 10` and `?? 2` fallbacks on a successful path
   // (not the choice-validation refusal). DC = 8 + 0 + 2 = 10.
-  const state = buildState();
+  let state = buildState();
+  ({ state } = beginAttackAction(state, 'pc', 1));
   const result = shove(state, { id: 'pc' }, { choice: 'push', targetId: 'orc' });
   assert.equal(result.allowed, true);
   assert.equal(result.result.save.dc, 10);
@@ -252,7 +261,8 @@ test('shove on an actor without abilityScores or proficiencyBonus uses the L1 de
 // === Grapple ===
 
 test('grapple computes DC = 8 + STR mod + prof, reports save + onFail', () => {
-  const state = buildState();
+  let state = buildState();
+  ({ state } = beginAttackAction(state, 'pc', 1));
   const actor = {
     id: 'pc', abilityScores: { str: 16 }, proficiencyBonus: 3
   };
@@ -264,7 +274,8 @@ test('grapple computes DC = 8 + STR mod + prof, reports save + onFail', () => {
 });
 
 test('grapple defaults STR to 10 (mod 0) and prof to 2', () => {
-  const state = buildState();
+  let state = buildState();
+  ({ state } = beginAttackAction(state, 'pc', 1));
   const result = grapple(state, { id: 'pc' }, { targetId: 'orc' });
   assert.equal(result.result.save.dc, 10);     // 8 + 0 + 2
 });
@@ -272,7 +283,8 @@ test('grapple defaults STR to 10 (mod 0) and prof to 2', () => {
 // === Shove ===
 
 test('shove with choice "prone" reports the prone outcome', () => {
-  const state = buildState();
+  let state = buildState();
+  ({ state } = beginAttackAction(state, 'pc', 1));
   const actor = { id: 'pc', abilityScores: { str: 14 }, proficiencyBonus: 2 };
   const result = shove(state, actor, { choice: 'prone', targetId: 'orc' });
   assert.equal(result.allowed, true);
@@ -281,7 +293,8 @@ test('shove with choice "prone" reports the prone outcome', () => {
 });
 
 test('shove with choice "push" reports a 5 ft push', () => {
-  const state = buildState();
+  let state = buildState();
+  ({ state } = beginAttackAction(state, 'pc', 1));
   const actor = { id: 'pc', abilityScores: { str: 14 }, proficiencyBonus: 2 };
   const result = shove(state, actor, { choice: 'push', targetId: 'orc' });
   assert.equal(result.allowed, true);
@@ -289,7 +302,8 @@ test('shove with choice "push" reports a 5 ft push', () => {
 });
 
 test('shove defaults choice to "prone"', () => {
-  const state = buildState();
+  let state = buildState();
+  ({ state } = beginAttackAction(state, 'pc', 1));
   const actor = { id: 'pc', abilityScores: { str: 14 }, proficiencyBonus: 2 };
   const result = shove(state, actor, { targetId: 'orc' });
   assert.equal(result.result.choice, 'prone');

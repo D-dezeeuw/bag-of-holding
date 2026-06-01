@@ -5,7 +5,8 @@ import {
 } from '../src/combat.js';
 import {
   freshScene, advanceTime, formatTimeOfDay,
-  DEFAULT_DAWN_MINUTE, DEFAULT_DUSK_MINUTE, MINUTES_PER_DAY
+  DEFAULT_DAWN_MINUTE, DEFAULT_DUSK_MINUTE, MINUTES_PER_DAY,
+  advanceTurn, isDaytime, timeOfDayLabel, MINUTES_PER_EXPLORATION_TURN
 } from '../src/scene-clock.js';
 import { createEngine, HOOK_EVENTS } from '../src/engine.js';
 
@@ -326,4 +327,64 @@ test('engine.SceneClock surface is exposed', () => {
   assert.equal(typeof engine.SceneClock.formatTimeOfDay, 'function');
   assert.equal(engine.SceneClock.DEFAULT_DAWN_MINUTE, 360);
   assert.equal(engine.SceneClock.MINUTES_PER_DAY, 1440);
+});
+
+// === Scene clock: turns, isDaytime, timeOfDayLabel
+
+test('advanceTime by turns uses scene.minutesPerTurn', () => {
+  const scene = freshScene({ startMinute: 0, minutesPerTurn: 15 });
+  const { scene: next } = advanceTime(scene, { turns: 2 });
+  assert.equal(next.minutes, 30);
+});
+
+test('advanceTurn is a shorthand for advanceTime turns:1', () => {
+  const scene = freshScene({ startMinute: 0 });
+  const { scene: a } = advanceTurn(scene);
+  const { scene: b } = advanceTime(scene, { turns: 1 });
+  assert.equal(a.minutes, b.minutes);
+});
+
+test('isDaytime returns true between dawn and dusk', () => {
+  const scene = freshScene({ startMinute: 720 }); // noon
+  assert.equal(isDaytime(scene), true);
+});
+
+test('isDaytime returns false before dawn', () => {
+  const scene = freshScene({ startMinute: 120 }); // 2:00 AM
+  assert.equal(isDaytime(scene), false);
+});
+
+test('timeOfDayLabel returns dawn near dawn boundary', () => {
+  // Just after dawn (360 minutes = 6:00)
+  const scene = freshScene({ startMinute: 365 });
+  assert.equal(timeOfDayLabel(scene), 'dawn');
+});
+
+test('timeOfDayLabel returns day at midday', () => {
+  const scene = freshScene({ startMinute: 720 });
+  assert.equal(timeOfDayLabel(scene), 'day');
+});
+
+test('timeOfDayLabel returns dusk near dusk boundary', () => {
+  // Just after dusk (1080 minutes = 18:00)
+  const scene = freshScene({ startMinute: 1085 });
+  assert.equal(timeOfDayLabel(scene), 'dusk');
+});
+
+test('timeOfDayLabel returns night at midnight', () => {
+  const scene = freshScene({ startMinute: 0 });
+  assert.equal(timeOfDayLabel(scene), 'night');
+});
+
+test('freshScene stores minutesPerTurn', () => {
+  const scene = freshScene({ minutesPerTurn: 5 });
+  assert.equal(scene.minutesPerTurn, 5);
+});
+
+test('engine.SceneClock exposes new helpers', () => {
+  const engine = createEngine();
+  assert.equal(typeof engine.SceneClock.advanceTurn, 'function');
+  assert.equal(typeof engine.SceneClock.isDaytime, 'function');
+  assert.equal(typeof engine.SceneClock.timeOfDayLabel, 'function');
+  assert.equal(engine.SceneClock.MINUTES_PER_EXPLORATION_TURN, 10);
 });
