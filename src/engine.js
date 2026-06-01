@@ -597,6 +597,11 @@ export function createEngine(opts = {}) {
     shove: EncounterBase.shove,
     offHandAttack: EncounterBase.offHandAttack,
     improvisedAttack: EncounterBase.improvisedAttack,
+    beginAttackAction: EncounterBase.beginAttackAction,
+    utilize: EncounterBase.utilize,
+    bonusAction: EncounterBase.bonusAction,
+    reveal: EncounterBase.reveal,
+    clearReady: EncounterBase.clearReady,
 
     // === Death saves (since 1.1.0) ===
     //
@@ -905,7 +910,11 @@ export function createEngine(opts = {}) {
       formatTimeOfDay: SceneClock.formatTimeOfDay,
       DEFAULT_DAWN_MINUTE: SceneClock.DEFAULT_DAWN_MINUTE,
       DEFAULT_DUSK_MINUTE: SceneClock.DEFAULT_DUSK_MINUTE,
-      MINUTES_PER_DAY: SceneClock.MINUTES_PER_DAY
+      MINUTES_PER_DAY: SceneClock.MINUTES_PER_DAY,
+      MINUTES_PER_EXPLORATION_TURN: SceneClock.MINUTES_PER_EXPLORATION_TURN,
+      advanceTurn: SceneClock.advanceTurn,
+      isDaytime: SceneClock.isDaytime,
+      timeOfDayLabel: SceneClock.timeOfDayLabel
     }),
     // Magic items lifecycle (since 1.9.0). rechargeItem accepts the
     // engine's rng via the binding so dice-based recoveries (e.g.

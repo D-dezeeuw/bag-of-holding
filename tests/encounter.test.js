@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import {
   startEncounter, currentActor, endTurn, removeParticipant,
   spend, freshBudget, attacksPerAction, opportunityAttack,
-  effectiveAc, rangeBand, COVER_BONUSES, ACTION_COSTS, rollOrder
+  effectiveAc, rangeBand, COVER_BONUSES, ACTION_COSTS, rollOrder,
+  beginAttackAction, grapple, shove, utilize, bonusAction, hide, reveal, clearReady
 } from '../src/encounter.js';
 import { createEngine } from '../src/engine.js';
 import { seededRng } from '../src/dice.js';
@@ -139,7 +140,7 @@ test('spend refuses when slot has no budget', () => {
 });
 
 test('ACTION_COSTS lists the public cost vocabulary', () => {
-  assert.deepEqual([...ACTION_COSTS], ['action', 'bonus', 'reaction', 'movement', 'free', 'freeInteraction']);
+  assert.deepEqual([...ACTION_COSTS], ['action', 'bonus', 'reaction', 'movement', 'free', 'freeInteraction', 'attacksLeft']);
 });
 
 test('freshBudget honours speed', () => {
@@ -360,4 +361,150 @@ test('engine exposes rollOrder for ad-hoc reordering', () => {
   for (let i = 1; i < ordered.length; i++) {
     assert.ok(ordered[i - 1].initiative >= ordered[i].initiative);
   }
+});
+
+// === beginAttackAction
+
+test('beginAttackAction sets attacksLeft in budget', () => {
+  const state = startEncounter(PARTICIPANTS, seededRng(100));
+  const actorId = state.order[0].id;
+  const r = beginAttackAction(state, actorId, 2);
+  assert.equal(r.allowed, true);
+  assert.equal(r.state.budgets[actorId].attacksLeft, 2);
+  assert.equal(r.state.budgets[actorId].action, 0);
+});
+
+test('beginAttackAction refuses when action exhausted', () => {
+  const state = startEncounter(PARTICIPANTS, seededRng(101));
+  const actorId = state.order[0].id;
+  const r1 = beginAttackAction(state, actorId, 1);
+  const r2 = beginAttackAction(r1.state, actorId, 1);
+  assert.equal(r2.allowed, false);
+  assert.match(r2.reason, /action/);
+});
+
+test('beginAttackAction rejects non-positive numAttacks', () => {
+  const state = startEncounter(PARTICIPANTS, seededRng(102));
+  const actorId = state.order[0].id;
+  assert.equal(beginAttackAction(state, actorId, 0).allowed, false);
+  assert.equal(beginAttackAction(state, actorId, -1).allowed, false);
+  assert.equal(beginAttackAction(state, actorId, 1.5).allowed, false);
+});
+
+// === grapple
+
+const ACTOR_A = { id: 'pc-a', dexterity: 16, speed: 30, hp: 20, proficiencyBonus: 2, abilityScores: { str: 14 } };
+
+test('grapple via beginAttackAction returns save DC and decrements attacksLeft', () => {
+  const state = startEncounter([ACTOR_A, { id: 'orc', dexterity: 12, speed: 30, hp: 15 }], seededRng(103));
+  const actorId = ACTOR_A.id;
+  const ba = beginAttackAction(state, actorId, 1);
+  const r = grapple(ba.state, ACTOR_A, { targetId: 'orc' });
+  assert.equal(r.allowed, true);
+  assert.equal(r.state.budgets[actorId].attacksLeft, 0);
+  assert.ok(r.result.save.dc > 0);
+  assert.deepEqual(r.result.save.abilities, ['str', 'dex']);
+  assert.equal(r.result.onFail.condition, 'grappled');
+});
+
+test('grapple refuses when attacksLeft not opened', () => {
+  const state = startEncounter([ACTOR_A, { id: 'orc', dexterity: 12, speed: 30, hp: 15 }], seededRng(104));
+  const r = grapple(state, ACTOR_A, { targetId: 'orc' });
+  assert.equal(r.allowed, false);
+  assert.match(r.reason, /attacksLeft/);
+});
+
+// === shove
+
+test('shove via beginAttackAction with prone returns condition', () => {
+  const state = startEncounter([ACTOR_A, { id: 'orc', dexterity: 12, speed: 30, hp: 15 }], seededRng(105));
+  const actorId = ACTOR_A.id;
+  const ba = beginAttackAction(state, actorId, 1);
+  const r = shove(ba.state, ACTOR_A, { choice: 'prone', targetId: 'orc' });
+  assert.equal(r.allowed, true);
+  assert.equal(r.result.onFail.condition, 'prone');
+  assert.equal(r.state.budgets[actorId].attacksLeft, 0);
+});
+
+test('shove refuses when attacksLeft not opened', () => {
+  const state = startEncounter([ACTOR_A, { id: 'orc', dexterity: 12, speed: 30, hp: 15 }], seededRng(106));
+  const r = shove(state, ACTOR_A, { choice: 'prone' });
+  assert.equal(r.allowed, false);
+  assert.match(r.reason, /attacksLeft/);
+});
+
+// === utilize
+
+test('utilize spends action and logs', () => {
+  const state = startEncounter(PARTICIPANTS, seededRng(107));
+  const actor = state.order[0];
+  const r = utilize(state, actor, { item: 'healing-potion' });
+  assert.equal(r.allowed, true);
+  assert.equal(r.state.budgets[actor.id].action, 0);
+  const log = r.state.log.find(e => e.kind === 'utilize');
+  assert.ok(log);
+  assert.equal(log.item, 'healing-potion');
+  assert.equal(r.result.kind, 'utilize');
+});
+
+// === bonusAction
+
+test('bonusAction spends bonus and logs subKind', () => {
+  const state = startEncounter(PARTICIPANTS, seededRng(108));
+  const actor = state.order[0];
+  const r = bonusAction(state, actor, { kind: 'cunning-action' });
+  assert.equal(r.allowed, true);
+  assert.equal(r.state.budgets[actor.id].bonus, 0);
+  const log = r.state.log.find(e => e.kind === 'bonus-action');
+  assert.ok(log);
+  assert.equal(log.subKind, 'cunning-action');
+  assert.equal(r.result.kind, 'cunning-action');
+});
+
+test('bonusAction refuses without kind', () => {
+  const state = startEncounter(PARTICIPANTS, seededRng(109));
+  const actor = state.order[0];
+  assert.equal(bonusAction(state, actor, {}).allowed, false);
+  assert.equal(bonusAction(state, actor, { kind: '' }).allowed, false);
+});
+
+// === hide
+
+test('hide blocks when canHide is false', () => {
+  const state = startEncounter(PARTICIPANTS, seededRng(110));
+  const actor = state.order[0];
+  const r = hide(state, actor, { canHide: false });
+  assert.equal(r.allowed, false);
+  assert.match(r.reason, /cover/);
+  // action not spent
+  assert.equal(state.budgets[actor.id].action, 1);
+});
+
+test('hide surfaces stealthDisadvantage from actor.skills.stealth.disadvantage', () => {
+  const state = startEncounter(PARTICIPANTS, seededRng(111));
+  const actor = { ...state.order[0], skills: { stealth: { disadvantage: true } } };
+  const r = hide(state, actor, {});
+  assert.equal(r.allowed, true);
+  assert.equal(r.result.stealthDisadvantage, true);
+});
+
+// === reveal
+
+test('reveal clears hidden and logs', () => {
+  const state = startEncounter(PARTICIPANTS, seededRng(112));
+  const actor = { ...state.order[0], hidden: true };
+  const r = reveal(state, actor);
+  assert.equal(r.actor.hidden, false);
+  const log = r.state.log.find(e => e.kind === 'reveal');
+  assert.ok(log);
+  assert.equal(log.actorId, actor.id);
+});
+
+// === clearReady
+
+test('clearReady strips readied from actor', () => {
+  const actor = { id: 'pc-a', dexterity: 16, speed: 30, readied: { trigger: 'enemy moves', action: 'attack' } };
+  const cleaned = clearReady(actor);
+  assert.equal(cleaned.readied, undefined);
+  assert.equal(cleaned.id, 'pc-a');
 });

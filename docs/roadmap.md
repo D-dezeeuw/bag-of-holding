@@ -1245,6 +1245,54 @@ changes — the published `@zeeuw/bag-of-holding` kernel exports
 the same surface as 2.0.0. Reserving `2.1.0` / `2.2.0` for the
 adventure + bestiary milestones below.
 
+### `2.0.9`: Encounter verb completeness + day/night cycle ✅ shipped
+
+Additive kernel API changes on the 2.0.x line; `2.1.0` remains
+reserved for *The Quiet Stair*.
+
+**Action economy fixes and new verbs (`src/encounter.js`):**
+
+- **`beginAttackAction(state, actorId, numAttacks)`** — opens the
+  Attack action budget by spending the `action` slot and setting
+  `budget.attacksLeft`. `grapple` and `shove` now spend one attack
+  slot each (fixing a bug where they consumed the whole action),
+  enabling a Fighter with Extra Attack to grapple + strike in the
+  same turn.
+- **`utilize(state, actor, args)`** — Utilize action verb; spends
+  `action` for a second object interaction. `args.item` optional.
+- **`bonusAction(state, actor, args)`** — generic bonus-action escape
+  hatch for class features not modelled as dedicated verbs (Cunning
+  Action, Second Wind, etc.). `args.kind` required for log fidelity.
+- **`reveal(state, actor)`** — clears `actor.hidden` as an automatic
+  consequence (no budget spent); called by the host after any action
+  that breaks concealment.
+- **`clearReady(actor)`** — pure helper that strips `actor.readied`
+  after a readied action fires or the trigger window closes.
+- **`hide()`** now accepts `args.canHide = false` to refuse before
+  spending the action (host asserts cover availability), and surfaces
+  `stealthDisadvantage` from `actor.skills.stealth.disadvantage` in
+  the result.
+
+**Day/night cycle (`src/scene-clock.js`):**
+
+- **`MINUTES_PER_EXPLORATION_TURN = 10`** — SRD exploration turn
+  constant.
+- **`freshScene`** now accepts `minutesPerTurn` (default 10); stored
+  on the scene object so `advanceTime` and `advanceTurn` read it.
+- **`advanceTime`** supports `delta.turns` (each turn =
+  `scene.minutesPerTurn` minutes).
+- **`advanceTurn(scene, turns = 1)`** — convenience wrapper for
+  exploration-pace time tracking.
+- **`isDaytime(scene)`** — returns `true` between `dawnMinute` and
+  `duskMinute`.
+- **`timeOfDayLabel(scene)`** — returns `'dawn'` | `'day'` | `'dusk'`
+  | `'night'`; dawn/dusk windows are the opening/closing 30 minutes
+  of the day period, never contradicting `isDaytime`.
+
+All new verbs follow the existing `{ allowed, state, actor, result }`
+shape and are exposed on `engine.Combat.*` / `engine.SceneClock.*`.
+Docs: Recipes 41–44 added to `docs/recipes.md`.
+
 ### `2.1.0`: Starter adventure: *The Quiet Stair*
 
 The first complete adventure shipped *inside* the package.
