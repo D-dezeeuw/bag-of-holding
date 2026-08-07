@@ -5,7 +5,7 @@ import {
   freshSlots, consumeSlot, refundSlot, longRest, shortRest,
   startConcentration, concentrationSaveDC, endConcentration,
   cantripTier, scaledDamageSpec,
-  preparedSpellCount, validatePreparation
+  preparedSpellCount, validatePreparation, castSpell
 } from '../src/spellcasting.js';
 import { createEngine } from '../src/engine.js';
 
@@ -325,4 +325,42 @@ test('engine Wizard class declares full progression', () => {
   const engine = createEngine();
   assert.equal(engine.classes.wizard.spellcasting.progression, 'full');
   assert.equal(engine.classes.cleric.spellcasting.progression, 'full');
+});
+
+// ─── castSpell: slot auto-upcast (regression) ────────────────────────────────
+//
+// consumeSlot takes the lowest slot of AT LEAST the requested level. castSpell
+// used to report the REQUESTED level regardless, so casting Fireball at 3rd with
+// only a 5th-level slot left burned the 5th slot for a 3rd-level effect
+// (extraDice 0) — a silent resource loss with nothing in the result to show it.
+
+const FIREBALL = {
+  id: 'fireball', level: 3, components: {},
+  upcast: (level) => ({ extraDice: Math.max(0, level - 3) })
+};
+
+test('castSpell casts at the level of the slot actually spent', () => {
+  const actor = { spellSlots: [{ level: 5, max: 1, used: 0 }] };
+  const res = castSpell(actor, FIREBALL, { slotLevel: 3 });
+  assert.equal(res.ok, true);
+  assert.equal(res.castLevel, 5, 'a 5th-level slot was spent, so the cast is 5th level');
+  assert.deepEqual(res.upcastEffect, { extraDice: 2 });
+  assert.equal(res.actor.spellSlots[0].used, 1);
+});
+
+test('castSpell still uses the requested level when that slot is available', () => {
+  const actor = { spellSlots: [{ level: 3, max: 1, used: 0 }, { level: 5, max: 1, used: 0 }] };
+  const res = castSpell(actor, FIREBALL, { slotLevel: 3 });
+  assert.equal(res.castLevel, 3);
+  assert.deepEqual(res.upcastEffect, { extraDice: 0 });
+  assert.equal(res.actor.spellSlots[0].used, 1, 'the 3rd-level slot is the one spent');
+  assert.equal(res.actor.spellSlots[1].used, 0);
+});
+
+test('castSpell binds concentration at the level actually cast', () => {
+  const hold = { id: 'hold-person', level: 2, components: {}, concentration: true };
+  const actor = { spellSlots: [{ level: 4, max: 1, used: 0 }] };
+  const res = castSpell(actor, hold, { slotLevel: 2 });
+  assert.equal(res.castLevel, 4);
+  assert.equal(res.actor.concentration.level, 4);
 });
