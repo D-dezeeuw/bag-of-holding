@@ -49,8 +49,10 @@ test('fullCasterSlots: throws on out-of-range inputs', () => {
 
 // === Half caster
 
-test('halfCasterSlots: L1 has no slots', () => {
-  assert.equal(halfCasterSlots(1, 1), 0);
+test('halfCasterSlots: L1 has two first-level slots (SRD 5.2)', () => {
+  // 2014 half-casters started at level 2; 5.2 lets a level-1 Paladin or Ranger
+  // cast, which is also what an LLM narrator trained on 2024 rules expects.
+  assert.equal(halfCasterSlots(1, 1), 2);
 });
 
 test('halfCasterSlots: L2 has 2 first-level slots', () => {

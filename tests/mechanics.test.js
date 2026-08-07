@@ -44,7 +44,7 @@ test('freshResource rejects an unknown refresh tag', () => {
 
 test('freshResources builds the class def map at a given level', () => {
   const resources = freshResources(fighter, 5);
-  assert.deepEqual(resources.secondWind, { used: 0, max: 1, refreshes: 'short' });
+  assert.deepEqual(resources.secondWind, { used: 0, max: 2, refreshes: 'short' });   // SRD 5.2: two uses at L1
   assert.deepEqual(resources.actionSurge, { used: 0, max: 1, refreshes: 'short' });
 });
 
@@ -236,14 +236,16 @@ test('Fighter Second Wind caps at hpMax', () => {
   assert.equal(result.hpAfter, 30);
 });
 
-test('Fighter Second Wind refuses a second use before a Short Rest', () => {
+test('Fighter Second Wind refuses a use once the pool is spent', () => {
+  // SRD 5.2 grants two uses at level 1, so exhaustion takes two calls, not one.
   let actor = {
     id: 'pc', level: 3, hp: 5, hpMax: 30,
     resources: freshResources(fighter, 3)
   };
   ({ actor } = applyMechanic({ actor, classDef: fighter, id: 'secondWind' }, scriptedRng([5], 10)));
-  const second = applyMechanic({ actor, classDef: fighter, id: 'secondWind' }, scriptedRng([5], 10));
-  assert.equal(second.ok, false);
+  ({ actor } = applyMechanic({ actor, classDef: fighter, id: 'secondWind' }, scriptedRng([5], 10)));
+  const third = applyMechanic({ actor, classDef: fighter, id: 'secondWind' }, scriptedRng([5], 10));
+  assert.equal(third.ok, false);
 });
 
 test('Fighter Second Wind defaults level to 1 when missing', () => {
