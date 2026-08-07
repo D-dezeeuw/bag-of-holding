@@ -1325,6 +1325,38 @@ Each carries the full 1.10 stat-block surface (multiattack,
 senses, condition immunities, save bonuses). The first batch
 that meaningfully populates a homebrew sandbox.
 
+### `2.2.1`: Replay totality + condition records restored ✅ shipped
+
+Additive kernel API on the 2.2.x line; `2.3.0` remains reserved for
+Bestiary II.
+
+**`verifyLog` is total over the logs the engine produces
+(`src/replay.js`):** it threw `Cannot replay unknown roll op` on three
+ops the recorder itself emits — `deathSave`, `mechanicApplied` and
+`hookFired` — so any session in which a character went down, a class
+mechanic fired, or a hook ran could not be verified at all. A verifier
+that cannot verify its own recorder's output is not a verifier, and
+downstream hosts had been re-encoding death saves as bare `rollDie(20)`
+entries to work around it.
+
+- `deathSave` replays from the tracker snapshot the entry already
+  carried (`previousSuccesses` / `previousFailures`), so the **outcome**
+  is checked, not just the die.
+- `mechanicApplied` and `hookFired` are bookkeeping: no dice, so they
+  are skipped rather than fatal.
+- An op the verifier genuinely cannot replay still throws.
+
+**Condition records restored (`src/conditions.js`):** the 2.1.0 merge
+silently dropped the v1.6.1 record shape along with `conditionName` and
+`conditionsRequiringSave` — while `index.d.ts` went on declaring both,
+so TypeScript consumers compiled clean against functions that did not
+exist. Entries may again be a bare name or a record carrying
+`source` / `saveAbility` / `dc` / `endsOn`; `has`, `remove`, `effectsFor`
+and `attackStance` accept either shape, and `apply` dedupes by name so
+re-applying with metadata upgrades an entry instead of duplicating it.
+Bare strings are stored as bare strings — no migration, nothing to
+rewrite.
+
 ### `2.3.0`: Bestiary II (CR 6-15)
 
 30 boss-tier opponents with Legendary Actions, Lair Actions, and
