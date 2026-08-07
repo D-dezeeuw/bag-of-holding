@@ -99,22 +99,25 @@ test('fall rejects negative distance', () => {
 
 // === Jumping ===
 
-test('longJump: STR mod feet with running start', () => {
-  assert.equal(longJump({ abilityScores: { str: 16 } }), 3);
-  assert.equal(longJump({ abilityScores: { str: 20 } }), 5);
+// SRD: a long jump covers feet equal to the STRENGTH SCORE with a 10-foot
+// run-up, halved without. These tests previously pinned the strength MODIFIER,
+// so they enforced a jump roughly a sixth of its real distance.
+test('longJump: STR score in feet with a running start', () => {
+  assert.equal(longJump({ abilityScores: { str: 16 } }), 16);
+  assert.equal(longJump({ abilityScores: { str: 20 } }), 20);
 });
 
-test('longJump: half without running start (floor)', () => {
-  assert.equal(longJump({ abilityScores: { str: 16 } }, { runningStart: false }), 1);
-  assert.equal(longJump({ abilityScores: { str: 15 } }, { runningStart: false }), 1);
+test('longJump: half without a running start (floor)', () => {
+  assert.equal(longJump({ abilityScores: { str: 16 } }, { runningStart: false }), 8);
+  assert.equal(longJump({ abilityScores: { str: 15 } }, { runningStart: false }), 7);
 });
 
-test('longJump: floors at 0 for negative STR mod', () => {
-  assert.equal(longJump({ abilityScores: { str: 8 } }), 0);
+test('longJump: never negative', () => {
+  assert.equal(longJump({ abilityScores: { str: 0 } }), 0);
 });
 
-test('longJump defaults STR to 10 (mod 0) when actor has no abilityScores', () => {
-  assert.equal(longJump({}), 0);
+test('longJump defaults STR to 10 when the actor has no abilityScores', () => {
+  assert.equal(longJump({}), 10);
 });
 
 test('highJump: 3 + STR mod feet with running start', () => {
@@ -231,6 +234,6 @@ test('engine.Movement.speedFor / movementCost / jumping all exposed', () => {
   const engine = createEngine();
   assert.equal(engine.Movement.speedFor({ speed: 30 }, 'walk'), 30);
   assert.equal(engine.Movement.movementCost(10, { difficult: true }), 20);
-  assert.equal(engine.Movement.longJump({ abilityScores: { str: 16 } }), 3);
+  assert.equal(engine.Movement.longJump({ abilityScores: { str: 16 } }), 16);
   assert.equal(engine.Movement.highJump({ abilityScores: { str: 16 } }), 6);
 });

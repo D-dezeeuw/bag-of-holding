@@ -1325,26 +1325,29 @@ Each carries the full 1.10 stat-block surface (multiattack,
 senses, condition immunities, save bonuses). The first batch
 that meaningfully populates a homebrew sandbox.
 
-### `2.2.1`: Replay totality + condition records restored ✅ shipped
+### `2.3.0`: Bestiary II (CR 6-15)
 
-Additive kernel API on the 2.2.x line; `2.3.0` remains reserved for
-Bestiary II.
+30 boss-tier opponents with Legendary Actions, Lair Actions, and
+Innate Spellcasting wired through 1.10. Gives a real tier-2 /
+tier-3 climactic fight without falling back on Wizards'
+proprietary creatures.
 
-**`verifyLog` is total over the logs the engine produces
-(`src/replay.js`):** it threw `Cannot replay unknown roll op` on three
-ops the recorder itself emits — `deathSave`, `mechanicApplied` and
-`hookFired` — so any session in which a character went down, a class
-mechanic fired, or a hook ran could not be verified at all. A verifier
-that cannot verify its own recorder's output is not a verifier, and
-downstream hosts had been re-encoding death saves as bare `rollDie(20)`
-entries to work around it.
+### `2.3.1`: Death-save outcomes + condition records restored ✅ shipped
 
-- `deathSave` replays from the tracker snapshot the entry already
-  carried (`previousSuccesses` / `previousFailures`), so the **outcome**
-  is checked, not just the die.
-- `mechanicApplied` and `hookFired` are bookkeeping: no dice, so they
-  are skipped rather than fatal.
-- An op the verifier genuinely cannot replay still throws.
+Additive kernel API on the 2.3.x line. Note that `2.3.0` shipped as
+the engine correctness pass rather than Bestiary II, so the content
+milestone below still needs a slot.
+
+**Death saves verify their outcome (`src/replay.js`):** `2.3.0` made
+`verifyLog` walk past the bookkeeping ops and consume the death save's
+d20, which unblocked verification. This goes one step further and
+replays the save through `Combat.deathSave` using the tracker snapshot
+the entry already carried (`previousSuccesses` / `previousFailures`,
+recorded since 1.25.0 for exactly this purpose), so a log whose
+**outcome** was rewritten no longer verifies clean. Draw count is
+unchanged — `deathSave` calls `rollDie(20)` exactly once — so the stream
+stays aligned either way. Dans-Dungeons' own rollDie(20) workaround is
+deleted downstream.
 
 **Condition records restored (`src/conditions.js`):** the 2.1.0 merge
 silently dropped the v1.6.1 record shape along with `conditionName` and
@@ -1356,13 +1359,6 @@ and `attackStance` accept either shape, and `apply` dedupes by name so
 re-applying with metadata upgrades an entry instead of duplicating it.
 Bare strings are stored as bare strings — no migration, nothing to
 rewrite.
-
-### `2.3.0`: Bestiary II (CR 6-15)
-
-30 boss-tier opponents with Legendary Actions, Lair Actions, and
-Innate Spellcasting wired through 1.10. Gives a real tier-2 /
-tier-3 climactic fight without falling back on Wizards'
-proprietary creatures.
 
 ### `2.4.0`: Bestiary III (CR 16-20)
 

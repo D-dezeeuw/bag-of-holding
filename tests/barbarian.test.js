@@ -23,8 +23,9 @@ test('RAGES_BY_LEVEL matches the SRD 5.2 Barbarian Features Rages column', () =>
   assert.equal(RAGES_BY_LEVEL[6], 4);
   assert.equal(RAGES_BY_LEVEL[12], 5);
   assert.equal(RAGES_BY_LEVEL[17], 6);
-  // L20 modelled as 999 ("Unlimited" in the PHB).
-  assert.equal(RAGES_BY_LEVEL[20], 999);
+  // SRD 5.2 caps the column at 6 from level 17 onward. The 999 sentinel here
+  // was the 2014 "Unlimited" entry, under a 5.2 heading.
+  assert.equal(RAGES_BY_LEVEL[20], 6);
 });
 
 test('rageDamageForLevel matches the SRD 5.2 Rage Damage column', () => {
@@ -51,9 +52,9 @@ test('Barbarian freshResources(level=1) provisions 2 Rages', () => {
   assert.equal(r.rage.shortRestRecovery, 1);
 });
 
-test('Barbarian freshResources(level=20) provisions 999 Rages (engine-internal "unlimited")', () => {
+test('Barbarian freshResources(level=20) provisions the SRD 5.2 cap of 6 Rages', () => {
   const r = freshResources(barbarian, 20);
-  assert.equal(r.rage.max, 999);
+  assert.equal(r.rage.max, 6);   // 2014 read 'Unlimited'; SRD 5.2 caps at 6
 });
 
 test('Barbarian freshResources defaults to 6 Rages for an out-of-table level', () => {
