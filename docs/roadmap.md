@@ -1247,7 +1247,9 @@ playable demo.
 *Why .1 and not .x:* the sandbox upgrades are demo / example
 changes — the published `@zeeuw/bag-of-holding` kernel exports
 the same surface as 2.0.0. Reserving `2.1.0` / `2.2.0` for the
-adventure + bestiary milestones below.
+adventure + bestiary milestones below. (`2.3.0` and `2.4.0` were
+later spent on engine work instead — see the entries below; the
+remaining content batches are unnumbered until they ship.)
 
 ### `2.0.9`: Encounter verb completeness + day/night cycle ✅ shipped
 
@@ -1317,26 +1319,60 @@ Quiet Stair* is both the demo and the smoke test.
   exercise the social action verbs (Help, Influence) and the
   reaction-cast surface.
 
-### `2.2.0`: Bestiary I (CR 0-5)
+### `2.3.0`: Engine correctness pass ✅ shipped
 
-50 invented creatures across the common ecology niches: humanoid
-warbands, beasts, undead, fey, elementals, oozes, constructs.
-Each carries the full 1.10 stat-block surface (multiattack,
-senses, condition immunities, save bonuses). The first batch
-that meaningfully populates a homebrew sandbox.
+Reserved as *Bestiary II*; spent instead on what a cross-repo
+audit turned up, because shipping more content on top of a
+non-total replay would have buried the problem rather than fixed
+it. The content batches below keep their titles and lose their
+numbers — each takes the next free minor when it actually ships.
 
-### `2.3.0`: Bestiary II (CR 6-15)
+- **Replay is total.** `verifyLog` had no case for `deathSave`,
+  `mechanicApplied`, `hookFired`, or `rngDraws`; an unhandled
+  entry desynced the RNG stream, so every later roll verified
+  against the wrong draw and the forensic replay reported a
+  divergence at the wrong turn, or none at all.
+  `abilityCheck` / `savingThrow` now replay under the stance they
+  were rolled with.
+- **Seven un-logged RNG draw sites** — forage, navigate, rest
+  interruption, tool check, fall, item recharge, item saving
+  throw — now record an `rngDraws` entry, so a campaign that used
+  any of them replays at all.
+- **Rules fixes.** Half-caster slots start at L1 (a level-1
+  paladin could not cast); `castSpell` consumes the level
+  actually cast at, not the spell's base level; `longJump` reads
+  the STR score rather than the modifier (a 20-STR character
+  jumped five feet); dice count and sides are bounded;
+  `abilityCheck` accepts advantage/disadvantage and reports the
+  stance it rolled under.
+- **Solo session restore** stopped promoting adopted NPCs to PCs.
+- **`monster-templates.js`** derives Elite / Champion / Ancient
+  variants (CR +4 / +8 / +12, HP x1.8 / x2.8 / x4.0) from
+  verified SRD stat blocks, so a campaign reaches CR 16-24
+  without inventing balance that was never tested against
+  anything.
 
-30 boss-tier opponents with Legendary Actions, Lair Actions, and
-Innate Spellcasting wired through 1.10. Gives a real tier-2 /
-tier-3 climactic fight without falling back on Wizards'
-proprietary creatures.
+### `2.4.0`: SRD class spell lists ✅ shipped
 
-### `2.3.1`: Death-save outcomes + condition records restored ✅ shipped
+Reserved as *Bestiary III*; spent on `src/srd/spell-lists.js` —
+which classes can learn which spells. The spell records always
+carried the mechanics and never the permissions, so a host
+offering a player their real spell list had to invent one from
+school and level, and an invented list gets a wizard casting Cure
+Wounds.
 
-Additive kernel API on the 2.3.x line. Note that `2.3.0` shipped as
-the engine correctness pass rather than Bestiary II, so the content
-milestone below still needs a slot.
+- `classesFor(spellId)`, `isOnClassList(classId, spellId)`,
+  `spellsFor(classId, { level, maxLevel })`, `CASTER_CLASSES`.
+- `maxSpellLevel(casterLevel, progression)` for `full` / `half` /
+  `pact`, asserted against the slot tables themselves rather than
+  against its own arithmetic.
+- Scope is the SRD 5.2 lists over the 104 spells this package
+  ships. Subclass-granted spells (Domain, Circle, Patron, Oath)
+  stay with their subclass.
+
+### `2.4.1`: Death-save outcomes + condition records restored ✅ shipped
+
+Additive kernel API on the 2.4.x line.
 
 **Death saves verify their outcome (`src/replay.js`):** `2.3.0` made
 `verifyLog` walk past the bookkeeping ops and consume the death save's
@@ -1360,13 +1396,34 @@ re-applying with metadata upgrades an entry instead of duplicating it.
 Bare strings are stored as bare strings — no migration, nothing to
 rewrite.
 
-### `2.4.0`: Bestiary III (CR 16-20)
+**`Equipment.ENCUMBRANCE_MULT` is reachable again:** it was exported only
+as a property of the `Equipment` bundle, while the engine factory builds
+its namespace from `import * as EquipmentBase`, so the bound value read
+`undefined` — and esbuild warned about it on every downstream build.
+
+
+### Bestiary I (CR 0-5) *(unnumbered — next free minor)*
+
+50 invented creatures across the common ecology niches: humanoid
+warbands, beasts, undead, fey, elementals, oozes, constructs.
+Each carries the full 1.10 stat-block surface (multiattack,
+senses, condition immunities, save bonuses). The first batch
+that meaningfully populates a homebrew sandbox.
+
+### Bestiary II (CR 6-15) *(unnumbered)*
+
+30 boss-tier opponents with Legendary Actions, Lair Actions, and
+Innate Spellcasting wired through 1.10. Gives a real tier-2 /
+tier-3 climactic fight without falling back on Wizards'
+proprietary creatures.
+
+### Bestiary III (CR 16-20) *(unnumbered)*
 
 10 capstone monsters for tier-4 play. Includes Legendary
 Resistance pools, Mythic Actions, and Innate Spellcasting at
 spell levels 6+. Unlocks meaningful end-of-campaign showdowns.
 
-### `2.5.0`: Grimoire I (cantrips through 5th)
+### Grimoire I (cantrips through 5th) *(unnumbered)*
 
 50 invented spells covering schools and tactical roles the SRD 33
 left thin: more reaction-cast options, more save-for-half AoE
@@ -1374,7 +1431,7 @@ shapes (cylinder, line variants), more concentration buffs, more
 single-target debuffs. Each entry uses the 1.8 spell-record
 contract: components, ritual flag, upcast deltas.
 
-### `2.6.0`: Grimoire II (6th-9th)
+### Grimoire II (6th-9th) *(unnumbered)*
 
 30 high-tier spells. City-sized AoEs, plane-shifting
 alternatives, complex multi-target control. Less common usage;
