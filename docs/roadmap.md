@@ -1370,6 +1370,38 @@ Wounds.
   ships. Subclass-granted spells (Domain, Circle, Patron, Oath)
   stay with their subclass.
 
+### `2.4.1`: Death-save outcomes + condition records restored ✅ shipped
+
+Additive kernel API on the 2.4.x line.
+
+**Death saves verify their outcome (`src/replay.js`):** `2.3.0` made
+`verifyLog` walk past the bookkeeping ops and consume the death save's
+d20, which unblocked verification. This goes one step further and
+replays the save through `Combat.deathSave` using the tracker snapshot
+the entry already carried (`previousSuccesses` / `previousFailures`,
+recorded since 1.25.0 for exactly this purpose), so a log whose
+**outcome** was rewritten no longer verifies clean. Draw count is
+unchanged — `deathSave` calls `rollDie(20)` exactly once — so the stream
+stays aligned either way. Dans-Dungeons' own rollDie(20) workaround is
+deleted downstream.
+
+**Condition records restored (`src/conditions.js`):** the 2.1.0 merge
+silently dropped the v1.6.1 record shape along with `conditionName` and
+`conditionsRequiringSave` — while `index.d.ts` went on declaring both,
+so TypeScript consumers compiled clean against functions that did not
+exist. Entries may again be a bare name or a record carrying
+`source` / `saveAbility` / `dc` / `endsOn`; `has`, `remove`, `effectsFor`
+and `attackStance` accept either shape, and `apply` dedupes by name so
+re-applying with metadata upgrades an entry instead of duplicating it.
+Bare strings are stored as bare strings — no migration, nothing to
+rewrite.
+
+**`Equipment.ENCUMBRANCE_MULT` is reachable again:** it was exported only
+as a property of the `Equipment` bundle, while the engine factory builds
+its namespace from `import * as EquipmentBase`, so the bound value read
+`undefined` — and esbuild warned about it on every downstream build.
+
+
 ### Bestiary I (CR 0-5) *(unnumbered — next free minor)*
 
 50 invented creatures across the common ecology niches: humanoid

@@ -1,9 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  CONDITIONS, has, apply, remove,
+  CONDITIONS, has, apply, remove, effectsFor,
+  conditionName, conditionsRequiringSave,
   exhaustion, EXHAUSTION_MAX
 } from '../src/conditions.js';
+import { createEngine as createEngineForConditions } from '../src/engine.js';
 
 test('CONDITIONS holds the SRD 5.2 boolean list and excludes exhaustion', () => {
   assert.equal(CONDITIONS.includes('exhaustion'), false);
@@ -85,4 +87,71 @@ test('remove tolerates an actor with no prior conditions array', () => {
 test('has returns false when actor.conditions is missing or not an array', () => {
   assert.equal(has({}, 'prone'), false);
   assert.equal(has({ conditions: 'not-an-array' }, 'prone'), false);
+});
+
+// ─── Condition records (restored) ────────────────────────────────────────────
+//
+// Records shipped in 1.6.1 and the 2.1.0 merge silently dropped them, taking
+// conditionName and conditionsRequiringSave with them. A host could apply a
+// condition with a save DC and had no way to ask what needed saving against —
+// so nothing ever cleared on a save.
+
+test('conditionName reads both entry shapes', () => {
+  assert.equal(conditionName('poisoned'), 'poisoned');
+  assert.equal(conditionName({ name: 'poisoned', dc: 13 }), 'poisoned');
+});
+
+test('a record survives apply/has/remove alongside bare strings', () => {
+  let actor = apply({ conditions: ['prone'] },
+    { name: 'poisoned', source: 'giant-spider', saveAbility: 'con', dc: 11, endsOn: 'turnEnd' });
+  assert.ok(has(actor, 'poisoned'), 'has() must match on the record name');
+  assert.ok(has(actor, 'prone'), 'the bare string is untouched');
+
+  actor = remove(actor, 'poisoned');
+  assert.equal(has(actor, 'poisoned'), false);
+  assert.deepEqual(actor.conditions, ['prone']);
+});
+
+test('re-applying with metadata upgrades a bare condition rather than duplicating it', () => {
+  const actor = apply({ conditions: ['poisoned'] },
+    { name: 'poisoned', saveAbility: 'con', dc: 13, endsOn: 'turnEnd' });
+  assert.equal(actor.conditions.length, 1, 'no duplicate entry');
+  assert.equal(conditionName(actor.conditions[0]), 'poisoned');
+  assert.equal(actor.conditions[0].dc, 13, 'the save metadata must not be dropped');
+});
+
+test('effects apply identically whichever shape the entry has', () => {
+  const asString = effectsFor({ conditions: ['poisoned'] });
+  const asRecord = effectsFor({ conditions: [{ name: 'poisoned', dc: 11 }] });
+  assert.deepEqual(asRecord, asString);
+});
+
+test('the vocabulary gate applies to a record name', () => {
+  assert.throws(() => apply({}, { name: 'blided', dc: 10 }), /Unknown condition: blided/);
+});
+
+test('immunity is honoured for records too', () => {
+  const actor = { conditionImmunities: ['poisoned'], conditions: [] };
+  assert.deepEqual(apply(actor, { name: 'poisoned', dc: 11 }).conditions, []);
+});
+
+test('conditionsRequiringSave returns only entries the engine can actually clear', () => {
+  const actor = { conditions: [
+    'prone',                                                              // no metadata
+    { name: 'frightened', endsOn: 'turnEnd', saveAbility: 'wis', dc: 13 },
+    { name: 'poisoned',   endsOn: 'turnEnd' },                          // no ability/dc
+    { name: 'charmed',    endsOn: 'turnStart', saveAbility: 'wis', dc: 12 },
+  ] };
+  const due = conditionsRequiringSave(actor, 'turnEnd');
+  assert.equal(due.length, 1);
+  assert.equal(due[0].name, 'frightened');
+  assert.equal(conditionsRequiringSave(actor, 'turnStart')[0].name, 'charmed');
+  assert.deepEqual(conditionsRequiringSave({}, 'turnEnd'), []);
+});
+
+test('the bound engine namespace exposes the record readers', () => {
+  const e = createEngineForConditions();
+  assert.equal(typeof e.Conditions.conditionName, 'function');
+  assert.equal(typeof e.Conditions.conditionsRequiringSave, 'function');
+  assert.equal(e.Conditions.conditionName({ name: 'prone' }), 'prone');
 });
