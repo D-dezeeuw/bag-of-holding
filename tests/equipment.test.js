@@ -228,3 +228,12 @@ test('items: SRD armor records carry category + weight + don/doff time', () => {
   assert.equal(engine.items['leather-armor'].category, 'light');
   assert.equal(engine.items.shield.category, 'shield');
 });
+
+test('ENCUMBRANCE_MULT survives the engine namespace', () => {
+  // It was exported only as a property of the `Equipment` bundle, while the
+  // engine factory builds its namespace from `import * as EquipmentBase` — so
+  // engine.Equipment.ENCUMBRANCE_MULT read undefined, and esbuild warned about
+  // it on every downstream build.
+  const e = createEngine();
+  assert.deepEqual(e.Equipment.ENCUMBRANCE_MULT, { none: 1, encumbered: 5, heavilyEncumbered: 10 });
+});
