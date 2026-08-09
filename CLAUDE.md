@@ -27,9 +27,11 @@ Keep the repo to a single mainline plus short-lived feature branches.
 ## Versioning
 
 - Kernel API changes → minor/major bump per the
-  [roadmap](docs/roadmap.md). The reserved 2.x slots (`2.1.0` =
-  Quiet Stair, `2.2.0` = Bestiary I, `2.3.0` = Bestiary II, etc.)
-  are committed, do not collide with them when naming branches.
+  [roadmap](docs/roadmap.md). Of the once-reserved 2.x slots only
+  `2.1.0` (*The Quiet Stair*) is still reserved — `2.2.0`–`2.5.0`
+  were spent on engine work (tier templates, two correctness
+  passes, spell lists); the content batches (Bestiary I/II/III)
+  are unnumbered and take the next free minor when they ship.
 - Examples-only / docs-only / sandbox-only work → **patch bump**
   (`2.0.x`). Bump `package.json` + regenerate `package-lock.json`
   in the same commit as the feature.

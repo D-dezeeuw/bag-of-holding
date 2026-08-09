@@ -28,7 +28,22 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # A red suite must not deploy. The CI workflow runs on the same push,
+  # but a separate workflow's result can't gate this one with `needs`,
+  # so the deploy re-runs the gate itself — cheap (a few seconds), and
+  # it makes "nothing deploys on a red suite" literally true.
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm test
+      - run: npm run typecheck
+
   build:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

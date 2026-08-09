@@ -6,7 +6,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createEngine, Dice } from '../index.js';
-import { hasComponents, castFromScroll, applyEvasion, magicResistanceDcFor, applySculptSpells } from '../src/spellcasting.js';
+import { hasComponents, castFromScroll, applyEvasion, magicResistanceDcFor, magicResistanceAdvantage, applySculptSpells } from '../src/spellcasting.js';
 
 const focusSpell = {
   id: 'fireball', name: 'Fireball', level: 3, school: 'evocation',
@@ -171,14 +171,18 @@ test('applyEvasion: throws on non-array input', () => {
   assert.throws(() => applyEvasion('x', {}), /must be an array/);
 });
 
-test('magicResistanceDcFor: lowers DC by 5 for resistant targets', () => {
-  assert.equal(magicResistanceDcFor({ magicResistance: true }, 15), 10);
+test('magicResistanceDcFor is retired: the DC passes through unchanged', () => {
+  // Magic Resistance is advantage on the save (savingThrow takes a real
+  // advantage flag since 2.3.0); the old −5 DC hack would double-count.
+  assert.equal(magicResistanceDcFor({ magicResistance: true }, 15), 15);
   assert.equal(magicResistanceDcFor({ magicResistance: false }, 15), 15);
   assert.equal(magicResistanceDcFor(null, 15), 15);
 });
 
-test('magicResistanceDcFor: floors at 0', () => {
-  assert.equal(magicResistanceDcFor({ magicResistance: true }, 3), 0);
+test('magicResistanceAdvantage feeds the real save-advantage flag', () => {
+  assert.equal(magicResistanceAdvantage({ magicResistance: true }), true);
+  assert.equal(magicResistanceAdvantage({ magicResistance: false }), false);
+  assert.equal(magicResistanceAdvantage(null), false);
 });
 
 test('applySculptSpells: protects 1 + spellLevel chosen targets', () => {

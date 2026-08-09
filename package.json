@@ -1,6 +1,6 @@
 {
   "name": "@zeeuw/bag-of-holding",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "A tiny, AI-agnostic D&D 5e (SRD 5.2) rules kernel. Zero runtime dependencies, single ESM file, CDN-loadable, plugin-extensible. Dice, checks, combat, weapon mastery, conditions, XP, movesets, and a beat-based story runtime.",
   "type": "module",
   "main": "index.js",
@@ -65,7 +65,6 @@
     "pages:serve": "npm run pages:build && npx --yes http-server -p 8765 -o / public",
     "prepublishOnly": "npm test && npm run typecheck && npm run bundle-size"
   },
-  "dependencies": {},
   "devDependencies": {
     "typescript": "^5.6.0"
   }

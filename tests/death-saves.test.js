@@ -364,10 +364,14 @@ test('engine deathSave with no context still logs (covers context=undefined bran
 test('deathSave on a fresh actor uses default DEFAULT_RULES (no rules arg)', () => {
   // Covers the `rules = DEFAULT_RULES` default-arg branch on the
   // module-level function. Same for `rng = Math.random` — implicit
-  // when only `actor` is passed.
+  // when only `actor` is passed. The rng really is unseeded here, so
+  // the outcome enum must be COMPLETE: a natural 20 on a fresh save
+  // is 'revived' — the missing case failed this gate on ~1 in 20 runs
+  // for as long as the test existed.
   const actor = dropToZero({ id: 'pc' });
   const result = deathSave(actor);
-  assert.ok(['success', 'failure'].includes(result.outcome));
+  assert.ok(['success', 'failure', 'revived'].includes(result.outcome),
+    `unexpected outcome for a fresh death save: ${result.outcome}`);
 });
 
 test('damage at 0 with hpMax set but damage < hpMax is a normal failure', () => {

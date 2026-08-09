@@ -253,16 +253,22 @@ test('scaledDamageSpec returns unchanged for non-dice specs', () => {
 
 // === Preparation
 
-test('preparedSpellCount: full caster at L5 with +3 ability', () => {
-  assert.equal(preparedSpellCount({ casterLevel: 5, abilityMod: 3, progression: 'full' }), 8);
+// SRD 5.2 prepared counts are fixed per level (the 2014 mod+level formula
+// is gone from the 2024 rules); the ability mod no longer matters.
+test('preparedSpellCount: full caster at L5 reads the 5.2 table', () => {
+  assert.equal(preparedSpellCount({ casterLevel: 5, abilityMod: 3, progression: 'full' }), 9);
 });
 
-test('preparedSpellCount: half caster at L10 with +3 ability', () => {
-  assert.equal(preparedSpellCount({ casterLevel: 10, abilityMod: 3, progression: 'half' }), 8);
+test('preparedSpellCount: half caster at L10 reads the 5.2 table', () => {
+  assert.equal(preparedSpellCount({ casterLevel: 10, abilityMod: 3, progression: 'half' }), 9);
 });
 
-test('preparedSpellCount: floors at 1', () => {
-  assert.equal(preparedSpellCount({ casterLevel: 1, abilityMod: -1, progression: 'full' }), 1);
+test('preparedSpellCount: the ability mod is ignored per 5.2', () => {
+  assert.equal(preparedSpellCount({ casterLevel: 1, abilityMod: -1, progression: 'full' }), 4);
+  assert.equal(preparedSpellCount({ casterLevel: 1, abilityMod: 5, progression: 'full' }),
+               preparedSpellCount({ casterLevel: 1, abilityMod: -5, progression: 'full' }));
+  assert.equal(preparedSpellCount({ casterLevel: 20, progression: 'full' }), 22);
+  assert.equal(preparedSpellCount({ casterLevel: 20, progression: 'half' }), 15);
 });
 
 test('preparedSpellCount: rejects bad inputs', () => {
@@ -271,7 +277,7 @@ test('preparedSpellCount: rejects bad inputs', () => {
 });
 
 test('preparedSpellCount defaults progression to full', () => {
-  assert.equal(preparedSpellCount({ casterLevel: 2, abilityMod: 0 }), 2);
+  assert.equal(preparedSpellCount({ casterLevel: 2, abilityMod: 0 }), 5);
 });
 
 test('validatePreparation accepts a subset within budget', () => {
@@ -298,9 +304,10 @@ test('validatePreparation rejects unknown spells', () => {
 });
 
 test('validatePreparation rejects when budget exceeded', () => {
+  // A level-1 full caster prepares 4 spells in 5.2 — five is one too many.
   const r = validatePreparation({
-    known: ['a', 'b', 'c'],
-    prepared: ['a', 'b', 'c'],
+    known: ['a', 'b', 'c', 'd', 'e'],
+    prepared: ['a', 'b', 'c', 'd', 'e'],
     casterLevel: 1,
     abilityMod: 0,
     progression: 'full'
