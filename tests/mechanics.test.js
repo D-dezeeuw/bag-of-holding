@@ -43,9 +43,16 @@ test('freshResource rejects an unknown refresh tag', () => {
 // === freshResources ===
 
 test('freshResources builds the class def map at a given level', () => {
+  // SRD 5.2 § Fighter: Second Wind is 3 uses at L5 (scaling 2/3/4 at
+  // 1/4/10), long-rest refresh with one use back per short rest;
+  // Action Surge is 1 use until 17th.
   const resources = freshResources(fighter, 5);
-  assert.deepEqual(resources.secondWind, { used: 0, max: 2, refreshes: 'short' });   // SRD 5.2: two uses at L1
+  assert.deepEqual(resources.secondWind, { used: 0, max: 3, refreshes: 'long', shortRestRecovery: 1 });
   assert.deepEqual(resources.actionSurge, { used: 0, max: 1, refreshes: 'short' });
+  // The 10th- and 17th-level breakpoints the features table promises.
+  assert.equal(freshResources(fighter, 10).secondWind.max, 4);
+  assert.equal(freshResources(fighter, 17).actionSurge.max, 2);
+  assert.equal(freshResources(fighter, 17).indomitable.max, 3);
 });
 
 test('freshResources returns {} for classes without a resources table', () => {

@@ -81,3 +81,35 @@ test('a damage expression it cannot parse is left alone', () => {
   const odd = elevate({ ...goblin(), attacks: [{ name: 'Slam', attackBonus: 3, damage: 'special' }] }, 'elite');
   assert.equal(odd.attacks[0].damage, 'special');
 });
+
+// The defect this guards against: the template used to emit
+// `legendaryActions.actions[]` keyed by name while `useLegendaryAction`
+// looks up `legendaryActions.options[].id` — so every derived boss had
+// legendary actions it could never use. The test drives the CONSUMER
+// against the producer's output, which is the call the old suite
+// stopped one step short of.
+test('a derived boss can actually USE its legendary actions', () => {
+  const champion = elevate(goblin(), 'champion');
+  const actor = { legendary: Monsters.freshLegendaryState(champion) };
+
+  const strike = Monsters.useLegendaryAction(actor, champion, 'strike');
+  assert.equal(strike.ok, true, `strike refused: ${strike.reason ?? ''}`);
+  assert.equal(strike.option.attackRef, champion.attacks[0].name);
+
+  const rally = Monsters.useLegendaryAction(strike.actor, champion, 'rally', 2);
+  assert.equal(rally.ok, true, `rally refused: ${rally.reason ?? ''}`);
+  assert.equal(rally.actor.legendary.used, 3);
+
+  const exhausted = Monsters.useLegendaryAction(rally.actor, champion, 'move');
+  assert.equal(exhausted.ok, false, 'the pool must actually deplete');
+});
+
+test('a single-attack base still multiattacks twice, not once', () => {
+  const wolf = { id: 'wolf', name: 'Wolf', cr: 1, hp: 11, ac: 13,
+    attacks: [{ name: 'Bite', attackBonus: 4, damage: '2d4+2', damageType: 'piercing' }] };
+  const elite = elevate(wolf, 'elite');
+  const sequence = Monsters.multiattackSequence(elite);
+  assert.equal(sequence.length, 2);
+  assert.equal(sequence[0].attackRef, 'Bite');
+  assert.equal(sequence[1].attackRef, 'Bite');
+});

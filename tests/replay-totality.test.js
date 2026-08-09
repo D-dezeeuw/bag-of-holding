@@ -10,7 +10,10 @@ import { createEngine, verifyLog, Dice, Session } from '../index.js';
 // stream so every later entry diverged. The downstream game had already noticed
 // and worked around it.
 
-const seeded = (seed) => createEngine({ rng: Dice.seededRng(seed), logRolls: true });
+// Roll logging is default-on; the `logRolls: true` this line used to pass
+// was not a recognised option — a silent no-op that made the harness look
+// like it was opting into something.
+const seeded = (seed) => createEngine({ rng: Dice.seededRng(seed) });
 
 test('a log containing a death save verifies', () => {
   const e = seeded(3);
@@ -73,4 +76,55 @@ test('a session saved AFTER an encounter ends can be restored', () => {
   const back = Session.restore(s.serialize(), createEngine());
   assert.ok(back.actor('gob'), 'the adopted foe must survive the round trip');
   assert.equal(back.actor('pc1').name, 'Mara');
+});
+
+// === 2.5.0 — the six remaining desync paths, closed ===
+
+test('surprised initiative (two draws, keep lower) verifies', () => {
+  const e = seeded(17);
+  const order = e.Combat.rollOrder([
+    { id: 'pc', dexterity: 14 },
+    { id: 'gob', dexterity: 12, surprised: true },
+    { id: 'orc', dexterity: 10 },
+  ]);
+  e.Combat.attackRoll({ attackBonus: 3, ac: 12 });
+  const surprisedEntry = e.rollLog.find(x => x.op === 'rollInitiative' && x.surprised === true);
+  assert.ok(surprisedEntry, 'the surprise must be recorded, not just rolled');
+  assert.equal(order.length, 3);
+  assert.deepEqual(verifyLog({ seed: 17, log: e.rollLog }), { ok: true });
+});
+
+test('an auto-failed save (paralyzed, zero draws) verifies', () => {
+  const e = seeded(19);
+  const actor = e.Conditions.apply({ id: 'pc', abilityScores: { dex: 14 } }, 'paralyzed');
+  e.Combat.attackRoll({ attackBonus: 3, ac: 12 });
+  const save = e.Checks.savingThrow({ actor, ability: 'dex', abilityScore: 14, dc: 12 });
+  assert.equal(save.autoFailed, true);
+  e.Combat.attackRoll({ attackBonus: 3, ac: 12 });
+  assert.deepEqual(verifyLog({ seed: 19, log: e.rollLog }), { ok: true });
+});
+
+test('stable-regen hours, Halfling Lucky, save rerolls and scroll checks verify', () => {
+  const e = seeded(23);
+  e.Combat.attackRoll({ attackBonus: 3, ac: 12 });
+  e.Combat.rollStableRegenHours();
+  e.Combat.attackRoll({ attackBonus: 3, ac: 12 });
+  e.Inspiration.applyHalflingLucky(1);
+  e.Inspiration.rerollFailedSave({
+    actor: { id: 'pc', resources: { indomitable: { used: 0, max: 1 } } },
+    resourceId: 'indomitable',
+  });
+  e.Combat.attackRoll({ attackBonus: 3, ac: 12 });
+  e.Spellcasting.castFromScroll(
+    { id: 'pc', classId: 'wizard', maxCastableLevel: 1, abilityScores: { int: 16 } },
+    { id: 'fireball', level: 3, components: {} },
+    { ability: 'int' },
+  );
+  e.Combat.attackRoll({ attackBonus: 3, ac: 12 });
+  const counted = e.rollLog.filter(x => x.op === 'rngDraws').map(x => x.source);
+  for (const source of ['Combat.rollStableRegenHours', 'Inspiration.applyHalflingLucky',
+                        'Inspiration.rerollFailedSave', 'Spellcasting.castFromScroll']) {
+    assert.ok(counted.includes(source), `${source} draw must be recorded`);
+  }
+  assert.deepEqual(verifyLog({ seed: 23, log: e.rollLog }), { ok: true });
 });

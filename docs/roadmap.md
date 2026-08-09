@@ -5,22 +5,23 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-05-21: **`2.0.1`, solo-playable + sandbox demo**.
-> Kernel surface (dice, slots, conditions, XP, character derivation,
-> beats, plugins) feature complete since 1.0; the 1.x line closed
-> SRD 5.2 coverage; 2.0 adds the `Solo` / `Session` / `Replay`
-> namespaces and a pre-built starter party so the package is
-> playable end-to-end without a host. Bundled `examples/solo.html`
-> drives every namespace in a single zero-build page; 2.0.1 fleshes
-> it out with a character-sheet view, a spell-casting UI, per-actor
-> conditions, save-to-browser persistence, and an LLM-GM chat that
-> uses OpenRouter (paste-in-browser key) to convert free-text into
-> deterministic engine calls and narrate the engine's actual
-> outcomes. 1536 tests at 100% lines / 99.92% branches / 100%
-> functions (the two remaining branches are unreachable defensive
-> guards in `src/solo/session.js`). The public API in `index.d.ts`
-> is the frozen 1.0 contract plus the additive 2.0 surface; 2.0.1
-> ships zero kernel-API changes — sandbox + tests only.
+> Status as of 2026-08-09: **`2.5.0`**. Kernel surface (dice, slots,
+> conditions, XP, character derivation, beats, plugins) feature
+> complete since 1.0; the 1.x line closed SRD 5.2 coverage; 2.0
+> added `Solo` / `Session` / `Replay` + the sandbox; 2.2.0 added the
+> monster tier templates (CR 16–24 derived from verified blocks);
+> 2.3.0 was a correctness pass (replay totality, half-caster L1
+> slots, castSpell slot semantics); 2.4.0 shipped the SRD class
+> spell lists; 2.5.0 closes the remaining replay desync paths
+> (surprised initiative, auto-failed saves, four unlogged draw
+> sites), restores the v1.6.1 condition-record API that a merge had
+> dropped (it survived only in the typings), makes `castSpell`
+> actually consult the 2.4.0 spell lists, fixes the tier templates'
+> legendary-action shape so a derived boss can USE its actions, and
+> moves Fighter resources and prepared-spell counts onto the real
+> SRD 5.2 tables. **1,613 tests**, `node --test`, strict typecheck.
+> npm registry lags the repo: latest published is `2.1.0` — publish
+> is a pending owner action.
 >
 > **SRD coverage is not yet complete**: death saves, rest-based HP
 > recovery, hit-dice spending, and class-feature *mechanics* (vs the
@@ -46,7 +47,7 @@ Three properties we won't trade away:
 - **Replay-deterministic.** Same inputs → same outputs. Required for
   Spektrum-style undo/redo, branching saves, and AI-tool testing.
 
-## Where we are today (`0.x` pre-release)
+## Where we started (historical `0.x` snapshot — see the status line above for today)
 
 | Area | State |
 | --- | --- |
@@ -1319,6 +1320,16 @@ Quiet Stair* is both the demo and the smoke test.
   exercise the social action verbs (Help, Influence) and the
   reaction-cast surface.
 
+### `2.2.0`: Monster tier templates ✅ shipped
+
+Reserved as *Bestiary I*; spent on `src/monster-templates.js`
+instead — Elite / Champion / Ancient variants (CR +4 / +8 / +12,
+HP x1.8 / x2.8 / x4.0) DERIVED from verified SRD stat blocks, so
+a campaign reaches CR 16–24 without inventing balance that was
+never tested against anything. The actual 50-creature Bestiary I
+batch keeps its title below and takes the next free minor when it
+ships.
+
 ### `2.3.0`: Engine correctness pass ✅ shipped
 
 Reserved as *Bestiary II*; spent instead on what a cross-repo
@@ -1346,11 +1357,6 @@ numbers — each takes the next free minor when it actually ships.
   `abilityCheck` accepts advantage/disadvantage and reports the
   stance it rolled under.
 - **Solo session restore** stopped promoting adopted NPCs to PCs.
-- **`monster-templates.js`** derives Elite / Champion / Ancient
-  variants (CR +4 / +8 / +12, HP x1.8 / x2.8 / x4.0) from
-  verified SRD stat blocks, so a campaign reaches CR 16-24
-  without inventing balance that was never tested against
-  anything.
 
 ### `2.4.0`: SRD class spell lists ✅ shipped
 
@@ -1369,6 +1375,51 @@ Wounds.
 - Scope is the SRD 5.2 lists over the 104 spells this package
   ships. Subclass-granted spells (Domain, Circle, Patron, Oath)
   stay with their subclass.
+
+### `2.5.0`: Verification-audit fixes ✅ shipped
+
+A follow-up audit adversarially re-verified the 2.3.0/2.4.0 claims
+and found the increments that were promised but not performed.
+This release closes them:
+
+- **Replay is total, for real this time.** Six proven desync paths
+  remained: surprised initiative (two d20s drawn, one recorded —
+  the 2.3.0 comment listed it as fixed), auto-failed STR/DEX saves
+  (recorded `d20: 0` while replay rolled a die), and four unlogged
+  draw sites (`rollStableRegenHours`, `applyHalflingLucky`,
+  `rerollFailedSave`, `castFromScroll`). All record now; replay
+  consumes matching draws; each has a round-trip test.
+- **Condition-record API restored.** `conditionName`,
+  `conditionsRequiringSave` and record-form `apply`/`remove`
+  (v1.6.1) had been dropped by a merge and survived only in
+  `index.d.ts` — the typecheck never compares declarations to
+  `src/`. Implemented to the declared contract; string entries
+  keep their legacy stored shape; a conformance test now walks the
+  declared namespace members against the runtime exports.
+- **`castSpell` consults the spell lists.** A wizard can no longer
+  cast Cure Wounds (`ok: false`, names the list); monsters,
+  classless actors and unlisted spells pass through;
+  `ignoreClassList` opts out; scrolls opt out by design and
+  `castFromScroll` now derives its `onClassList` default from the
+  real lists.
+- **Derived bosses can use their legendary actions.** The tier
+  templates emitted `actions[]` by name while `useLegendaryAction`
+  looks up `options[].id` — permanently "unknown legendary
+  option". The templates now emit the consumer's contract, a
+  single-attack base multiattacks twice, and the test drives the
+  consumer against the producer's output.
+- **SRD 5.2 tables, not 2014 leftovers.** Fighter Second Wind
+  scales 2/3/4 (L1/4/10) with long-rest refresh + one back per
+  short rest; Action Surge gains its L17 second use; Indomitable
+  scales 1/2/3; prepared-spell counts read the fixed 5.2 per-level
+  tables (the 2014 `mod + level` formula is gone — a HOUSE RULE
+  note covers the shared-column simplification); the goblin has
+  its 5.2 hit points; the orc is tagged as the 2014 holdover it
+  is; `magicResistanceDcFor`'s −5 hack is retired in favour of
+  `magicResistanceAdvantage` feeding the real advantage flag.
+- **The CI gate stops crying wolf.** The unseeded death-save test
+  omitted `'revived'` from its outcome enum, failing ~1 run in 20
+  on a natural 20 — the flake is fixed by completing the enum.
 
 ### Bestiary I (CR 0-5) *(unnumbered — next free minor)*
 
