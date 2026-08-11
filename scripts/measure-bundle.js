@@ -40,9 +40,20 @@ const ROOT = path.resolve(__dirname, '..');
 //            travel module, mechanic adapters)
 //   1.27.0 — 280 kB min / 65 kB gz (SRD content expansion: all 16
 //            backgrounds, ~30 feats, 104 spells, 102 items, 66 monsters)
+//   2.5.1  — 340 kB min / 80 kB gz (SRD class spell lists, monster tier
+//            templates, replay/condition completion)
+//
+// Note on the 2.5.1 re-pin: the 1.27.0 budget was silently breached at
+// 2.4.0 (283.90 kB min) and again at 2.5.0 (286.12 kB) because this gate
+// only ran via `prepublishOnly`, and nothing was published between
+// 2026-06-01 and 2026-08-11. CI now runs `npm run bundle-size` on every
+// push and PR, so the next breach is a red build rather than a surprise
+// at `npm publish` time. The growth is SRD *content* — spell lists and
+// tier-derived stat blocks — which is what this gate is meant to make
+// deliberate, not to forbid.
 const BUDGETS = {
-  minBytes: 280 * 1024,    // 280 kB approx-minified
-  gzipBytes:  65 * 1024    //  65 kB gzipped
+  minBytes: 340 * 1024,    // 340 kB approx-minified
+  gzipBytes:  80 * 1024    //  80 kB gzipped
 };
 
 async function walk(dir) {
