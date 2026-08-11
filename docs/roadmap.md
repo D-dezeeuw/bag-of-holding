@@ -5,7 +5,7 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-08-09: **`2.5.0`**. Kernel surface (dice, slots,
+> Status as of 2026-08-11: **`2.5.1`**. Kernel surface (dice, slots,
 > conditions, XP, character derivation, beats, plugins) feature
 > complete since 1.0; the 1.x line closed SRD 5.2 coverage; 2.0
 > added `Solo` / `Session` / `Replay` + the sandbox; 2.2.0 added the
@@ -20,8 +20,14 @@ real consumer driving them are deferred until that consumer exists.
 > legendary-action shape so a derived boss can USE its actions, and
 > moves Fighter resources and prepared-spell counts onto the real
 > SRD 5.2 tables. **1,613 tests**, `node --test`, strict typecheck.
-> npm registry lags the repo: latest published is `2.1.0` — publish
-> is a pending owner action.
+> `2.5.1` re-pins the bundle budget and moves that gate into CI.
+>
+> npm registry lags the repo: latest published is `2.1.0` (2026-06-01)
+> — publish is a pending owner action. Two things blocked it and are
+> fixed here: a publish attempt from a stale checkout re-packed the
+> already-published `2.1.0` byte for byte, and `prepublishOnly`'s
+> bundle gate had been failing since `2.4.0` overran the 1.27.0
+> budget. Publish from a tree that matches `origin/main`.
 >
 > **SRD coverage is not yet complete**: death saves, rest-based HP
 > recovery, hit-dice spending, and class-feature *mechanics* (vs the
@@ -1247,15 +1253,18 @@ playable demo.
 
 *Why .1 and not .x:* the sandbox upgrades are demo / example
 changes — the published `@zeeuw/bag-of-holding` kernel exports
-the same surface as 2.0.0. Reserving `2.1.0` / `2.2.0` for the
-adventure + bestiary milestones below. (`2.3.0` and `2.4.0` were
-later spent on engine work instead — see the entries below; the
-remaining content batches are unnumbered until they ship.)
+the same surface as 2.0.0. `2.1.0` / `2.2.0` were reserved here
+for the adventure + bestiary milestones below; none of those
+reservations survived. `2.2.0`–`2.5.0` were spent on engine work
+(see the entries below), and `2.1.0` was consumed by a merge
+resolution and published — the content batches are unnumbered
+until they ship.
 
 ### `2.0.9`: Encounter verb completeness + day/night cycle ✅ shipped
 
-Additive kernel API changes on the 2.0.x line; `2.1.0` remains
-reserved for *The Quiet Stair*.
+Additive kernel API changes on the 2.0.x line. (This entry once
+reserved `2.1.0` for *The Quiet Stair*; the merge that followed
+this release spent that number instead — see below.)
 
 **Action economy fixes and new verbs (`src/encounter.js`):**
 
@@ -1300,25 +1309,16 @@ All new verbs follow the existing `{ allowed, state, actor, result }`
 shape and are exposed on `engine.Combat.*` / `engine.SceneClock.*`.
 Docs: Recipes 41–44 added to `docs/recipes.md`.
 
-### `2.1.0`: Starter adventure: *The Quiet Stair*
+### `2.1.0`: spent, not shipped ⚠️
 
-The first complete adventure shipped *inside* the package.
-Designed to use only mechanics shipped through `1.24` and content
-from this release; about a 90-minute playthrough. Without an
-inline adventure the `2.0.0` CLI has nothing to drive; *The
-Quiet Stair* is both the demo and the smoke test.
-
-- **Adventure JSON.** Scene graph, encounter compositions, NPC
-  cast, treasure rewards. Uses the existing `Beats` runtime.
-- **15 supporting monsters** (invented; CR 0 to 4) populate the
-  encounter slots. Same legal hygiene as the Void Thrall test
-  fixture (see [docs/legal.md](legal.md)).
-- **8 supporting items.** Keyed mundane-and-magical mix; one
-  charged, one cursed, one consumable. Exercises the 1.9
-  magic-item lifecycle end-to-end.
-- **3 named NPCs** with motives + voice tags, designed to
-  exercise the social action verbs (Help, Influence) and the
-  reaction-cast surface.
+This slot held *The Quiet Stair* (moved to the unnumbered
+milestones below). It is not available: the merge in `c4654c7`
+reconciled a 1.16.0 branch against 2.0.9 and its conflict
+resolution wrote `2.1.0` into `package.json`; that build was
+published to npm on 2026-06-01 and is still `latest`. No release
+notes correspond to it — the tree it was cut from is the 2.0.9
+surface plus the merged 1.6.1 / 1.13.0 / 1.17.0 back-fills.
+Nothing to un-publish and nothing to re-use; the number is gone.
 
 ### `2.2.0`: Monster tier templates ✅ shipped
 
@@ -1420,6 +1420,51 @@ This release closes them:
 - **The CI gate stops crying wolf.** The unseeded death-save test
   omitted `'revived'` from its outcome enum, failing ~1 run in 20
   on a natural 20 — the flake is fixed by completing the enum.
+
+### `2.5.1`: Release plumbing ✅ shipped
+
+No kernel changes — a patch bump per the versioning rule, cut to
+make `npm publish` possible again after it had been failing for
+two reasons at once.
+
+- **Bundle budget re-pinned to 340 kB min / 80 kB gz**
+  (`scripts/measure-bundle.js`). The 1.27.0 budget (280/65) was
+  overrun at `2.4.0` (283.90 kB approx-minified) and again at
+  `2.5.0` (286.12 kB), so `prepublishOnly` exited 1 before it
+  could reach the registry. The overrun is SRD content — class
+  spell lists and tier-derived stat blocks — which is what the
+  gate is meant to make deliberate rather than forbid.
+- **The budget now runs in CI** (`.github/workflows/ci.yml`).
+  Previously it fired only from `prepublishOnly`, so it went
+  unchecked across every commit between publishes; that is how a
+  breach at `2.4.0` stayed invisible until `2.5.0` was ready to
+  ship.
+- **`2.1.0` recorded as spent** here and in `CLAUDE.md`, with a
+  pre-publish resync step added to the versioning rules. The
+  failed publish that prompted this release re-packed the
+  already-published `2.1.0` byte for byte (identical shasum
+  `21d66d7c…`) from a checkout two months behind `main`.
+
+### Starter adventure: *The Quiet Stair* *(unnumbered)*
+
+The first complete adventure shipped *inside* the package.
+Designed to use only mechanics shipped through `1.24` and content
+from this release; about a 90-minute playthrough. Without an
+inline adventure the `2.0.0` CLI has nothing to drive; *The
+Quiet Stair* is both the demo and the smoke test. (Held `2.1.0`
+until a merge resolution spent that number — see above.)
+
+- **Adventure JSON.** Scene graph, encounter compositions, NPC
+  cast, treasure rewards. Uses the existing `Beats` runtime.
+- **15 supporting monsters** (invented; CR 0 to 4) populate the
+  encounter slots. Same legal hygiene as the Void Thrall test
+  fixture (see [docs/legal.md](legal.md)).
+- **8 supporting items.** Keyed mundane-and-magical mix; one
+  charged, one cursed, one consumable. Exercises the 1.9
+  magic-item lifecycle end-to-end.
+- **3 named NPCs** with motives + voice tags, designed to
+  exercise the social action verbs (Help, Influence) and the
+  reaction-cast surface.
 
 ### Bestiary I (CR 0-5) *(unnumbered — next free minor)*
 

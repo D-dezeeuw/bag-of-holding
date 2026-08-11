@@ -27,11 +27,19 @@ Keep the repo to a single mainline plus short-lived feature branches.
 ## Versioning
 
 - Kernel API changes → minor/major bump per the
-  [roadmap](docs/roadmap.md). Of the once-reserved 2.x slots only
-  `2.1.0` (*The Quiet Stair*) is still reserved — `2.2.0`–`2.5.0`
-  were spent on engine work (tier templates, two correctness
-  passes, spell lists); the content batches (Bestiary I/II/III)
-  are unnumbered and take the next free minor when they ship.
+  [roadmap](docs/roadmap.md). **No 2.x slots remain reserved.**
+  `2.2.0`–`2.5.0` were spent on engine work (tier templates, two
+  correctness passes, spell lists), and `2.1.0` is spent too — it
+  was never an intentional release: the merge resolution in
+  `c4654c7` wrote `2.1.0` into `package.json` while reconciling a
+  1.16.0 branch with 2.0.9, and that build was published to npm on
+  2026-06-01. Named milestones — *The Quiet Stair*, Bestiary
+  I/II/III — are unnumbered and take the next free minor when they
+  ship.
+- **A published version is immutable.** Before `npm publish`, run
+  `git fetch origin main` and confirm the working tree matches it;
+  `npm view @zeeuw/bag-of-holding versions` shows what is already
+  taken. Publishing from a stale checkout is what burned `2.1.0`.
 - Examples-only / docs-only / sandbox-only work → **patch bump**
   (`2.0.x`). Bump `package.json` + regenerate `package-lock.json`
   in the same commit as the feature.
