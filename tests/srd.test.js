@@ -53,3 +53,25 @@ test('Magic Initiate variants line up with Acolyte (cleric) and Sage (wizard)', 
   assert.ok(SRD.feats['magic-initiate'].variants.includes('cleric'));
   assert.ok(SRD.feats['magic-initiate'].variants.includes('wizard'));
 });
+
+// === 2.6.0 registry additions — the blocks downstream pools referenced ===
+
+test('the overlay-gap monsters resolve by the exact ids downstream pools use', () => {
+  // These eight ids were referenced by the client's dungeon overlays for
+  // months while resolving to nothing (the overlay silently filtered
+  // them and rooms lost their intended enemies). Now they are real.
+  const added = ['bugbear', 'shadow', 'giant-rat', 'animated-armor',
+    'flying-sword', 'will-o-wisp', 'gibbering-mouther', 'giant-wolf-spider'];
+  for (const id of added) {
+    const m = SRD.monsters[id];
+    assert.ok(m, `${id} is in the registry`);
+    assert.equal(m.id, id);
+    assert.ok(m.cr >= 0 && m.hp > 0 && m.ac > 0, `${id} has sane numbers`);
+    assert.ok(m.senses, `${id} carries senses`);
+  }
+  // Animated armor is the registry's first SRD block with an authored
+  // multiattack routine.
+  assert.equal(SRD.monsters['animated-armor'].multiattack.attacks.length, 2);
+  // SRD 5.2 renamed the sword; the id stays put for downstream pools.
+  assert.equal(SRD.monsters['flying-sword'].name, 'Animated Flying Sword');
+});

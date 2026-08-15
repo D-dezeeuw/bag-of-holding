@@ -48,6 +48,14 @@ export const {
 // something to consume, without transcribing stat blocks from memory.
 export { elevate, tiersFor, templateForTargetCr, TEMPLATES } from './src/monster-templates.js';
 
+// The Quiet Stair content packs (2.6.0) — the starter adventure's invented
+// bestiary and item batch. Deliberately NOT merged into the default engine:
+// mount them at construction — `createEngine({ extraMonsters:
+// QUIET_STAIR_MONSTERS, extraItems: QUIET_STAIR_ITEMS })` — so the SRD
+// registries stay SRD-only. (The adventure itself ships in the next slice.)
+export { QUIET_STAIR_MONSTERS } from './src/adventures/quiet-stair/monsters.js';
+export { QUIET_STAIR_ITEMS } from './src/adventures/quiet-stair/items.js';
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';
