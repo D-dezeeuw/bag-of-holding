@@ -36,6 +36,11 @@ a framework, or a virtual tabletop.
   turns a host-owned record into a frozen sheet (AC, HP, saves,
   skills, attacks, spellcasting). Host owns the record; engine
   derives.
+- **A complete starter adventure inside the package.** *The Quiet
+  Stair* (~90 min): 6 beats, 7 scenes, budget-validated encounters, an
+  invented 15-creature bestiary and 8-item batch mounted via the
+  plugin doors — `Adventures.validateAdventure` proves every reference
+  resolves. Playable in the sandbox (`examples/solo.html`).
 - **TypeScript types included.** Hand-maintained `index.d.ts` with a
   `tsc --noEmit` drift gate. No `@types/` install needed.
 - **SRD 5.2 (2025).** Weapon Mastery, numeric Exhaustion,

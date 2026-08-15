@@ -5,7 +5,16 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-08-11: **`2.5.1`**. Kernel surface (dice, slots,
+> Status as of 2026-08-15: **`2.6.0`**. *The Quiet Stair* shipped:
+> the starter adventure lives inside the package (adventure format +
+> validateAdventure, 6 beats with a real branch, 7 scenes, 4
+> budget-validated encounters), with its 15-creature invented
+> bestiary (the first authored 1.10 deep fields), 8-item batch (the
+> first cursed item), 3 named NPCs, the `Combat.influence` named
+> verb, 8 SRD registry gap blocks, the kernel's first legal sweep,
+> and the sandbox’s adventure panel. **1,643 tests.** Earlier:
+>
+> Status as of 2026-08-11: `2.5.1`. Kernel surface (dice, slots,
 > conditions, XP, character derivation, beats, plugins) feature
 > complete since 1.0; the 1.x line closed SRD 5.2 coverage; 2.0
 > added `Solo` / `Session` / `Replay` + the sandbox; 2.2.0 added the
@@ -1445,7 +1454,7 @@ two reasons at once.
   already-published `2.1.0` byte for byte (identical shasum
   `21d66d7c…`) from a checkout two months behind `main`.
 
-### Starter adventure: *The Quiet Stair* *(unnumbered)*
+### Starter adventure: *The Quiet Stair* — ✅ shipped as `2.6.0`
 
 The first complete adventure shipped *inside* the package.
 Designed to use only mechanics shipped through `1.24` and content
@@ -1465,6 +1474,15 @@ until a merge resolution spent that number — see above.)
 - **3 named NPCs** with motives + voice tags, designed to
   exercise the social action verbs (Help, Influence) and the
   reaction-cast surface.
+
+*(As shipped in `2.6.0`: all four components landed — the adventure
+format is `src/adventures/` (`validateAdventure` + run glue over the
+unmodified Beats runtime), the packs mount via
+`extraMonsters`/`extraItems` so the SRD registries stay SRD-only,
+`influence()` became a named Combat verb, and the NPC record stayed
+adventure-scoped by design (casting.js's boundary: the app owns the
+cast). Legendary/lair/innate mechanics were deliberately left to
+Bestiary II/III — wrong tier at CR 0–4.)*
 
 ### Bestiary I (CR 0-5) *(unnumbered — next free minor)*
 
