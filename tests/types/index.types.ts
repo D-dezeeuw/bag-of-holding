@@ -399,3 +399,17 @@ const _qsCursed: boolean | { effect?: string } | undefined = QUIET_STAIR_ITEMS['
 const _qsEngine = createEngine({ extraMonsters: QUIET_STAIR_MONSTERS, extraItems: QUIET_STAIR_ITEMS });
 void _qsMonster; void _qsSenses; void _qsRoutine; void _qsSave;
 void _qsItem; void _qsCharges; void _qsCursed; void _qsEngine;
+
+// === The adventure surface (2.6.0) ===
+import { Adventures, QUIET_STAIR, QUIET_STAIR_NPCS, type AdventurePack, type AdventureRun } from '../../index.js';
+const _pack: AdventurePack = QUIET_STAIR;
+const _verdict: { valid: boolean; errors: string[] } =
+  Adventures.validateAdventure(_pack, { monsters: _qsEngine.monsters, items: _qsEngine.items });
+let _run: AdventureRun = Adventures.createRun(_pack);
+_run = Adventures.setFlag(_run, 'qs.hired');
+const _scene = Adventures.currentScene(_pack, _run);
+const _exits = Adventures.availableExits(_pack, _run);
+const _cast = Adventures.entityProviderFrom(QUIET_STAIR_NPCS)({ role: 'authority' });
+const _foes = _scene?.encounter
+  ? Adventures.encounterParticipants(_scene, _qsEngine.monsters) : [];
+void _verdict; void _exits; void _cast; void _foes;
