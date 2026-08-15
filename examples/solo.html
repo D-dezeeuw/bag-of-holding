@@ -314,6 +314,15 @@
       <div id="oracle-history"></div>
     </div>
 
+    <div class="panel" id="adventure-panel">
+      <h2>Adventure <span class="save-meta">The Quiet Stair · ~90 min</span></h2>
+      <div class="row" id="adventure-controls">
+        <button class="primary" id="adventure-begin">Begin The Quiet Stair</button>
+        <button id="adventure-abandon" style="display:none">Abandon</button>
+      </div>
+      <div id="adventure-body"><div class="empty">(free play — begin the adventure to mount its scenes, cast and encounters)</div></div>
+    </div>
+
     <div class="panel">
       <h2>Time</h2>
       <div class="row">
@@ -341,7 +350,10 @@
     // `npx http-server` or `python3 -m http.server`) and open
     // `examples/solo.html` in the browser. ESM imports from file://
     // are blocked by some browsers, so serving over HTTP is safer.
-    import { createEngine, Dice, STARTER_PARTY } from '../index.js';
+    import {
+      createEngine, Dice, STARTER_PARTY,
+      Adventures, QUIET_STAIR, QUIET_STAIR_MONSTERS, QUIET_STAIR_ITEMS,
+    } from '../index.js';
 
     const state = {
       engine: null,
@@ -351,6 +363,9 @@
       foeIds: new Set(),
       // Which actor's sheet detail is expanded (id), or null.
       expandedId: null,
+      // The Quiet Stair run (Adventures.createRun state), or null when the
+      // sandbox is in free play. Plain data — rides inside the save payload.
+      run: null,
       // Skip auto-save inside render() loops; flipped true after
       // newSession() finishes and any user-driven mutation calls save().
       autosave: false
@@ -507,6 +522,129 @@
       return wrap;
     }
 
+    // === The Quiet Stair panel ===============================================
+    // The run is Adventures state (plain data); the Beats thread advances
+    // through Adventures.setFlag as objectives are met. The sandbox stays
+    // the host: it owns when to fight, when to award, when to move.
+    function advSetFlag(flag) {
+      if (!state.run) return;
+      state.run = Adventures.setFlag(state.run, flag);
+      state.session.record('adventure', { flag });
+      afterMutation();
+    }
+
+    function advGoTo(sceneId) {
+      if (!state.run) return;
+      const r = Adventures.goTo(QUIET_STAIR, state.run, sceneId);
+      if (!r.moved) return;
+      state.run = r.run;
+      state.session.record('adventure', { scene: sceneId });
+      afterMutation();
+    }
+
+    function advFight(scene) {
+      const foes = Adventures.encounterParticipants(scene, state.engine.monsters);
+      const participants = [
+        ...STARTER_PARTY.map(r => {
+          const sheet = state.engine.deriveSheet(r);
+          return { id: r.id, name: r.name, dexterity: sheet.abilityScores.final.dex, speed: sheet.speed.walk, hp: sheet.hp.max, hpMax: sheet.hp.max, ac: sheet.ac.value };
+        }),
+        ...foes
+      ];
+      state.foeIds = new Set(foes.map(f => f.id));
+      state.session.startEncounter(participants);
+      afterMutation();
+    }
+
+    function renderAdventure() {
+      const body = $('#adventure-body');
+      const begin = $('#adventure-begin');
+      const abandon = $('#adventure-abandon');
+      if (!state.run) {
+        begin.style.display = '';
+        abandon.style.display = 'none';
+        body.innerHTML = '<div class="empty">(free play — begin the adventure to mount its scenes, cast and encounters)</div>';
+        return;
+      }
+      begin.style.display = 'none';
+      abandon.style.display = '';
+      body.innerHTML = '';
+
+      const scene = Adventures.currentScene(QUIET_STAIR, state.run);
+      const beat = Adventures.activeBeat(state.run);
+      const h = document.createElement('div');
+      h.innerHTML = `<strong>${scene.title}</strong>` +
+        (beat ? ` <span class="save-meta">${beat.id}</span>` : ' <span class="save-meta">— the stair is quiet; the adventure is done</span>');
+      body.appendChild(h);
+
+      if (scene.readAloud) {
+        const p = document.createElement('p');
+        p.style.cssText = 'font-style:italic; margin:6px 0;';
+        p.textContent = scene.readAloud;
+        body.appendChild(p);
+      }
+
+      for (const npcId of scene.cast ?? []) {
+        const npc = QUIET_STAIR.npcs[npcId];
+        const div = document.createElement('div');
+        div.className = 'entry';
+        div.textContent = `${npc.name} — ${npc.voice.join(', ')}. Wants: ${npc.wants.join('; ')}.`;
+        body.appendChild(div);
+      }
+
+      for (const obj of scene.objectives ?? []) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const done = state.run.flags[obj.flag] === true;
+        const btn = document.createElement('button');
+        btn.textContent = done ? '✓' : '○';
+        btn.disabled = done;
+        btn.addEventListener('click', () => advSetFlag(obj.flag));
+        const label = document.createElement('span');
+        label.textContent = obj.description;
+        if (done) label.style.textDecoration = 'line-through';
+        row.appendChild(btn); row.appendChild(label);
+        body.appendChild(row);
+      }
+
+      if (scene.encounter) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const btn = document.createElement('button');
+        btn.className = 'primary';
+        btn.textContent = `Fight: ${scene.encounter.monsters.map(m => `${m.count ?? 1}× ${m.id}`).join(', ')} (${scene.encounter.intendedDifficulty})`;
+        btn.addEventListener('click', () => advFight(scene));
+        row.appendChild(btn);
+        body.appendChild(row);
+      }
+
+      if (scene.treasure?.length) {
+        const div = document.createElement('div');
+        div.className = 'entry';
+        div.textContent = 'Treasure here: ' + scene.treasure
+          .map(t => typeof t === 'string' ? (state.engine.items[t]?.name ?? t) : Object.entries(t.coins).map(([c, n]) => `${n} ${c}`).join(', '))
+          .join(' · ');
+        body.appendChild(div);
+      }
+
+      const exits = Adventures.availableExits(QUIET_STAIR, state.run);
+      for (const exit of exits) {
+        const row = document.createElement('div');
+        row.className = 'row';
+        const btn = document.createElement('button');
+        btn.textContent = `→ ${exit.label ?? exit.to}`;
+        btn.addEventListener('click', () => advGoTo(exit.to));
+        row.appendChild(btn);
+        body.appendChild(row);
+      }
+      if (!exits.length && (scene.exits ?? []).length) {
+        const div = document.createElement('div');
+        div.className = 'empty';
+        div.textContent = '(the way onward opens when the objectives above are met)';
+        body.appendChild(div);
+      }
+    }
+
     function render() {
       if (!state.session) return;
       const session = state.session;
@@ -515,6 +653,8 @@
       $('#meta-fingerprint').textContent = state.engine.rulesFingerprint;
       $('#meta-round').textContent = session.encounter?.round ?? '—';
       $('#meta-time').textContent = state.engine.SceneClock.formatTimeOfDay(session.scene.minutes);
+
+      renderAdventure();
 
       const partyBody = $('#party-body');
       partyBody.innerHTML = '';
@@ -723,7 +863,14 @@
 
     function newSession() {
       state.seed = Number($('#seed-input').value) || Date.now();
-      const engine = createEngine({ rng: Dice.seededRng(state.seed) });
+      // The Quiet Stair packs mount on every engine: they only ADD (the
+      // legal sweep asserts no SRD id is shadowed), so free play is
+      // unchanged and the adventure panel can begin at any moment.
+      const engine = createEngine({
+        rng: Dice.seededRng(state.seed),
+        extraMonsters: QUIET_STAIR_MONSTERS,
+        extraItems: QUIET_STAIR_ITEMS
+      });
       // Oracle gets a separate seeded stream so its d100 pulls don't
       // perturb the dice replay (engine.rollLog wouldn't capture
       // them, and verifyLog would diverge). Deriving the oracle
@@ -739,6 +886,7 @@
       state.oracle = oracle;
       state.session = session;
       state.foeIds = new Set();
+      state.run = null;
       // Spawn an initial encounter so the demo is interactive on
       // first load: the four party members vs. a goblin and an orc.
       // ACs match the SRD monsters registry.
@@ -1564,6 +1712,16 @@ CONTENT RULES:
       });
 
       $('#new-session').addEventListener('click', () => { newSession(); afterMutation(); });
+      $('#adventure-begin').addEventListener('click', () => {
+        state.run = Adventures.createRun(QUIET_STAIR);
+        state.session.record('adventure', { begin: QUIET_STAIR.id });
+        afterMutation();
+      });
+      $('#adventure-abandon').addEventListener('click', () => {
+        state.run = null;
+        state.session.record('adventure', { abandoned: QUIET_STAIR.id });
+        afterMutation();
+      });
 
       $('#oracle-ask').addEventListener('click', () => {
         if (!state.session) return;
@@ -1819,6 +1977,8 @@ CONTENT RULES:
       if (!state.session) return;
       try {
         const payload = state.session.serialize();
+        // The adventure run is plain data — it rides in the same save.
+        if (state.run) payload.adventureRun = state.run;
         localStorage.setItem(SAVE_KEY, JSON.stringify(payload));
       } catch (e) {
         console.error('save failed', e);
@@ -1830,7 +1990,11 @@ CONTENT RULES:
       if (!raw) { renderSaveMeta(); return false; }
       try {
         const payload = JSON.parse(raw);
-        const engine = createEngine({ rng: Dice.seededRng(payload.seed ?? Date.now()) });
+        const engine = createEngine({
+          rng: Dice.seededRng(payload.seed ?? Date.now()),
+          extraMonsters: QUIET_STAIR_MONSTERS,
+          extraItems: QUIET_STAIR_ITEMS
+        });
         const oracle = engine.Solo.oracle({ rng: Dice.seededRng((payload.seed ?? 0) ^ 0xA5A5A5A5) });
         const session = engine.Session.restore(payload);
         // Recompute foeIds from the encounter's participant list,
@@ -1849,6 +2013,7 @@ CONTENT RULES:
         state.session = session;
         state.seed = payload.seed ?? state.seed;
         state.foeIds = foeIds;
+        state.run = payload.adventureRun ?? null;
         state.expandedId = null;
         state.autosave = true;
         $('#seed-input').value = state.seed;

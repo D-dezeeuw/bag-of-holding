@@ -1670,3 +1670,42 @@ engine.SceneClock.formatTimeOfDay(s3.minutes);   // '00:00' (midnight + 8h = nex
 ```
 
 `timeOfDayLabel` uses 30-minute transition windows around dawn and dusk, so a character entering a room just before sunrise sees `'dawn'` rather than `'night'`. Combine with `advanceTime({ rounds: N })` for combat-paced time (10 rounds = 1 minute, per SRD).
+
+## 45. Mounting an adventure pack (The Quiet Stair)
+
+An adventure pack is plain data: beats the `Beats` runtime drives, plus scenes binding encounters, cast, treasure and exits to the flags those beats raise. Mount the pack's content at engine construction — the packs only add; the SRD registries are never shadowed — then validate and run:
+
+```js
+import {
+  createEngine, Dice, Adventures,
+  QUIET_STAIR, QUIET_STAIR_MONSTERS, QUIET_STAIR_ITEMS,
+} from '@zeeuw/bag-of-holding';
+
+const engine = createEngine({
+  rng: Dice.seededRng(90),
+  extraMonsters: QUIET_STAIR_MONSTERS,
+  extraItems: QUIET_STAIR_ITEMS,
+});
+
+// The smoke test the format was built around: every reference in the
+// pack must resolve against the registries it is actually mounted with.
+const { valid, errors } = Adventures.validateAdventure(QUIET_STAIR, {
+  monsters: engine.monsters, items: engine.items,
+});                                              // → { valid: true, errors: [] }
+
+let run = Adventures.createRun(QUIET_STAIR);
+Adventures.currentScene(QUIET_STAIR, run).title; // "The Warden's Gate"
+run = Adventures.setFlag(run, 'qs.hired');       // the thread advances itself
+run = Adventures.goTo(QUIET_STAIR, run, 'scene.bell-tower').run;
+
+// A scene encounter expands straight into Session participants:
+const scene = QUIET_STAIR.scenes.find(s => s.id === 'scene.the-landing');
+const foes  = Adventures.encounterParticipants(scene, engine.monsters);
+// session.startEncounter([...party, ...foes]);
+
+// And the pack's npcs cast the Beats archetype slots:
+const provider = Adventures.entityProviderFrom(QUIET_STAIR.npcs);
+engine.Beats.castArchetypes(QUIET_STAIR.beats[0], { entityProvider: provider });
+```
+
+A run is plain JSON — persist it beside `session.serialize()` and revive it with `JSON.parse`. The branch at `beat.03.descent` is chosen through `setFlag`'s `chooseSuccessor` option (default: first ready successor).
