@@ -211,6 +211,21 @@ export interface Item {
   doffMinutes?: number;
   // Consumable-only fields.
   heals?: string;
+  // Encumbrance weight in pounds (gear and most physical items).
+  weight?: number;
+  // === Magic-item lifecycle fields (since 1.9.0; first declared 2.6.0 —
+  // src/magic-items.js and srd/items.js used them undeclared).
+  rarity?: 'common' | 'uncommon' | 'rare' | 'very-rare' | 'legendary' | 'artifact' | string;
+  /** True when attunement is required at all (the 3-slot cap applies). */
+  attunement?: boolean;
+  /** Attunement prerequisites checked by `MagicItems.canAttune`. */
+  requiresAttunement?: { classId?: string; spellcaster?: boolean; abilityMin?: Partial<Record<Ability, number>> };
+  /** Charge pool spec: `spendCharge` draws it down, `rechargeItem` recovers. */
+  charges?: { max: number; recovers?: string; rechargesOn?: 'dawn' | 'dusk' | 'longRest' | 'shortRest' };
+  /** Cursed items refuse voluntary un-attunement without Remove Curse. */
+  cursed?: boolean | { effect?: string };
+  /** Forced-destruction resilience consumed by `itemSavingThrow`. */
+  savingThrow?: { bonus?: number };
 }
 
 /** SRD 5.2 monster stat block. Carries the fields a host needs to
@@ -229,6 +244,21 @@ export interface Monster {
   attacks?: Array<{ name: string; attackBonus: number; damage: string; damageType?: string }>;
   traits?: string[];
   skills?: Record<string, number>;
+  // === 1.10 stat-block depth (first declared 2.6.0 — the consumers in
+  // src/monsters.js read these; the Quiet Stair pack is the first
+  // authored data to carry them).
+  /** Sense ranges in feet, keyed by sense name (darkvision, blindsight, tremorsense…). */
+  senses?: Record<string, number>;
+  /** Trained saving-throw bonuses; `Monsters.saveBonus` falls back to the bare mod. */
+  saves?: Partial<Record<Ability, number>>;
+  /** Multiattack routine; each entry's `attackRef` indexes into `attacks`. */
+  multiattack?: { attacks: Array<{ name: string; attackRef: number | string }> };
+  flySpeed?: number;
+  damageImmunities?: string[];
+  damageResistances?: string[];
+  damageVulnerabilities?: string[];
+  conditionImmunities?: string[];
+  languages?: string[];
 }
 
 // ============================================================
@@ -1537,3 +1567,16 @@ export const SRD: {
 /** Legacy alias for the class-definition map. Same content as
  *  `classes`, kept for back-compat with pre-Phase-A consumers. */
 export const Classes: Record<string, ClassDef>;
+
+// ============================================================
+// The Quiet Stair content packs (since 2.6.0)
+// ============================================================
+
+/** The starter adventure's invented bestiary (15 creatures, CR 0–4).
+ *  Mount via `createEngine({ extraMonsters: QUIET_STAIR_MONSTERS })` —
+ *  never merged into the SRD registry by default. */
+export const QUIET_STAIR_MONSTERS: Readonly<Record<string, Monster>>;
+/** The starter adventure's item batch (8 items — charged, cursed,
+ *  consumable, attunement prereqs, forced-destruction save, mundane
+ *  plot keys). Mount via `createEngine({ extraItems: QUIET_STAIR_ITEMS })`. */
+export const QUIET_STAIR_ITEMS: Readonly<Record<string, Item>>;

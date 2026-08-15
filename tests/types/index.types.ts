@@ -386,3 +386,16 @@ void _firstAttackBonus; void _strSave; void _athletics; void _athleticsAbility;
 void _badRecord;
 void houseRulesPack; void grittyEngine; void _resolved; void _critFaces;
 void _explosiveRoll; void _replayWithRules;
+
+// === The Quiet Stair content packs (2.6.0) ===
+import { QUIET_STAIR_MONSTERS, QUIET_STAIR_ITEMS, type Monster } from '../../index.js';
+const _qsMonster: Monster = QUIET_STAIR_MONSTERS['still-abbot'];
+const _qsSenses: Record<string, number> | undefined = _qsMonster.senses;
+const _qsRoutine: Array<{ name: string; attackRef: number | string }> | undefined = _qsMonster.multiattack?.attacks;
+const _qsSave: number | undefined = _qsMonster.saves?.wis;
+const _qsItem: Item = QUIET_STAIR_ITEMS['hush-lantern'];
+const _qsCharges: { max: number } | undefined = _qsItem.charges;
+const _qsCursed: boolean | { effect?: string } | undefined = QUIET_STAIR_ITEMS['oathkeepers-signet'].cursed;
+const _qsEngine = createEngine({ extraMonsters: QUIET_STAIR_MONSTERS, extraItems: QUIET_STAIR_ITEMS });
+void _qsMonster; void _qsSenses; void _qsRoutine; void _qsSave;
+void _qsItem; void _qsCharges; void _qsCursed; void _qsEngine;

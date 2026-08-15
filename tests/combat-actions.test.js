@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  dash, disengage, dodge, help, hide, ready, ability,
+  dash, disengage, dodge, help, hide, ready, ability, influence,
   grapple, shove, offHandAttack, improvisedAttack,
   startEncounter, opportunityAttack, beginAttackAction
 } from '../src/encounter.js';
@@ -204,6 +204,30 @@ test('ability refuses an unknown kind', () => {
   const state = buildState();
   const result = ability(state, { id: 'pc' }, { kind: 'dance' });
   assert.equal(result.allowed, false);
+});
+
+// === influence() — the named verb (2.6.0) ===
+
+test('influence spends the action, logs the kind, and hands the check to the host', () => {
+  const state = buildState();
+  const result = influence(state, { id: 'pc' });
+  assert.equal(result.allowed, true);
+  assert.equal(result.result.needsCheck, true);
+  assert.equal(result.result.kind, 'influence');
+  assert.deepEqual(result.state.log.at(-1), { kind: 'influence', actorId: 'pc' },
+    'same log entry ability({kind:"influence"}) has always written');
+});
+
+test('influence refuses when the action is already spent — same budget as its siblings', () => {
+  let state = buildState();
+  ({ state } = dash(state, 'pc'));
+  assert.equal(influence(state, { id: 'pc' }).allowed, false);
+});
+
+test('influence and ability(influence) are the same verb, not near-twins', () => {
+  const viaNamed = influence(buildState(), { id: 'pc' });
+  const viaKind = ability(buildState(), { id: 'pc' }, { kind: 'influence' });
+  assert.deepEqual(viaNamed.result, viaKind.result);
 });
 
 test('disengage / dodge / help / hide / ability refuse when action already spent', () => {

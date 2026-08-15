@@ -614,6 +614,7 @@ export function createEngine(opts = {}) {
     hide: EncounterBase.hide,
     ready: EncounterBase.ready,
     ability: EncounterBase.ability,
+    influence: EncounterBase.influence,
     grapple: EncounterBase.grapple,
     shove: EncounterBase.shove,
     offHandAttack: EncounterBase.offHandAttack,
