@@ -17,6 +17,8 @@ import monsters from '../src/srd/monsters.js';
 import items from '../src/srd/items.js';
 import { QUIET_STAIR_MONSTERS } from '../src/adventures/quiet-stair/monsters.js';
 import { QUIET_STAIR_ITEMS } from '../src/adventures/quiet-stair/items.js';
+import { QUIET_STAIR } from '../src/adventures/quiet-stair/adventure.js';
+import { QUIET_STAIR_NPCS } from '../src/adventures/quiet-stair/npcs.js';
 
 const FORBIDDEN = [
   // Product Identity creatures
@@ -67,6 +69,11 @@ test('the Quiet Stair packs are invented all the way down', () => {
   const bad = [
     ...offendersIn(QUIET_STAIR_MONSTERS, 'quiet-stair/monsters'),
     ...offendersIn(QUIET_STAIR_ITEMS, 'quiet-stair/items'),
+    // The whole adventure — beats' dramaticPurpose, scene titles and
+    // readAloud prose, npc names/voice/wants — ships to players; every
+    // string in it is scanned, not just the ids.
+    ...offendersIn(QUIET_STAIR, 'quiet-stair/adventure'),
+    ...offendersIn(QUIET_STAIR_NPCS, 'quiet-stair/npcs'),
   ];
   assert.deepEqual(bad, [], `forbidden names in Quiet Stair packs:\n${bad.slice(0, 10).join('\n')}`);
   // And no pack id shadows an SRD id — the packs ADD, they never replace

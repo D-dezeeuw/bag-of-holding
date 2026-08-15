@@ -1569,9 +1569,94 @@ export const SRD: {
 export const Classes: Record<string, ClassDef>;
 
 // ============================================================
-// The Quiet Stair content packs (since 2.6.0)
+// Adventures — pack format + The Quiet Stair (since 2.6.0)
 // ============================================================
 
+/** A pack-scoped NPC: enough to cast Beats archetype slots and put a
+ *  voice at the table. Deliberately NOT a kernel registry — the app
+ *  owns the cast (see src/beats/casting.js). */
+export interface AdventureNpc {
+  id: string;
+  name: string;
+  archetypeRole: string;
+  voice: string[];
+  wants: string[];
+  statBlockId?: string | null;
+}
+
+export interface AdventureScene {
+  id: string;
+  title: string;
+  beatId?: string | null;
+  readAloud?: string;
+  cast?: string[];
+  objectives?: Array<{ flag: string; description: string }>;
+  encounter?: {
+    monsters: Array<{ id: string; count?: number }>;
+    intendedDifficulty?: 'trivial' | 'low' | 'moderate' | 'high' | 'deadly';
+  };
+  treasure?: Array<string | { coins: Record<string, number> }>;
+  exits?: Array<{ to: string; label?: string; requiresFlag?: string }>;
+}
+
+/** An adventure pack: metadata + beats the Beats runtime drives +
+ *  scenes bound to the flags those beats raise. Plain JSON data. */
+export interface AdventurePack {
+  id: string;
+  title: string;
+  estimatedMinutes?: number;
+  partyProfile: { size: number; levels: number[] };
+  start: string;
+  beats: Beat[];
+  scenes: AdventureScene[];
+  npcs: Readonly<Record<string, AdventureNpc>>;
+}
+
+/** Run state: the Beats thread + flags + where the party stands.
+ *  Plain data; JSON round-trips. */
+export interface AdventureRun {
+  adventureId: string;
+  thread: Thread;
+  flags: Record<string, boolean>;
+  sceneId: string;
+}
+
+export interface AdventuresNamespace {
+  /** Cross-check every reference in a pack against the registries it
+   *  will be mounted with. `{ valid, errors[] }` — all problems at once. */
+  validateAdventure(pack: AdventurePack, registries: {
+    monsters?: Record<string, Monster>; items?: Record<string, Item>;
+  }): { valid: boolean; errors: string[] };
+  createRun(adventure: AdventurePack): AdventureRun;
+  /** Raise a flag; the thread advances as far as the new state carries it. */
+  setFlag(run: AdventureRun, flag: string, opts?: {
+    chooseSuccessor?: (args: {
+      candidates: string[]; state: { flags: Record<string, boolean> }; currentBeat: Beat;
+    }) => string;
+  }): AdventureRun;
+  currentScene(adventure: AdventurePack, run: AdventureRun): AdventureScene | null;
+  activeBeat(run: AdventureRun): Beat | null;
+  availableExits(adventure: AdventurePack, run: AdventureRun): NonNullable<AdventureScene['exits']>;
+  goTo(adventure: AdventurePack, run: AdventureRun, sceneId: string):
+    { run: AdventureRun; moved: boolean; reason?: string };
+  /** Expand a scene's encounter into Session-adoptable participants. */
+  encounterParticipants(scene: AdventureScene, monsters: Record<string, Monster>):
+    Array<{ id: string; name: string; hp: number; hpMax: number; ac: number; dexterity: number; speed: number; side: 'foe'; statBlockId: string }>;
+  /** An entityProvider over pack npcs, for Beats.castArchetypes. */
+  entityProviderFrom(npcs: Readonly<Record<string, AdventureNpc>>):
+    (slot: { role: string }) => AdventureNpc | undefined;
+  QUIET_STAIR: AdventurePack;
+  QUIET_STAIR_MONSTERS: Readonly<Record<string, Monster>>;
+  QUIET_STAIR_ITEMS: Readonly<Record<string, Item>>;
+  QUIET_STAIR_NPCS: Readonly<Record<string, AdventureNpc>>;
+}
+
+/** The adventure surface: pack format + run glue + shipped packs. Pure
+ *  (not engine-bound), like STARTER_PARTY and elevate. */
+export const Adventures: AdventuresNamespace;
+
+/** The Quiet Stair — the starter adventure shipped inside the package. */
+export const QUIET_STAIR: AdventurePack;
 /** The starter adventure's invented bestiary (15 creatures, CR 0–4).
  *  Mount via `createEngine({ extraMonsters: QUIET_STAIR_MONSTERS })` —
  *  never merged into the SRD registry by default. */
@@ -1580,3 +1665,5 @@ export const QUIET_STAIR_MONSTERS: Readonly<Record<string, Monster>>;
  *  consumable, attunement prereqs, forced-destruction save, mundane
  *  plot keys). Mount via `createEngine({ extraItems: QUIET_STAIR_ITEMS })`. */
 export const QUIET_STAIR_ITEMS: Readonly<Record<string, Item>>;
+/** The starter adventure's named cast (3 NPCs with voice + wants). */
+export const QUIET_STAIR_NPCS: Readonly<Record<string, AdventureNpc>>;
