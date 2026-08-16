@@ -1265,6 +1265,9 @@ export interface EngineOptions {
   extraNpcs?: Record<string, SettingNpc>;
   extraStoryHooks?: Record<string, StoryHook>;
   extraAdventures?: Record<string, AdventurePack>;
+  /** Locale packs (since 3.4.0): lang → key → translated string.
+   *  Bound as `engine.Strings`. */
+  extraLocales?: Record<string, Record<string, string>>;
 }
 
 /** A setting region (since 3.0.0). `id` + `name` are the registry
@@ -1661,6 +1664,8 @@ export interface Engine {
   npcs: Record<string, SettingNpc>;
   storyHooks: Record<string, StoryHook>;
   adventures: Record<string, AdventurePack>;
+  /** Localization shim (since 3.4.0), bound over `extraLocales`. */
+  Strings: StringsNamespace;
   species: Record<string, Species>;
   classes: Record<string, ClassDef>;
   backgrounds: Record<string, Background>;
@@ -2082,6 +2087,29 @@ export const Settings: Readonly<{
   register<T extends SettingPack>(pack: T): T;
   compose(...packs: SettingPack[]): EngineOptions;
 }>;
+
+// ============================================================
+// Localization (3.4.0)
+// ============================================================
+
+/** The localization shim: three-step lookup (locale → English → the
+ *  key itself, so an unknown key stays visible and greppable). */
+export interface StringsNamespace {
+  t(key: string, lang?: string): string;
+  locales(): string[];
+  /** Untranslated keys for a locale — a locale pack's own CI gate. */
+  missingIn(lang: string): string[];
+}
+/** The complete English table over the rules vocabulary (conditions,
+ *  classes, species, abilities, action verbs, rarities, rests).
+ *  Asserted complete against the live registries in CI. */
+export const DEFAULT_STRINGS: Readonly<Record<string, string>>;
+/** Build a Strings surface over locale tables; throws on malformed
+ *  tables with a pointer at the offending key. */
+export function makeStrings(locales?: Record<string, Record<string, string>>): StringsNamespace;
+/** Module-level English-only shim for engine-less callers. Engines
+ *  bind their own via `createEngine({ extraLocales })`. */
+export const Strings: StringsNamespace;
 /** Light as a resource: burn lantern-hours; running dry returns
  *  `inTheDark: true` plus the dread gain the table applies. */
 export function burnLight(actor: Actor, hours?: number): {
