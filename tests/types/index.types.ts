@@ -555,3 +555,13 @@ const _scVerdict: { valid: boolean; errors: string[] } = Settings.validate(SUNDE
 const _scPack: SettingPack = Settings.register(HOLLOW_VALE);
 const _scEngine = createEngine(Settings.compose(SUNDERMARK, HOLLOW_VALE));
 void _scVerdict; void _scPack; void _scEngine;
+
+// === Localization (3.4.0) ===
+import { Strings, makeStrings, DEFAULT_STRINGS } from '../../index.js';
+const _loc: string = Strings.t('condition.blinded');
+const _locNl = makeStrings({ nl: { 'condition.blinded': 'Verblind' } });
+const _locMissing: string[] = _locNl.missingIn('nl');
+const _locEngine = createEngine({ extraLocales: { nl: { 'class.wizard': 'Tovenaar' } } });
+const _locBound: string = _locEngine.Strings.t('class.wizard', 'nl');
+const _locTable: string | undefined = DEFAULT_STRINGS['rest.long'];
+void _loc; void _locMissing; void _locBound; void _locTable;

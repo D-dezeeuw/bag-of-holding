@@ -155,6 +155,17 @@ export const Settings = Object.freeze({
   compose: composeSettings,
 });
 
+// Localization (3.4.0) — `Strings.t(key, lang)` over the rules
+// vocabulary (conditions, classes, species, abilities, action verbs,
+// rarities, rests). The kernel stays English by default; locale packs
+// are plugins: `createEngine({ extraLocales: { nl: {...} } })` binds a
+// per-engine surface, and this module-level export is the English-only
+// shim for engine-less callers. `DEFAULT_STRINGS` is the complete key
+// table (asserted complete against the live registries in CI).
+import { makeStrings } from './src/strings.js';
+export { makeStrings, DEFAULT_STRINGS } from './src/strings.js';
+export const Strings = makeStrings({});
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';

@@ -44,6 +44,7 @@ import * as MagicItemsBase from './magic-items.js';
 import * as VariantCombatBase from './variants/combat.js';
 import * as VariantRestBase from './variants/rest.js';
 import * as VariantEncounterBase from './variants/encounter.js';
+import { makeStrings } from './strings.js';
 import * as MonstersBase from './monsters.js';
 import * as MovementBase from './movement.js';
 import * as MulticlassBase from './multiclass.js';
@@ -317,6 +318,7 @@ function buildConditions(extraConditions = []) {
  * @param {object} [opts.extraNpcs]         Map of id → NPC record (since 3.0.0).
  * @param {object} [opts.extraStoryHooks]   Map of id → story hook (since 3.0.0).
  * @param {object} [opts.extraAdventures]   Map of id → AdventurePack (since 3.0.0).
+ * @param {object} [opts.extraLocales]      Map of lang → key → string (since 3.4.0).
  */
 export function createEngine(opts = {}) {
   const species     = mergeRegistry('species',     defaultSpecies,     opts.extraSpecies);
@@ -900,6 +902,10 @@ export function createEngine(opts = {}) {
     // Setting-pack registries (since 3.0.0) — empty unless a setting
     // pack fills them via the extra* options.
     regions, npcs, storyHooks, adventures,
+    // Localization shim (since 3.4.0): `Strings.t(key, lang)` over the
+    // rules vocabulary. English by default; locale packs are plugins
+    // via `createEngine({ extraLocales: { nl: {...} } })`.
+    Strings: makeStrings(opts.extraLocales),
     // Plugin-extensible vocabularies (since 1.24.0). Each is a
     // frozen, deduplicated list combining the SRD defaults with any
     // `opts.extraSenses` / `opts.extraLightLevels` contributions.

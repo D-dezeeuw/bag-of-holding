@@ -1814,12 +1814,23 @@ turn UI. Reference example, not part of the engine. Ships as
 `@zeeuw/bag-of-holding-ui`: host-side, optional, lives outside
 the kernel per the boundary contract.
 
-### `4.2.0`: Localization layer
+### `4.2.0`: Localization layer — ✅ shipped as `3.4.0`
 
 `Strings.t(key, lang)` shim for non-English condition labels,
 class names, action verbs. Kernel stays English by default;
 locale packs ship as separate plugins. Covers the localizable-
 strings idea moved here from the old parking lot.
+
+*(As shipped — out of roadmap order because it's additive API,
+not the 4.0 major the row number implied. `DEFAULT_STRINGS` is
+the complete English table over the rules vocabulary and CI
+asserts completeness against the LIVE registries, so a new
+condition or class fails a test instead of shipping untranslated.
+Three-step lookup: locale → English → the key itself (unknown
+keys stay visible and greppable). Partial locales are legal;
+`missingIn(lang)` is the gap report a locale pack gates its own
+CI on. Engines bind per-instance via `extraLocales`; the
+module-level `Strings` is the English-only shim.)*
 
 ### `4.3.0`: Reference card generator
 
