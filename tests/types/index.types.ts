@@ -537,3 +537,14 @@ const _bgTalent: BrassgearTalent = BRASSGEAR.talents['the-ledgerhand'];
 const _bgHouse: string = _bgTalent.house;
 const _bgHeist: AdventurePack = THE_GREENMIST_HEIST;
 void _bgEngine; void _bgHouse; void _bgHeist;
+
+// === The Hollow Vale (3.2.0) — gothic mechanics on existing surfaces ===
+import { HOLLOW_VALE, HOLLOW_VALE_DREAD, burnLight, BRAMBLEFELL, Darklord } from '../../index.js';
+const _hvLord: Darklord = HOLLOW_VALE.npcs['darklord-maren-ovenwarm'];
+const _hvTragedy: string = _hvLord.tragedy;
+const _hvDread = VariantEncounter.adjustTrack({ id: 'pc' } as never, 'dread', 2, HOLLOW_VALE_DREAD.band);
+const _hvRank = VariantEncounter.rankFor(_hvDread.value, HOLLOW_VALE_DREAD.thresholds);
+const _hvLight = burnLight({ id: 'pc', lightHours: 2 } as never, 3);
+const _hvDark: boolean = _hvLight.inTheDark;
+const _hvPack: AdventurePack = BRAMBLEFELL;
+void _hvTragedy; void _hvRank; void _hvDark; void _hvPack;

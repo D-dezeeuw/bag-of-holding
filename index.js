@@ -127,6 +127,19 @@ export {
   THE_GREENMIST_HEIST, BRASSGEAR_ADVENTURES,
 } from './src/settings/brassgear/index.js';
 
+// The Hollow Vale (3.2.0) — the third setting pack: gothic horror in
+// one small valley. 8 domains whose Darklords are people with tragedies
+// and DOORS OUT (every domain can end without a stake through anyone's
+// heart); the dread track rides VariantEncounter's custom-track
+// machinery, light-as-resource is the pure burnLight helper, and dream
+// sequences are ordinary beats flagged `dream: true`.
+export {
+  HOLLOW_VALE,
+  HOLLOW_VALE_REGIONS, HOLLOW_VALE_CITIES, HOLLOW_VALE_FACTIONS,
+  HOLLOW_VALE_HOOKS, HOLLOW_VALE_NPCS, HOLLOW_VALE_DREAD, burnLight,
+  BRAMBLEFELL, HOLLOW_VALE_ADVENTURES,
+} from './src/settings/hollow-vale/index.js';
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';

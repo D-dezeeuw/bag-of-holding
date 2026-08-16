@@ -1745,7 +1745,7 @@ to 431/480) because sideEffects:false lets bundlers tree-shake
 unmounted packs; setting packs are also importable as subpaths —
 `@zeeuw/bag-of-holding/settings/brassgear`.)*
 
-### `3.2.0`: Setting: *The Hollow Vale* (gothic horror)
+### `3.2.0`: Setting: *The Hollow Vale* (gothic horror) — ✅ shipped as `3.2.0`
 
 Ravenloft-grade scope with the twist: **the Darklords are people
 the PCs knew**. The Vale is small: a dozen villages, one valley.
@@ -1757,6 +1757,19 @@ Closer to *The Wicker Man* than *Dracula*.
 - Gothic mechanics: dread track, light-as-resource, dream
   sequences as engine-supported beats.
 - 1 starter adventure (*Bramblefell*).
+
+*(As shipped: 8 one-seat domains, each ruled by its Darklord —
+and every Darklord record carries a `tragedy` AND a `redemption`,
+asserted, because a domain here is a moral arc with a door out,
+not a slay-the-vampire arc. The gothic mechanics ride EXISTING
+surfaces on purpose: the dread track is a VariantEncounter custom
+track (band + thresholds + a gains table), composing with the
+VariantRest sanity system at the 'breaking' rank without either
+knowing the other exists; light-as-resource is the pure
+`burnLight` helper whose empty pool costs dread; the dream
+sequence in Bramblefell is an ordinary beat flagged `dream: true`
+that Beats.validateBeat accepts unchanged. Bramblefell validates
+deep and runs a full sitting in CI.)*
 
 ### `3.3.0`: Setting plugin contract
 
