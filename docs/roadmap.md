@@ -1868,12 +1868,25 @@ plus the Phase A/B/C surfaces — and `manifestVersion` versions
 the schema itself so the format can grow without stranding
 published packs.)*
 
-### `5.1.0`: Content index
+### `5.1.0`: Content index — ✅ shipped as `3.8.0`
 
 A static site listing community plugin packs by setting / class /
 theme. Search + categorise + screenshots. Built from the plugin
 manifests. Covers the community-content-channel idea from the
 old parking lot.
+
+*(As shipped: `scripts/build-content-index.mjs` → the static
+`/plugins.html` page on the Pages site, built FROM the 3.6.0
+manifest format — the index dogfoods it. Every in-repo setting
+pack gets a mechanically derived manifest (contribution counts
+are the packs' real table sizes, asserted), each is validated
+through `Manifest.validate` + `Settings.validate` and matched
+against the generating kernel, and the page embeds the verdicts
+and the full bag-of-holding.json per pack. A third-party pack
+joins the index by publishing the same file. The generator exits
+non-zero if any pack fails validation, so the index can't ship a
+broken card. Search/screenshots deferred until there are
+community packs to index.)*
 
 ### `5.2.0`: Conversion tools — ✅ shipped as `3.7.0`
 
