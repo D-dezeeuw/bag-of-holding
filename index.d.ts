@@ -73,6 +73,10 @@ export interface Species {
      *  fly 30, Triton swim 30). Merges into the derived sheet's
      *  `speed` block. */
     extraSpeeds?: Readonly<{ fly?: number; swim?: number; climb?: number; burrow?: number }>;
+    /** Racial cantrip as DATA (since 2.13.0): a spell id the host
+     *  grants at creation. The engine validates the reference, the
+     *  host owns the grant. */
+    cantripId?: string;
     /** Open-ended flag map. Engine ships keys like `feyAncestry`,
      *  `lucky`, `brave`, `stonecunning`, `trance`; plugins can add
      *  their own. */
@@ -163,6 +167,9 @@ export interface Feat {
   variants?: string[];
   grants?: Record<string, unknown>;
   repeatable?: boolean;
+  /** Feat prerequisite (since 2.13.0): same `abilityMin` shape items
+   *  use, plus `spellcaster` and the epic boons' `levelMin: 19`. */
+  prerequisite?: { abilityMin?: Partial<Record<Ability, number>>; spellcaster?: boolean; levelMin?: number };
 }
 
 export interface Spell {
@@ -1742,3 +1749,14 @@ export const GRIMOIRE_II: Readonly<Record<string, Spell>>;
  *  items, item saving throws, sentient blocks as host data. Mount via
  *  `createEngine({ extraItems: TREASURY })`. */
 export const TREASURY: Readonly<Record<string, Item>>;
+
+/** 5 invented species, each exercising a sheet-derived trait mechanic
+ *  (deep darkvision, resistance, swim/climb/fly, racial cantrip).
+ *  Mount via `createEngine({ extraSpecies: ORIGIN_SPECIES })`. */
+export const ORIGIN_SPECIES: Readonly<Record<string, Species>>;
+/** 8 invented backgrounds in the SRD 5.2 shape; their Origin Feats
+ *  live in ORIGIN_FEATS. Mount via `extraBackgrounds`. */
+export const ORIGIN_BACKGROUNDS: Readonly<Record<string, Background>>;
+/** 12 invented feats: 6 origin, 4 general, 2 epic boons. Mount via
+ *  `createEngine({ extraFeats: ORIGIN_FEATS })`. */
+export const ORIGIN_FEATS: Readonly<Record<string, Feat>>;

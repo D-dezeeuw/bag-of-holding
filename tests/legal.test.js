@@ -25,6 +25,10 @@ import { BESTIARY_III } from '../src/bestiary/bestiary-iii.js';
 import { GRIMOIRE_I } from '../src/grimoire/grimoire-i.js';
 import { GRIMOIRE_II } from '../src/grimoire/grimoire-ii.js';
 import { TREASURY } from '../src/treasury/treasury.js';
+import { ORIGIN_SPECIES, ORIGIN_BACKGROUNDS, ORIGIN_FEATS } from '../src/origins/origins.js';
+import species from '../src/srd/species.js';
+import backgrounds from '../src/srd/backgrounds.js';
+import feats from '../src/srd/feats.js';
 import spells from '../src/srd/spells.js';
 
 const FORBIDDEN = [
@@ -87,6 +91,9 @@ test('the Quiet Stair packs are invented all the way down', () => {
     ...offendersIn(GRIMOIRE_I, 'grimoire-i'),
     ...offendersIn(GRIMOIRE_II, 'grimoire-ii'),
     ...offendersIn(TREASURY, 'treasury'),
+    ...offendersIn(ORIGIN_SPECIES, 'origins/species'),
+    ...offendersIn(ORIGIN_BACKGROUNDS, 'origins/backgrounds'),
+    ...offendersIn(ORIGIN_FEATS, 'origins/feats'),
   ];
   assert.deepEqual(bad, [], `forbidden names in Quiet Stair packs:\n${bad.slice(0, 10).join('\n')}`);
   // And no pack id shadows an SRD id — the packs ADD, they never replace
@@ -117,5 +124,14 @@ test('the Quiet Stair packs are invented all the way down', () => {
   }
   for (const id of Object.keys(TREASURY)) {
     assert.ok(!(id in items) && !(id in QUIET_STAIR_ITEMS), `${id} shadows an existing item`);
+  }
+  for (const id of Object.keys(ORIGIN_SPECIES)) {
+    assert.ok(!(id in species), `${id} shadows an SRD species`);
+  }
+  for (const id of Object.keys(ORIGIN_BACKGROUNDS)) {
+    assert.ok(!(id in backgrounds), `${id} shadows an SRD background`);
+  }
+  for (const id of Object.keys(ORIGIN_FEATS)) {
+    assert.ok(!(id in feats), `${id} shadows an SRD feat`);
   }
 });

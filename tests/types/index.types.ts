@@ -455,3 +455,17 @@ const _t1Ego: { conflictDc?: number } | undefined = _t1.sentient;
 const _t1Recovers: string | number | undefined = TREASURY['coin-of-two-tomorrows'].charges?.recovers;
 const _tEngine = createEngine({ extraItems: TREASURY });
 void _t1; void _t1Ego; void _t1Recovers; void _tEngine;
+
+// === The Origin pack (2.13.0) — species/backgrounds/feats ===
+import { ORIGIN_SPECIES, ORIGIN_BACKGROUNDS, ORIGIN_FEATS } from '../../index.js';
+const _os: Species = ORIGIN_SPECIES['emberkin'];
+const _osCantrip: string | undefined = _os.effects?.cantripId;
+const _ob: Background = ORIGIN_BACKGROUNDS['tide-runner'];
+const _of: Feat = ORIGIN_FEATS['boon-of-the-deep-root'];
+const _ofPrereq: number | undefined = _of.prerequisite?.levelMin;
+const _oEngine = createEngine({
+  extraSpecies: ORIGIN_SPECIES,
+  extraBackgrounds: ORIGIN_BACKGROUNDS,
+  extraFeats: ORIGIN_FEATS,
+});
+void _os; void _osCantrip; void _ob; void _of; void _ofPrereq; void _oEngine;

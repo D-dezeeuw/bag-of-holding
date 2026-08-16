@@ -1580,12 +1580,22 @@ deliberately has no sentience mechanic. Also corrects the Item
 rarity union: the band is `veryRare` per RARITY_BANDS, not the
 `very-rare` the d.ts claimed since 2.6.0.)*
 
-### `2.8.0`: Origin pack
+### `2.8.0`: Origin pack — ✅ shipped as `2.13.0`
 
 5 invented species, 8 invented backgrounds, 12 invented feats.
 Distinct from the SRD baseline, not recolors. Each species
 exercises a species-trait mechanic (darkvision, resistance,
 movement mode, racial cantrip), back-filling the 1.13 deferral.
+
+*(As shipped: `ORIGIN_SPECIES` / `ORIGIN_BACKGROUNDS` /
+`ORIGIN_FEATS` via the matching `extra*` slots. All five trait
+mechanics are LIVE through deriveSheet — swim/climb/fly extra
+speeds, 120-ft darkvision, fire/necrotic resistances — and the
+racial cantrip ships as `effects.cantripId` data whose reference
+the tests resolve. Backgrounds keep the exact SRD 5.2 shape but
+grant this pack's own Origin Feats; feats split 6 origin /
+4 general / 2 epic boons with a typed `prerequisite` field new to
+the Feat interface.)*
 
 ### `2.9.0`: Variant rules: combat
 
