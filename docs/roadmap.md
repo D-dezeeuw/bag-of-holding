@@ -1499,12 +1499,20 @@ debt: `fungal-zombie`, `stone-sentinel`, `myconid-sovereign`,
 downstream ids. Legendary/lair/innate deliberately absent at this
 tier — they arrive with Bestiary II/III.)*
 
-### Bestiary II (CR 6-15) *(unnumbered)*
+### Bestiary II (CR 6-15) — ✅ shipped as `2.8.0`
 
 30 boss-tier opponents with Legendary Actions, Lair Actions, and
 Innate Spellcasting wired through 1.10. Gives a real tier-2 /
 tier-3 climactic fight without falling back on Wizards'
 proprietary creatures.
+
+*(As shipped: `BESTIARY_II` via `extraMonsters`. Every block
+multiattacks and trains saves; 15 carry Legendary Actions, all of
+CR 10+ carry Legendary Resistance, 8 home-holders carry lair
+actions, 8 cast innately from real SRD spell ids. This release
+also re-pins the bundle budget to 480/115 kB — one deliberate pin
+for the whole planned content track; see
+scripts/measure-bundle.js.)*
 
 ### Bestiary III (CR 16-20) *(unnumbered)*
 

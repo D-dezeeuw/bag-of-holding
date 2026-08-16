@@ -63,6 +63,9 @@ export { QUIET_STAIR, QUIET_STAIR_MONSTERS, QUIET_STAIR_ITEMS, QUIET_STAIR_NPCS 
 // (composable with the adventure packs: spread them into one map). The SRD
 // registry stays SRD-only.
 export { BESTIARY_I } from './src/bestiary/bestiary-i.js';
+// Bestiary II (2.8.0) — 30 boss-tier opponents, CR 6–15, the first AUTHORED
+// data with Legendary Actions, Lair Actions and Innate Spellcasting.
+export { BESTIARY_II } from './src/bestiary/bestiary-ii.js';
 
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:

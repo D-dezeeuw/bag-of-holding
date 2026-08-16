@@ -20,6 +20,7 @@ import { QUIET_STAIR_ITEMS } from '../src/adventures/quiet-stair/items.js';
 import { QUIET_STAIR } from '../src/adventures/quiet-stair/adventure.js';
 import { QUIET_STAIR_NPCS } from '../src/adventures/quiet-stair/npcs.js';
 import { BESTIARY_I } from '../src/bestiary/bestiary-i.js';
+import { BESTIARY_II } from '../src/bestiary/bestiary-ii.js';
 
 const FORBIDDEN = [
   // Product Identity creatures
@@ -76,6 +77,7 @@ test('the Quiet Stair packs are invented all the way down', () => {
     ...offendersIn(QUIET_STAIR, 'quiet-stair/adventure'),
     ...offendersIn(QUIET_STAIR_NPCS, 'quiet-stair/npcs'),
     ...offendersIn(BESTIARY_I, 'bestiary-i'),
+    ...offendersIn(BESTIARY_II, 'bestiary-ii'),
   ];
   assert.deepEqual(bad, [], `forbidden names in Quiet Stair packs:\n${bad.slice(0, 10).join('\n')}`);
   // And no pack id shadows an SRD id — the packs ADD, they never replace
@@ -89,5 +91,8 @@ test('the Quiet Stair packs are invented all the way down', () => {
   }
   for (const id of Object.keys(BESTIARY_I)) {
     assert.ok(!(id in monsters), `${id} shadows an SRD monster`);
+  }
+  for (const id of Object.keys(BESTIARY_II)) {
+    assert.ok(!(id in monsters) && !(id in BESTIARY_I), `${id} shadows an existing block`);
   }
 });
