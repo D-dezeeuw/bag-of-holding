@@ -1597,12 +1597,24 @@ grant this pack's own Origin Feats; feats split 6 origin /
 4 general / 2 epic boons with a typed `prerequisite` field new to
 the Feat interface.)*
 
-### `2.9.0`: Variant rules: combat
+### `2.9.0`: Variant rules: combat — ✅ shipped as `2.14.0`
 
 Flanking, called shots, lingering injuries, severity-table
 massive-damage, cleave-through, fumble crits. Each lands as
 either a `rules` knob (Phase B) or a hook bundle (Phase C) so
 host tables opt in per-game.
+
+*(As shipped: the `VariantCombat` namespace — six pure opt-in
+helpers rather than knobs, because none of them change baseline
+math: flanking is strict midpoint geometry over host-supplied
+grid squares paying off through the existing advantage path;
+called shots price five locations against riders that map to real
+engine conditions; lingering injuries (d20), system shock (d10)
+and fumble effects (d6) are total tables — every face lands on
+exactly one row — rolled through counted() so seeded replay stays
+aligned; cleave-through is exact carryover arithmetic. The
+`fumbleOn` rules knob from Phase B still decides WHICH faces
+fumble; the new table decides what a fumble means.)*
 
 ### `2.10.0`: Variant rules: rest + downtime
 

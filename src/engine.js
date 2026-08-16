@@ -41,6 +41,7 @@ import * as RestBase from './rest.js';
 import * as MechanicsBase from './mechanics.js';
 import * as SceneClock from './scene-clock.js';
 import * as MagicItemsBase from './magic-items.js';
+import * as VariantCombatBase from './variants/combat.js';
 import * as MonstersBase from './monsters.js';
 import * as MovementBase from './movement.js';
 import * as MulticlassBase from './multiclass.js';
@@ -1074,6 +1075,23 @@ export function createEngine(opts = {}) {
       identifyItem: MagicItemsBase.identifyItem,
       isIdentified: MagicItemsBase.isIdentified,
       itemSavingThrow: counted((r, item, dc) => MagicItemsBase.itemSavingThrow(item, dc, r), 'MagicItems.itemSavingThrow')
+    }),
+    // Variant combat rules (since 2.14.0) — six opt-in table variants:
+    // flanking geometry, called shots, lingering injuries, massive-damage
+    // severity, cleave-through, fumble effects. Pure helpers the host
+    // invokes when its table opts in; the rng tables ride counted() so
+    // seeded replay stays aligned.
+    VariantCombat: Object.freeze({
+      isFlanking: VariantCombatBase.isFlanking,
+      CALLED_SHOT_LOCATIONS: VariantCombatBase.CALLED_SHOT_LOCATIONS,
+      calledShot: VariantCombatBase.calledShot,
+      LINGERING_INJURIES: VariantCombatBase.LINGERING_INJURIES,
+      rollLingeringInjury: counted((r) => VariantCombatBase.rollLingeringInjury(r), 'VariantCombat.rollLingeringInjury'),
+      SYSTEM_SHOCK: VariantCombatBase.SYSTEM_SHOCK,
+      massiveDamageCheck: counted((r, args) => VariantCombatBase.massiveDamageCheck(args, r), 'VariantCombat.massiveDamageCheck'),
+      cleaveCarryover: VariantCombatBase.cleaveCarryover,
+      FUMBLE_EFFECTS: VariantCombatBase.FUMBLE_EFFECTS,
+      rollFumbleEffect: counted((r) => VariantCombatBase.rollFumbleEffect(r), 'VariantCombat.rollFumbleEffect'),
     }),
     // Class mechanics (since 1.3.0). Foundation for resource-bearing
     // class features (Second Wind, Action Surge, Sneak Attack, etc.)

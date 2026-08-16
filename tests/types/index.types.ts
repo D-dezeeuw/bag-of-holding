@@ -469,3 +469,17 @@ const _oEngine = createEngine({
   extraFeats: ORIGIN_FEATS,
 });
 void _os; void _osCantrip; void _ob; void _of; void _ofPrereq; void _oEngine;
+
+// === Variant combat rules (2.14.0) ===
+import { VariantCombat } from '../../index.js';
+const _vcFlank: boolean = VariantCombat.isFlanking({
+  attacker: { x: 4, y: 5 }, ally: { x: 6, y: 5 }, target: { x: 5, y: 5 },
+});
+const _vcShot = VariantCombat.calledShot('eye');
+const _vcPenalty: number | undefined = _vcShot.ok ? _vcShot.attackPenalty : undefined;
+const _vcInjury = VariantCombat.rollLingeringInjury();
+const _vcShock = VariantCombat.massiveDamageCheck({ amount: 30, hpMax: 40 });
+const _vcCleave: { killed: boolean; carryover: number } =
+  VariantCombat.cleaveCarryover({ damage: 12, targetHp: 5 });
+const _vcEngineNs: typeof VariantCombat = createEngine().VariantCombat;
+void _vcFlank; void _vcPenalty; void _vcInjury; void _vcShock; void _vcCleave; void _vcEngineNs;
