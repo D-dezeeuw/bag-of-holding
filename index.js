@@ -82,6 +82,13 @@ export { GRIMOIRE_I } from './src/grimoire/grimoire-i.js';
 // tier-3/4 spellcasters have a real list. Composable with Grimoire I.
 export { GRIMOIRE_II } from './src/grimoire/grimoire-ii.js';
 
+// The Treasury (2.12.0) — 40 invented magic items across all six rarity
+// bands, demonstrating every 1.9 mechanic: charges on all four recharge
+// schedules, all three attunement-prereq kinds, cursed items, item saving
+// throws, and sentient blocks as host data. Mount via
+// `createEngine({ extraItems: TREASURY })`.
+export { TREASURY } from './src/treasury/treasury.js';
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';

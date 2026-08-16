@@ -233,17 +233,24 @@ export interface Item {
   weight?: number;
   // === Magic-item lifecycle fields (since 1.9.0; first declared 2.6.0 —
   // src/magic-items.js and srd/items.js used them undeclared).
-  rarity?: 'common' | 'uncommon' | 'rare' | 'very-rare' | 'legendary' | 'artifact' | string;
+  // NB: the band is `veryRare` — RARITY_BANDS in src/magic-items.js is
+  // the source of truth (this union said 'very-rare' until 2.12.0).
+  rarity?: 'common' | 'uncommon' | 'rare' | 'veryRare' | 'legendary' | 'artifact' | string;
   /** True when attunement is required at all (the 3-slot cap applies). */
   attunement?: boolean;
   /** Attunement prerequisites checked by `MagicItems.canAttune`. */
   requiresAttunement?: { classId?: string; spellcaster?: boolean; abilityMin?: Partial<Record<Ability, number>> };
-  /** Charge pool spec: `spendCharge` draws it down, `rechargeItem` recovers. */
-  charges?: { max: number; recovers?: string; rechargesOn?: 'dawn' | 'dusk' | 'longRest' | 'shortRest' };
+  /** Charge pool spec: `spendCharge` draws it down, `rechargeItem` recovers
+   *  (a string is an `XdY+Z` die spec; a number is a flat recovery). */
+  charges?: { max: number; recovers?: string | number; rechargesOn?: 'dawn' | 'dusk' | 'longRest' | 'shortRest' };
   /** Cursed items refuse voluntary un-attunement without Remove Curse. */
   cursed?: boolean | { effect?: string };
   /** Forced-destruction resilience consumed by `itemSavingThrow`. */
   savingThrow?: { bonus?: number };
+  /** Sentient-item ego as pack DATA (since 2.12.0): the host drives the
+   *  conflict as an ordinary Charisma contest against `conflictDc`; the
+   *  engine deliberately has no sentience mechanic. */
+  sentient?: { intelligence?: number; wisdom?: number; charisma?: number; purpose?: string; conflictDc?: number };
 }
 
 /** SRD 5.2 monster stat block. Carries the fields a host needs to
@@ -1729,3 +1736,9 @@ export const GRIMOIRE_I: Readonly<Record<string, Spell>>;
  *  `createEngine({ extraSpells: GRIMOIRE_II })`; composable with
  *  Grimoire I by spreading both into one map. */
 export const GRIMOIRE_II: Readonly<Record<string, Spell>>;
+
+/** 40 invented magic items across all six rarity bands: charges on all
+ *  four recharge schedules, all three attunement-prereq kinds, cursed
+ *  items, item saving throws, sentient blocks as host data. Mount via
+ *  `createEngine({ extraItems: TREASURY })`. */
+export const TREASURY: Readonly<Record<string, Item>>;

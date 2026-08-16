@@ -1562,13 +1562,23 @@ concentration effects, 3 high-tier reactions. Composable with
 Grimoire I — the invented list runs cantrip to 9th with no SRD
 dependency, asserted per-level.)*
 
-### `2.7.0`: Treasury
+### `2.7.0`: Treasury — ✅ shipped as `2.12.0`
 
 40 magic items spread across all six rarity bands. Demonstrates
 every 1.9 mechanic: charged items (with dawn-recharge dice
 specs), attunement-with-prereqs (class / spellcaster / ability),
 cursed items with Remove Curse paths, sentient item conflict
 hooks, items with their own saving throws.
+
+*(As shipped: `TREASURY` via `extraItems`, 8/10/9/6/4/3 across
+the six bands. Charges appear on all FOUR recharge schedules the
+engine knows, not just dawn; all three attunement-prereq kinds
+refuse and admit through `canAttune`; four cursed items climb the
+bands; sentience ships as pack DATA — ego scores, purpose,
+`conflictDc` for a host-run Charisma contest — because the engine
+deliberately has no sentience mechanic. Also corrects the Item
+rarity union: the band is `veryRare` per RARITY_BANDS, not the
+`very-rare` the d.ts claimed since 2.6.0.)*
 
 ### `2.8.0`: Origin pack
 

@@ -447,3 +447,11 @@ const _g2: Spell = GRIMOIRE_II['last-dawn'];
 const _g2Cost: boolean | { cost?: number } | undefined = _g2.components?.m;
 const _g2Engine = createEngine({ extraSpells: { ...GRIMOIRE_I, ...GRIMOIRE_II } });
 void _g2; void _g2Cost; void _g2Engine;
+
+// === The Treasury (2.12.0) — items with sentience as data ===
+import { TREASURY } from '../../index.js';
+const _t1: Item = TREASURY['blade-that-argues'];
+const _t1Ego: { conflictDc?: number } | undefined = _t1.sentient;
+const _t1Recovers: string | number | undefined = TREASURY['coin-of-two-tomorrows'].charges?.recovers;
+const _tEngine = createEngine({ extraItems: TREASURY });
+void _t1; void _t1Ego; void _t1Recovers; void _tEngine;
