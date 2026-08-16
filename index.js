@@ -66,6 +66,10 @@ export { BESTIARY_I } from './src/bestiary/bestiary-i.js';
 // Bestiary II (2.8.0) — 30 boss-tier opponents, CR 6–15, the first AUTHORED
 // data with Legendary Actions, Lair Actions and Innate Spellcasting.
 export { BESTIARY_II } from './src/bestiary/bestiary-ii.js';
+// Bestiary III (2.9.0) — 10 capstone monsters, CR 16–20, with Legendary
+// Resistance pools, Mythic Actions (whose consumer lands with this batch)
+// and Innate Spellcasting at levels 6+.
+export { BESTIARY_III } from './src/bestiary/bestiary-iii.js';
 
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
