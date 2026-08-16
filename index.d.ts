@@ -2046,6 +2046,42 @@ export const HOLLOW_VALE_ADVENTURES: Readonly<Record<string, AdventurePack>>;
 /** Bramblefell — starter adventure (~90 min, 4 × L3), with a
  *  dream-sequence beat staged by the ordinary Beats runtime. */
 export const BRAMBLEFELL: AdventurePack;
+
+// ============================================================
+// The setting plugin contract (3.3.0)
+// ============================================================
+
+/** A setting pack under the 3.3.0 contract: identity plus any of the
+ *  content tables. Slotted tables mount through createEngine's plugin
+ *  options; pack-data tables (cities, factions, …) are read directly. */
+export interface SettingPack {
+  id: string;
+  name: string;
+  pitch: string;
+  regions?: Readonly<Record<string, Region>>;
+  npcs?: Readonly<Record<string, SettingNpc>>;
+  hooks?: Readonly<Record<string, StoryHook>>;
+  adventures?: Readonly<Record<string, AdventurePack>>;
+  species?: Readonly<Record<string, Species>>;
+  backgrounds?: Readonly<Record<string, Background>>;
+  feats?: Readonly<Record<string, Feat>>;
+  items?: Readonly<Record<string, Item>>;
+  monsters?: Readonly<Record<string, Monster>>;
+  spells?: Readonly<Record<string, Spell>>;
+  cities?: Readonly<Record<string, SundermarkCity>>;
+  factions?: Readonly<Record<string, SundermarkFaction>>;
+  [extra: string]: unknown;
+}
+
+/** The setting plugin contract: validate reports, register gates
+ *  (throws the full report on an invalid pack), compose merges N
+ *  validated packs into ONE createEngine options object for crossover
+ *  play — cross-pack id collisions throw instead of last-write-winning. */
+export const Settings: Readonly<{
+  validate(pack: SettingPack | unknown): { valid: boolean; errors: string[] };
+  register<T extends SettingPack>(pack: T): T;
+  compose(...packs: SettingPack[]): EngineOptions;
+}>;
 /** Light as a resource: burn lantern-hours; running dry returns
  *  `inTheDark: true` plus the dread gain the table applies. */
 export function burnLight(actor: Actor, hours?: number): {
