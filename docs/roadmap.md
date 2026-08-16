@@ -1832,12 +1832,23 @@ keys stay visible and greppable). Partial locales are legal;
 CI on. Engines bind per-instance via `extraLocales`; the
 module-level `Strings` is the English-only shim.)*
 
-### `4.3.0`: Reference card generator
+### `4.3.0`: Reference card generator — ✅ shipped as `3.5.0`
 
 Generates printable PDFs from the engine's data: one-page combat
 cheat-sheet, per-spell cards from the spell registry, per-class
 feature cards. Pure data output (no rendering library bake-in);
 the host runs the layout pass.
+
+*(As shipped — additive API, so it takes a 3.x minor rather than
+the row's aspirational 4.3.0. The `Cards` namespace emits ONE
+Card shape across five kinds (spell/item/monster/class cards +
+the combat cheat-sheet) so a host writes one layout pass. CI
+proves the generators are TOTAL — a clean card for every record
+in every shipped registry and pack, 300+ spells/items/monsters —
+and that the cheat-sheet reads the LIVE rules: a gritty engine
+(19-20 crits, DC 12 death saves, slow healing, 168-hour rests)
+prints a gritty sheet. "PDF" stays the host's layout pass, per
+the row's own no-bake-in boundary.)*
 
 ### `5.0.0`: Plugin manifest format
 

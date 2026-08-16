@@ -565,3 +565,11 @@ const _locEngine = createEngine({ extraLocales: { nl: { 'class.wizard': 'Tovenaa
 const _locBound: string = _locEngine.Strings.t('class.wizard', 'nl');
 const _locTable: string | undefined = DEFAULT_STRINGS['rest.long'];
 void _loc; void _locMissing; void _locBound; void _locTable;
+
+// === Reference cards (3.5.0) ===
+import { Cards, Card } from '../../index.js';
+const _cardEngine = createEngine();
+const _cardSpell: Card = Cards.spellCard(_cardEngine.spells['fireball']);
+const _cardSheet: Card = Cards.combatCheatSheet(_cardEngine);
+const _cardLines: readonly string[] = _cardSheet.sections[0].lines;
+void _cardSpell; void _cardLines;
