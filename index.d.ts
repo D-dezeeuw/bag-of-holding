@@ -259,6 +259,15 @@ export interface Monster {
   damageVulnerabilities?: string[];
   conditionImmunities?: string[];
   languages?: string[];
+  // === Boss-tier 1.10 blocks (first authored data: Bestiary II, 2.8.0).
+  /** Legendary Action pool + options; consumed by `Monsters.useLegendaryAction`. */
+  legendaryActions?: { uses?: number; options: Array<{ id: string; name: string; cost?: number; attackRef?: number | string }> };
+  /** Legendary Resistance pool; consumed by `Monsters.useLegendaryResistance`. */
+  legendaryResistance?: { uses?: number };
+  /** Lair actions fire at initiative 20 while `inLair`; see `Monsters.fireLairAction`. */
+  lairActions?: { triggersOnInitiative?: number; options: Array<{ id: string; name: string }> };
+  /** Innate spell lists (SRD spell ids); consumed by `Monsters.castInnate`. */
+  innateSpellcasting?: { atWill?: string[]; '3day'?: string[]; '1day'?: string[] };
 }
 
 // ============================================================
@@ -1677,3 +1686,8 @@ export const QUIET_STAIR_NPCS: Readonly<Record<string, AdventureNpc>>;
  *  plants, fiends, low dragons). Mount via
  *  `createEngine({ extraMonsters: BESTIARY_I })`. */
 export const BESTIARY_I: Readonly<Record<string, Monster>>;
+/** 30 boss-tier opponents, CR 6–15, with Legendary Actions, Lair
+ *  Actions and Innate Spellcasting — the first authored data those
+ *  1.10 systems run against. Mount via
+ *  `createEngine({ extraMonsters: BESTIARY_II })`. */
+export const BESTIARY_II: Readonly<Record<string, Monster>>;

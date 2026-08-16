@@ -42,6 +42,19 @@ const ROOT = path.resolve(__dirname, '..');
 //            backgrounds, ~30 feats, 104 spells, 102 items, 66 monsters)
 //   2.5.1  — 340 kB min / 80 kB gz (SRD class spell lists, monster tier
 //            templates, replay/condition completion)
+//   2.8.0  — 480 kB min / 115 kB gz (the content-batch era: The Quiet
+//            Stair + Bestiary I landed inside the 2.5.1 pin at 336 kB;
+//            Bestiary II breached it at 363 kB, and the roadmap's
+//            remaining batches — Bestiary III, both Grimoires, the
+//            Treasury, the Origin pack — are all data of the same kind.
+//            This pin budgets the whole planned content track at once so
+//            each batch is a deliberate line in this table, not a
+//            re-pin-per-PR ritual. Post-content code growth should fit
+//            WELL inside it; if engine code alone approaches this pin,
+//            that is the smell this gate exists to catch. The code-split
+//            idea (separate srd/engine entry points) remains the real
+//            answer if install size ever matters more than one-file
+//            simplicity — see the roadmap's post-SRD ideas.
 //
 // Note on the 2.5.1 re-pin: the 1.27.0 budget was silently breached at
 // 2.4.0 (283.90 kB min) and again at 2.5.0 (286.12 kB) because this gate
@@ -52,8 +65,8 @@ const ROOT = path.resolve(__dirname, '..');
 // tier-derived stat blocks — which is what this gate is meant to make
 // deliberate, not to forbid.
 const BUDGETS = {
-  minBytes: 340 * 1024,    // 340 kB approx-minified
-  gzipBytes:  80 * 1024    //  80 kB gzipped
+  minBytes: 480 * 1024,    // 480 kB approx-minified
+  gzipBytes: 115 * 1024    // 115 kB gzipped
 };
 
 async function walk(dir) {
