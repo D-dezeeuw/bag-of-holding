@@ -1515,7 +1515,35 @@ export interface ReplayNamespace {
  *  Wizard (elf). Shape matches `CharacterRecord`. */
 export const STARTER_PARTY: readonly CharacterRecord[];
 
+/** A grid square in host-supplied coordinates (the engine keeps no
+ *  positional model — see movement.js). */
+export interface GridPos { x: number; y: number }
+
+/** Variant combat rules (since 2.14.0): six opt-in table variants.
+ *  Pure helpers — the host feeds results back through the existing
+ *  surfaces (attackRoll's advantage flag, Conditions.apply,
+ *  applyDamage). On the engine-bound version the roll helpers ride
+ *  the engine rng (recorded as rngDraws for replay). */
+export interface VariantCombatNamespace {
+  isFlanking(args: { attacker: GridPos; ally: GridPos; target: GridPos }): boolean;
+  CALLED_SHOT_LOCATIONS: Readonly<Record<string, { id: string; name: string; attackPenalty: number; onHit: Readonly<Record<string, unknown>> }>>;
+  calledShot(location: string):
+    | { ok: true; attackPenalty: number; onHit: Readonly<Record<string, unknown>> }
+    | { ok: false; reason: string };
+  LINGERING_INJURIES: ReadonlyArray<{ range: readonly number[]; id: string; name: string; effect: string; healedBy: string }>;
+  rollLingeringInjury(rng?: () => number): { d20: number; injury: { id: string; name: string; effect: string } };
+  SYSTEM_SHOCK: ReadonlyArray<{ range: readonly number[]; id: string; effect: string }>;
+  massiveDamageCheck(args: { amount: number; hpMax: number }, rng?: () => number):
+    | { triggered: false }
+    | { triggered: true; saveDC: number; saveAbility: Ability; onFail: { d10: number; shock: { id: string; effect: string } } };
+  cleaveCarryover(args: { damage: number; targetHp: number }): { killed: boolean; carryover: number };
+  FUMBLE_EFFECTS: ReadonlyArray<{ range: readonly number[]; id: string; effect: string }>;
+  rollFumbleEffect(rng?: () => number): { d6: number; fumble: { id: string; effect: string } };
+}
+
 export interface Engine {
+  /** Variant combat rules (since 2.14.0). */
+  VariantCombat: VariantCombatNamespace;
   species: Record<string, Species>;
   classes: Record<string, ClassDef>;
   backgrounds: Record<string, Background>;
@@ -1587,6 +1615,7 @@ export const Character: CharacterNamespace;
 export const Solo: SoloNamespace;
 export const Session: SessionNamespace;
 export const Replay: ReplayNamespace;
+export const VariantCombat: VariantCombatNamespace;
 
 export const species: Record<string, Species>;
 export const classes: Record<string, ClassDef>;
