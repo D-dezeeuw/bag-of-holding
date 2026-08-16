@@ -1635,10 +1635,22 @@ loss clamping to a mindBroken STATE rather than death) and
 `exhaustionOnFailure`, which drives the real exhaustion ladder —
 six failed checks kill through the SRD machinery.)*
 
-### `2.11.0`: Variant rules: encounter + skills
+### `2.11.0`: Variant rules: encounter + skills — ✅ shipped as `2.16.0`
 
 Group / side initiative, honor / piety / renown stat tracking,
 background-as-proficiency, fewer-skills-more-options variant.
+
+*(As shipped: the `VariantEncounter` namespace, closing the
+variant-rules track. Side initiative (one unmodified d20 per side)
+and group initiative (d20 + group DEX; near-ties break toward the
+higher modifier) both reroll ties until the order is strict.
+Honor/piety/renown are clamped scalar tracks with preset bands, a
+rank ladder (`rankFor` + `RENOWN_RANKS`) and room for custom
+tracks. Background-as-proficiency ships as the DEFAULT judgment
+(`backgroundApplies`) feeding abilityCheck's existing `proficient`
+flag — no new check math. The six SKILL_GROUPS partition the 18
+SRD skills exactly, asserted against SKILL_ABILITY so a future
+skill can't slip through ungrouped.)*
 
 ### `2.12.0`: Hazards & environment (back-fill of 1.15)
 

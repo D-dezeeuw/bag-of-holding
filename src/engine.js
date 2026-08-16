@@ -43,6 +43,7 @@ import * as SceneClock from './scene-clock.js';
 import * as MagicItemsBase from './magic-items.js';
 import * as VariantCombatBase from './variants/combat.js';
 import * as VariantRestBase from './variants/rest.js';
+import * as VariantEncounterBase from './variants/encounter.js';
 import * as MonstersBase from './monsters.js';
 import * as MovementBase from './movement.js';
 import * as MulticlassBase from './multiclass.js';
@@ -1106,6 +1107,22 @@ export function createEngine(opts = {}) {
       applySanityLoss: VariantRestBase.applySanityLoss,
       restoreSanity: VariantRestBase.restoreSanity,
       exhaustionOnFailure: VariantRestBase.exhaustionOnFailure,
+    }),
+    // Variant encounter + skills (since 2.16.0) — side/group initiative,
+    // honor/piety/renown tracks, background-as-proficiency and the six
+    // broad skill groups. The initiative rollers ride counted() so
+    // seeded replay stays aligned.
+    VariantEncounter: Object.freeze({
+      sideInitiative: counted((r, sides) => VariantEncounterBase.sideInitiative(sides, r), 'VariantEncounter.sideInitiative'),
+      groupInitiative: counted((r, groups) => VariantEncounterBase.groupInitiative(groups, r), 'VariantEncounter.groupInitiative'),
+      TRACK_PRESETS: VariantEncounterBase.TRACK_PRESETS,
+      adjustTrack: VariantEncounterBase.adjustTrack,
+      trackValue: VariantEncounterBase.trackValue,
+      rankFor: VariantEncounterBase.rankFor,
+      RENOWN_RANKS: VariantEncounterBase.RENOWN_RANKS,
+      backgroundApplies: VariantEncounterBase.backgroundApplies,
+      SKILL_GROUPS: VariantEncounterBase.SKILL_GROUPS,
+      groupFor: VariantEncounterBase.groupFor,
     }),
     // Class mechanics (since 1.3.0). Foundation for resource-bearing
     // class features (Second Wind, Action Surge, Sneak Attack, etc.)
