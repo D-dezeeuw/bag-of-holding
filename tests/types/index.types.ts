@@ -413,3 +413,9 @@ const _cast = Adventures.entityProviderFrom(QUIET_STAIR_NPCS)({ role: 'authority
 const _foes = _scene?.encounter
   ? Adventures.encounterParticipants(_scene, _qsEngine.monsters) : [];
 void _verdict; void _exits; void _cast; void _foes;
+
+// === Bestiary I (2.7.0) ===
+import { BESTIARY_I } from '../../index.js';
+const _b1: Monster = BESTIARY_I['tomb-regent'];
+const _b1Engine = createEngine({ extraMonsters: { ...BESTIARY_I, ...QUIET_STAIR_MONSTERS } });
+void _b1; void _b1Engine;

@@ -1484,13 +1484,20 @@ adventure-scoped by design (casting.js's boundary: the app owns the
 cast). Legendary/lair/innate mechanics were deliberately left to
 Bestiary II/III — wrong tier at CR 0–4.)*
 
-### Bestiary I (CR 0-5) *(unnumbered — next free minor)*
+### Bestiary I (CR 0-5) — ✅ shipped as `2.7.0`
 
 50 invented creatures across the common ecology niches: humanoid
 warbands, beasts, undead, fey, elementals, oozes, constructs.
 Each carries the full 1.10 stat-block surface (multiattack,
 senses, condition immunities, save bonuses). The first batch
 that meaningfully populates a homebrew sandbox.
+
+*(As shipped: `BESTIARY_I` export, mounted via `extraMonsters` —
+the SRD registry stays SRD-only. Also closes the dungeon-overlay
+debt: `fungal-zombie`, `stone-sentinel`, `myconid-sovereign`,
+`young-drake` and `lesser-demon` now exist under their exact
+downstream ids. Legendary/lair/innate deliberately absent at this
+tier — they arrive with Bestiary II/III.)*
 
 ### Bestiary II (CR 6-15) *(unnumbered)*
 
