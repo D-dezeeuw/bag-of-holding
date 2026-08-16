@@ -1723,3 +1723,9 @@ export const BESTIARY_III: Readonly<Record<string, Monster>>;
  *  debuffs, ritual flags and `upcast()` deltas. Mount via
  *  `createEngine({ extraSpells: GRIMOIRE_I })`. */
 export const GRIMOIRE_I: Readonly<Record<string, Spell>>;
+
+/** 30 invented spells, 6th through 9th: city-sized AoEs, plane-shifting
+ *  alternatives, complex multi-target control. Mount via
+ *  `createEngine({ extraSpells: GRIMOIRE_II })`; composable with
+ *  Grimoire I by spreading both into one map. */
+export const GRIMOIRE_II: Readonly<Record<string, Spell>>;

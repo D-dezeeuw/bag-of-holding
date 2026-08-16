@@ -23,6 +23,7 @@ import { BESTIARY_I } from '../src/bestiary/bestiary-i.js';
 import { BESTIARY_II } from '../src/bestiary/bestiary-ii.js';
 import { BESTIARY_III } from '../src/bestiary/bestiary-iii.js';
 import { GRIMOIRE_I } from '../src/grimoire/grimoire-i.js';
+import { GRIMOIRE_II } from '../src/grimoire/grimoire-ii.js';
 import spells from '../src/srd/spells.js';
 
 const FORBIDDEN = [
@@ -83,6 +84,7 @@ test('the Quiet Stair packs are invented all the way down', () => {
     ...offendersIn(BESTIARY_II, 'bestiary-ii'),
     ...offendersIn(BESTIARY_III, 'bestiary-iii'),
     ...offendersIn(GRIMOIRE_I, 'grimoire-i'),
+    ...offendersIn(GRIMOIRE_II, 'grimoire-ii'),
   ];
   assert.deepEqual(bad, [], `forbidden names in Quiet Stair packs:\n${bad.slice(0, 10).join('\n')}`);
   // And no pack id shadows an SRD id — the packs ADD, they never replace
@@ -107,5 +109,8 @@ test('the Quiet Stair packs are invented all the way down', () => {
   }
   for (const id of Object.keys(GRIMOIRE_I)) {
     assert.ok(!(id in spells), `${id} shadows an SRD spell`);
+  }
+  for (const id of Object.keys(GRIMOIRE_II)) {
+    assert.ok(!(id in spells) && !(id in GRIMOIRE_I), `${id} shadows an existing spell`);
   }
 });

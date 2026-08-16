@@ -77,6 +77,10 @@ export { BESTIARY_III } from './src/bestiary/bestiary-iii.js';
 // debuffs). First shipped data carrying 1.8's `upcast(castLevel)` deltas.
 // Mount via `createEngine({ extraSpells: GRIMOIRE_I })`.
 export { GRIMOIRE_I } from './src/grimoire/grimoire-i.js';
+// Grimoire II (2.11.0) — 30 invented spells, 6th through 9th: city-sized
+// AoEs, plane-shifting alternatives, complex multi-target control, so
+// tier-3/4 spellcasters have a real list. Composable with Grimoire I.
+export { GRIMOIRE_II } from './src/grimoire/grimoire-ii.js';
 
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:

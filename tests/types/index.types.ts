@@ -440,3 +440,10 @@ const _g1Half: boolean | undefined = _g1.halfOnSave;
 const _g1Up: Record<string, unknown> | undefined = _g1.upcast?.(7);
 const _g1Engine = createEngine({ extraSpells: GRIMOIRE_I });
 void _g1; void _g1Classes; void _g1Half; void _g1Up; void _g1Engine;
+
+// === Grimoire II (2.11.0) — the high-tier list ===
+import { GRIMOIRE_II } from '../../index.js';
+const _g2: Spell = GRIMOIRE_II['last-dawn'];
+const _g2Cost: boolean | { cost?: number } | undefined = _g2.components?.m;
+const _g2Engine = createEngine({ extraSpells: { ...GRIMOIRE_I, ...GRIMOIRE_II } });
+void _g2; void _g2Cost; void _g2Engine;
