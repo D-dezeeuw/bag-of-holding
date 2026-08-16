@@ -39,7 +39,8 @@ export default _default;
 export const {
   Dice, Checks, Combat, Conditions, XP, Movesets, Beats, Spellcasting, Rest, Mechanics, SceneClock, MagicItems, Monsters, Movement, Multiclass, Inspiration, EncounterDesign, Hazards, Equipment, Travel, MountedCombat, VariantCombat, VariantRest, VariantEncounter,
   Solo, Session, Replay,
-  species, classes, backgrounds, feats, spells, items, monsters
+  species, classes, backgrounds, feats, spells, items, monsters,
+  regions, npcs, storyHooks, adventures
 } = _default;
 
 // Monster templates — derive higher-tier stat blocks (Elite / Champion /
@@ -96,6 +97,19 @@ export { TREASURY } from './src/treasury/treasury.js';
 // ORIGIN_SPECIES, extraBackgrounds: ORIGIN_BACKGROUNDS, extraFeats:
 // ORIGIN_FEATS })`.
 export { ORIGIN_SPECIES, ORIGIN_BACKGROUNDS, ORIGIN_FEATS } from './src/origins/origins.js';
+
+// Sundermark (3.0.0) — the first complete setting pack: 6 regions, 10
+// cities, 15 factions, 13 story hooks, 12 named NPCs, the Vesperin
+// species, 3 backgrounds, 5 feats and 2 starter adventures, mounted via
+// the 3.0.0 setting slots (extraRegions / extraNpcs / extraStoryHooks /
+// extraAdventures) plus the Phase-A content slots. The kernel's default
+// registries stay empty — no setting is ever on by default.
+export {
+  SUNDERMARK,
+  SUNDERMARK_REGIONS, SUNDERMARK_CITIES, SUNDERMARK_FACTIONS, SUNDERMARK_HOOKS,
+  SUNDERMARK_NPCS, SUNDERMARK_SPECIES, SUNDERMARK_BACKGROUNDS, SUNDERMARK_FEATS,
+  THE_SINGING_TOWER, HALBERDS_EDGE, SUNDERMARK_ADVENTURES,
+} from './src/settings/sundermark/index.js';
 
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:

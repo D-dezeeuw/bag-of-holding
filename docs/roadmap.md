@@ -1684,7 +1684,7 @@ resting in dangerous terrain. Surfaces a `Travel` namespace.
 `Travel` namespace. Nothing left to build; the row was a
 bookkeeping artifact of the two-track roadmap split.)*
 
-### `3.0.0`: Setting: *Sundermark* (high fantasy)
+### `3.0.0`: Setting: *Sundermark* (high fantasy) — ✅ shipped as `3.0.0`
 
 The first complete setting pack. Faerûn-grade scope (a continent,
 multiple kingdoms, classic adventuring vibe) with one defining
@@ -1701,6 +1701,21 @@ feel like séances. Less *gods walk among us*, more
 - **New plugin slots**: `extraRegions`, `extraNpcs`,
   `extraStoryHooks`, `extraAdventures` contracts the engine
   surfaces alongside existing content plugins.
+
+*(As shipped: the four setting slots land with empty default
+registries — no setting is on by default, asserted — and
+`SUNDERMARK` fills them: 6 regions, 10 cities, 15 factions whose
+stances are 15 DISTINCT answers to "what do you do with a dead
+god?", 13 hooks, 12 NPCs, the Vesperin, 3 backgrounds, 5 feats,
+and both promised adventures in the 2.6.0 pack format with
+difficulty claims re-derived (the Singing Tower climax is pinned
+at exactly 1600 XP like the Quiet Stair's; Halberd's Edge claims
+'deadly' honestly). Referential integrity — region→city→hook→
+adventure, faction→seat, npc→faction — is asserted edge by edge.
+The 2.6.0 "no kernel NPC registry" decision is REVISED here,
+which is part of why this is a major. Note: bundle at 462/480 kB
+— the next setting pack needs either a budget decision or the
+code-splitting entry point from the post-SRD list.)*
 
 ### `3.1.0`: Setting: *Brassgear* (magitech-noir)
 
