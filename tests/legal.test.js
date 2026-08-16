@@ -28,6 +28,7 @@ import { TREASURY } from '../src/treasury/treasury.js';
 import { ORIGIN_SPECIES, ORIGIN_BACKGROUNDS, ORIGIN_FEATS } from '../src/origins/origins.js';
 import { SUNDERMARK } from '../src/settings/sundermark/index.js';
 import { BRASSGEAR } from '../src/settings/brassgear/index.js';
+import { HOLLOW_VALE } from '../src/settings/hollow-vale/index.js';
 import species from '../src/srd/species.js';
 import backgrounds from '../src/srd/backgrounds.js';
 import feats from '../src/srd/feats.js';
@@ -100,6 +101,7 @@ test('the Quiet Stair packs are invented all the way down', () => {
     // origins and both adventures' readAloud prose — every string ships.
     ...offendersIn(SUNDERMARK, 'sundermark'),
     ...offendersIn(BRASSGEAR, 'brassgear'),
+    ...offendersIn(HOLLOW_VALE, 'hollow-vale'),
   ];
   assert.deepEqual(bad, [], `forbidden names in Quiet Stair packs:\n${bad.slice(0, 10).join('\n')}`);
   // And no pack id shadows an SRD id — the packs ADD, they never replace

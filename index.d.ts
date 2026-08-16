@@ -2006,3 +2006,48 @@ export const BRASSGEAR_FEATS: Readonly<Record<string, Feat>>;
 export const BRASSGEAR_ADVENTURES: Readonly<Record<string, AdventurePack>>;
 /** The Greenmist Heist — starter adventure (~75 min, 4 × L3). */
 export const THE_GREENMIST_HEIST: AdventurePack;
+
+// ============================================================
+// The Hollow Vale (3.2.0) — the third setting pack
+// ============================================================
+
+/** A Darklord: a SettingNpc whose moral arc turns on two extra
+ *  fields — the tragedy that made them, and the door out. */
+export interface Darklord extends SettingNpc {
+  tragedy: string;
+  redemption: string;
+}
+
+/** The dread track: a VariantEncounter custom-track band plus rank
+ *  thresholds and the table of what moves it. */
+export interface DreadTrack {
+  band: { min: number; max: number; start: number };
+  thresholds: ReadonlyArray<{ at: number; name: string; effect: string }>;
+  gains: Readonly<Record<string, number>>;
+}
+
+export const HOLLOW_VALE: Readonly<{
+  id: string; name: string; pitch: string;
+  regions: Readonly<Record<string, Region>>;
+  cities: Readonly<Record<string, SundermarkCity>>;
+  factions: Readonly<Record<string, SundermarkFaction>>;
+  hooks: Readonly<Record<string, StoryHook>>;
+  npcs: Readonly<Record<string, Darklord>>;
+  dread: DreadTrack;
+  adventures: Readonly<Record<string, AdventurePack>>;
+}>;
+export const HOLLOW_VALE_REGIONS: Readonly<Record<string, Region>>;
+export const HOLLOW_VALE_CITIES: Readonly<Record<string, SundermarkCity>>;
+export const HOLLOW_VALE_FACTIONS: Readonly<Record<string, SundermarkFaction>>;
+export const HOLLOW_VALE_HOOKS: Readonly<Record<string, StoryHook>>;
+export const HOLLOW_VALE_NPCS: Readonly<Record<string, Darklord>>;
+export const HOLLOW_VALE_DREAD: DreadTrack;
+export const HOLLOW_VALE_ADVENTURES: Readonly<Record<string, AdventurePack>>;
+/** Bramblefell — starter adventure (~90 min, 4 × L3), with a
+ *  dream-sequence beat staged by the ordinary Beats runtime. */
+export const BRAMBLEFELL: AdventurePack;
+/** Light as a resource: burn lantern-hours; running dry returns
+ *  `inTheDark: true` plus the dread gain the table applies. */
+export function burnLight(actor: Actor, hours?: number): {
+  actor: Actor; remaining: number; inTheDark: boolean; dreadGain?: number;
+};
