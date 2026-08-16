@@ -179,6 +179,24 @@ export interface Spell {
   autohit?: boolean;
   projectiles?: number;
   sets?: Record<string, string>;
+  // Descriptive fields the data records carry (typed since 2.10.0; the
+  // SRD records have shipped them since 1.8).
+  damageType?: string;
+  concentration?: boolean;
+  ritual?: boolean;
+  bonusAction?: boolean;
+  range?: string;
+  duration?: string;
+  area?: string;
+  components?: { v?: boolean; s?: boolean; m?: boolean | { cost?: number } };
+  /** True when a successful save halves the damage instead of negating it. */
+  halfOnSave?: boolean;
+  /** Per-slot upcast delta; consumed by `Spellcasting.castSpell` (the 1.8
+   *  contract; Grimoire I is the first shipped data to carry one). */
+  upcast?: (castLevel: number) => Record<string, unknown>;
+  /** Which classes have this spell on their list — pack data (since
+   *  2.10.0). SRD spells answer this via `classesFor` instead. */
+  classes?: string[];
 }
 
 export interface Item {
@@ -1699,3 +1717,9 @@ export const BESTIARY_II: Readonly<Record<string, Monster>>;
  *  triggered), Innate Spellcasting at levels 6+. Mount via
  *  `createEngine({ extraMonsters: BESTIARY_III })`. */
 export const BESTIARY_III: Readonly<Record<string, Monster>>;
+
+/** 50 invented spells, cantrips through 5th: reaction casts,
+ *  cylinder/line save-for-half AoEs, concentration buffs, single-target
+ *  debuffs, ritual flags and `upcast()` deltas. Mount via
+ *  `createEngine({ extraSpells: GRIMOIRE_I })`. */
+export const GRIMOIRE_I: Readonly<Record<string, Spell>>;

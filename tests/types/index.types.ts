@@ -431,3 +431,12 @@ const _b3Mythic: { id: string; name: string; cost?: number }[] | undefined =
 const _b3Trigger: string | undefined = _b3.mythicActions?.trigger;
 const _b3Engine = createEngine({ extraMonsters: { ...BESTIARY_II, ...BESTIARY_III } });
 void _b3; void _b3Mythic; void _b3Trigger; void _b3Engine;
+
+// === Grimoire I (2.10.0) — spells with classes + upcast deltas ===
+import { GRIMOIRE_I } from '../../index.js';
+const _g1: Spell = GRIMOIRE_I['cataract-of-stars'];
+const _g1Classes: string[] | undefined = _g1.classes;
+const _g1Half: boolean | undefined = _g1.halfOnSave;
+const _g1Up: Record<string, unknown> | undefined = _g1.upcast?.(7);
+const _g1Engine = createEngine({ extraSpells: GRIMOIRE_I });
+void _g1; void _g1Classes; void _g1Half; void _g1Up; void _g1Engine;

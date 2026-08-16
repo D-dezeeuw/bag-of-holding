@@ -1531,13 +1531,22 @@ spell level 6+, up to power-word-kill and gate. With Bestiary
 I/II and the Quiet Stair pack the invented bestiary is 105 blocks
 on a continuous CR 0–20 ladder.)*
 
-### Grimoire I (cantrips through 5th) *(unnumbered)*
+### Grimoire I (cantrips through 5th) — ✅ shipped as `2.10.0`
 
 50 invented spells covering schools and tactical roles the SRD 33
 left thin: more reaction-cast options, more save-for-half AoE
 shapes (cylinder, line variants), more concentration buffs, more
 single-target debuffs. Each entry uses the 1.8 spell-record
 contract: components, ritual flag, upcast deltas.
+
+*(As shipped: `GRIMOIRE_I` via `extraSpells`. 10/10/8/8/7/7 across
+levels 0–5, all eight schools represented; 3 reaction casts, 3
+cylinder + 2 line save-for-half AoEs, 12+ concentration effects,
+4 rituals, 5+ single-target debuffs. First shipped data carrying
+1.8's `upcast(castLevel)` deltas — `castSpell` consumed the field
+for eight minors with nothing to consume. Records carry a
+`classes` array as host data; the SRD class-list gate stays
+SRD-scoped by design.)*
 
 ### Grimoire II (6th-9th) *(unnumbered)*
 

@@ -71,6 +71,13 @@ export { BESTIARY_II } from './src/bestiary/bestiary-ii.js';
 // and Innate Spellcasting at levels 6+.
 export { BESTIARY_III } from './src/bestiary/bestiary-iii.js';
 
+// Grimoire I (2.10.0) — 50 invented spells, cantrips through 5th, filling
+// the tactical roles the SRD selection left thin (reaction casts,
+// cylinder/line save-for-half AoEs, concentration buffs, single-target
+// debuffs). First shipped data carrying 1.8's `upcast(castLevel)` deltas.
+// Mount via `createEngine({ extraSpells: GRIMOIRE_I })`.
+export { GRIMOIRE_I } from './src/grimoire/grimoire-i.js';
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';
