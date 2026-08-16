@@ -1908,11 +1908,21 @@ change lands its migration here instead of in release notes.
 `sessionFromJson` re-validates save snapshots and reports unknown
 fields — preserved, never dropped.)*
 
-### `5.3.0`: Documentation site
+### `5.3.0`: Documentation site — ✅ shipped as `3.9.0`
 
 Generated from `index.d.ts` doc comments + the recipes + a
 tutorial path. Replaces the deferred TypeDoc site from `1.0.0`'s
 "deferred to post-1.0" promise.
+
+*(As shipped: `scripts/build-docs.mjs` → the static `/docs.html`
+page — 219 declarations across 22 sections parsed straight from
+index.d.ts (no TypeDoc; zero deps), grouped by the file's own
+section banners, doc comments extracted, plus the full recipe
+cookbook rendered through a dependency-free markdown pass. The
+coverage test makes the doc site an API-HONESTY GATE, not a
+best-effort artifact: every `export const/function` in index.d.ts
+must surface in the reference or CI fails. The page is fully
+static and version-stamped by its generating kernel.)*
 
 ## Post-SRD ideas (no commitment)
 
