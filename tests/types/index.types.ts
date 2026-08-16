@@ -587,3 +587,13 @@ const _mfVerdict: { valid: boolean; errors: string[] } = Manifest.validate(_mf);
 const _mfMatch: { ok: boolean; reasons: string[] } = Manifest.matches(_mf, '3.6.0');
 const _mfRange: boolean = Manifest.satisfies('3.6.0', '>=3.0.0 <4.0.0');
 void _mfVerdict; void _mfMatch; void _mfRange;
+
+// === Conversion tools (3.7.0) ===
+import { Convert } from '../../index.js';
+const _cvCr: number | null = Convert.normalizeCr('1/4');
+const _cvMonster = Convert.monsterFromJson({ name: 'Gray Hunter', challenge_rating: '1/4' });
+const _cvWarnings: string[] = _cvMonster.warnings;
+const _cvSpell = Convert.spellFromJson({ name: 'Winter Lance', level: 3, school: 'evocation' });
+const _cvMigrate = Convert.migrateCharacter({ id: 'pc', speciesId: 'human' });
+const _cvSession = Convert.sessionFromJson({ id: 's-1' });
+void _cvCr; void _cvWarnings; void _cvSpell; void _cvMigrate; void _cvSession;
