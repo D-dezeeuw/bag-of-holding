@@ -504,3 +504,24 @@ const _veRank: { at: number; name: string } | null =
   VariantEncounter.rankFor(_veTrack.value, VariantEncounter.RENOWN_RANKS);
 const _veGroupName: string | null = VariantEncounter.groupFor('stealth');
 void _veOrder; void _veGroup; void _veRank; void _veGroupName;
+
+// === Sundermark (3.0.0) — setting slots + the first pack ===
+import {
+  SUNDERMARK, THE_SINGING_TOWER, Region, SettingNpc, StoryHook,
+} from '../../index.js';
+const _smEngine = createEngine({
+  extraRegions: SUNDERMARK.regions,
+  extraNpcs: SUNDERMARK.npcs,
+  extraStoryHooks: SUNDERMARK.hooks,
+  extraAdventures: SUNDERMARK.adventures,
+  extraSpecies: SUNDERMARK.species,
+});
+const _smRegion: Region = _smEngine.regions['the-reliquary-coast'];
+const _smNpc: SettingNpc = _smEngine.npcs['cantor-illiane'];
+const _smNpcFaction: string | undefined = _smNpc.factionId;
+const _smHook: StoryHook = _smEngine.storyHooks['the-singing-tower-hook'];
+const _smPack: AdventurePack = _smEngine.adventures['the-singing-tower'];
+const _smVerdict = Adventures.validateAdventure(THE_SINGING_TOWER, {
+  monsters: _smEngine.monsters, items: _smEngine.items,
+});
+void _smRegion; void _smNpcFaction; void _smHook; void _smPack; void _smVerdict;

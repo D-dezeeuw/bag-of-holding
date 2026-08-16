@@ -74,7 +74,19 @@ const REGISTRY_VALIDATORS = {
   feats:       { required: ['id', 'name', 'category'] },
   spells:      { required: ['id', 'name', 'level', 'school'] },
   items:       { required: ['id', 'name', 'type'] },
-  monsters:    { required: ['id', 'name', 'ac', 'hp', 'abilityScores'], arrayFields: ['attacks', 'traits'] }
+  monsters:    { required: ['id', 'name', 'ac', 'hp', 'abilityScores'], arrayFields: ['attacks', 'traits'] },
+  // Setting-pack registries (since 3.0.0). Empty by default — the kernel
+  // ships no world of its own; setting packs (Sundermark onward) fill
+  // them through extraRegions / extraNpcs / extraStoryHooks /
+  // extraAdventures. NPC records follow the shape the Quiet Stair
+  // established (archetypeRole ∈ Beats.ARCHETYPE_ROLES, voice, wants);
+  // adventure records are 2.6.0 AdventurePacks — registry validation
+  // checks identity only, `Adventures.validateAdventure` remains the
+  // deep gate hosts run at mount time.
+  regions:     { required: ['id', 'name'] },
+  npcs:        { required: ['id', 'name', 'archetypeRole'], arrayFields: ['voice', 'wants'] },
+  storyHooks:  { required: ['id', 'title'] },
+  adventures:  { required: ['id', 'title', 'start'], arrayFields: ['beats', 'scenes'] }
 };
 
 /**
@@ -301,6 +313,10 @@ function buildConditions(extraConditions = []) {
  * @param {(entry: object) => void} [opts.onRoll]  Per-roll callback.
  * @param {number} [opts.rollLogCap]        Max log entries (default ∞).
  * @param {object} [opts.rules]             Phase B rule overrides; see DEFAULT_RULES.
+ * @param {object} [opts.extraRegions]      Map of id → region record (since 3.0.0).
+ * @param {object} [opts.extraNpcs]         Map of id → NPC record (since 3.0.0).
+ * @param {object} [opts.extraStoryHooks]   Map of id → story hook (since 3.0.0).
+ * @param {object} [opts.extraAdventures]   Map of id → AdventurePack (since 3.0.0).
  */
 export function createEngine(opts = {}) {
   const species     = mergeRegistry('species',     defaultSpecies,     opts.extraSpecies);
@@ -310,6 +326,13 @@ export function createEngine(opts = {}) {
   const spells      = mergeRegistry('spells',      defaultSpells,      opts.extraSpells);
   const items       = mergeRegistry('items',       defaultItems,       opts.extraItems);
   const monsters    = mergeRegistry('monsters',    defaultMonsters,    opts.extraMonsters);
+  // Setting-pack registries (since 3.0.0). The kernel ships no world of
+  // its own — the default base for each is empty, so an engine without a
+  // setting pack behaves exactly as before.
+  const regions     = mergeRegistry('regions',     {},                 opts.extraRegions);
+  const npcs        = mergeRegistry('npcs',        {},                 opts.extraNpcs);
+  const storyHooks  = mergeRegistry('storyHooks',  {},                 opts.extraStoryHooks);
+  const adventures  = mergeRegistry('adventures',  {},                 opts.extraAdventures);
 
   // Phase A.2 plugin contributions: extraMechanics and extraResources
   // graft onto an existing class without forking its record. Last-write
@@ -874,6 +897,9 @@ export function createEngine(opts = {}) {
   const engineInstance = {
     // Data registries — plain objects, mutate at your own risk.
     species, classes, backgrounds, feats, spells, items, monsters,
+    // Setting-pack registries (since 3.0.0) — empty unless a setting
+    // pack fills them via the extra* options.
+    regions, npcs, storyHooks, adventures,
     // Plugin-extensible vocabularies (since 1.24.0). Each is a
     // frozen, deduplicated list combining the SRD defaults with any
     // `opts.extraSenses` / `opts.extraLightLevels` contributions.

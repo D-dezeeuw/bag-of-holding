@@ -1254,6 +1254,44 @@ export interface EngineOptions {
   rules?: EngineRules;
   /** Plugin Phase C behavioural hooks. See `HooksOption`. */
   hooks?: HooksOption;
+  // Setting-pack slots (since 3.0.0). Empty registries by default — the
+  // kernel ships no world of its own; setting packs fill them.
+  extraRegions?: Record<string, Region>;
+  extraNpcs?: Record<string, SettingNpc>;
+  extraStoryHooks?: Record<string, StoryHook>;
+  extraAdventures?: Record<string, AdventurePack>;
+}
+
+/** A setting region (since 3.0.0). `id` + `name` are the registry
+ *  contract; everything else is pack vocabulary. */
+export interface Region {
+  id: string;
+  name: string;
+  biome?: string;
+  summary?: string;
+  cities?: readonly string[];
+  dangers?: readonly string[];
+}
+
+/** A setting NPC (since 3.0.0): the AdventureNpc shape plus the
+ *  setting's binding fields. The 2.6.0 "no kernel NPC registry"
+ *  decision is revised here — the registry holds the cast; the Beats
+ *  casting boundary itself stands. */
+export interface SettingNpc extends AdventureNpc {
+  factionId?: string;
+  cityId?: string | null;
+}
+
+/** A story hook (since 3.0.0): a place, a faction pressure, a payout,
+ *  and optionally the adventure it opens. */
+export interface StoryHook {
+  id: string;
+  title: string;
+  cityId?: string;
+  factionId?: string;
+  pitch?: string;
+  reward?: string;
+  adventureId?: string;
 }
 
 /** One slot record on an actor's character sheet. `source: 'pact'`
@@ -1612,6 +1650,12 @@ export interface Engine {
   VariantRest: VariantRestNamespace;
   /** Variant encounter + skills (since 2.16.0). */
   VariantEncounter: VariantEncounterNamespace;
+  // Setting-pack registries (since 3.0.0) — empty unless a setting pack
+  // fills them via the extra* options.
+  regions: Record<string, Region>;
+  npcs: Record<string, SettingNpc>;
+  storyHooks: Record<string, StoryHook>;
+  adventures: Record<string, AdventurePack>;
   species: Record<string, Species>;
   classes: Record<string, ClassDef>;
   backgrounds: Record<string, Background>;
@@ -1688,6 +1732,10 @@ export const VariantRest: VariantRestNamespace;
 export const VariantEncounter: VariantEncounterNamespace;
 
 export const species: Record<string, Species>;
+export const regions: Record<string, Region>;
+export const npcs: Record<string, SettingNpc>;
+export const storyHooks: Record<string, StoryHook>;
+export const adventures: Record<string, AdventurePack>;
 export const classes: Record<string, ClassDef>;
 export const backgrounds: Record<string, Background>;
 export const feats: Record<string, Feat>;
@@ -1859,3 +1907,49 @@ export const ORIGIN_BACKGROUNDS: Readonly<Record<string, Background>>;
 /** 12 invented feats: 6 origin, 4 general, 2 epic boons. Mount via
  *  `createEngine({ extraFeats: ORIGIN_FEATS })`. */
 export const ORIGIN_FEATS: Readonly<Record<string, Feat>>;
+
+// ============================================================
+// Sundermark (3.0.0) — the first complete setting pack
+// ============================================================
+
+/** A Sundermark city: mapped, ruled, and hung with hooks. */
+export interface SundermarkCity {
+  id: string; name: string; regionId: string;
+  size: string; ruler: string | null; hooks: readonly string[];
+}
+/** A Sundermark faction: its stance is its answer to the setting's
+ *  question — what do you do with a dead god? */
+export interface SundermarkFaction {
+  id: string; name: string; stance: string; seat: string | null;
+  wants: string; enemies: readonly string[];
+}
+
+/** The bundled pack: mount `regions`/`npcs`/`hooks`/`adventures`
+ *  through the 3.0.0 setting slots and `species`/`backgrounds`/`feats`
+ *  through the Phase-A slots. Factions and cities are pack data
+ *  hosts consume directly. */
+export const SUNDERMARK: Readonly<{
+  id: string; name: string; pitch: string;
+  regions: Readonly<Record<string, Region>>;
+  cities: Readonly<Record<string, SundermarkCity>>;
+  factions: Readonly<Record<string, SundermarkFaction>>;
+  hooks: Readonly<Record<string, StoryHook>>;
+  npcs: Readonly<Record<string, SettingNpc>>;
+  species: Readonly<Record<string, Species>>;
+  backgrounds: Readonly<Record<string, Background>>;
+  feats: Readonly<Record<string, Feat>>;
+  adventures: Readonly<Record<string, AdventurePack>>;
+}>;
+export const SUNDERMARK_REGIONS: Readonly<Record<string, Region>>;
+export const SUNDERMARK_CITIES: Readonly<Record<string, SundermarkCity>>;
+export const SUNDERMARK_FACTIONS: Readonly<Record<string, SundermarkFaction>>;
+export const SUNDERMARK_HOOKS: Readonly<Record<string, StoryHook>>;
+export const SUNDERMARK_NPCS: Readonly<Record<string, SettingNpc>>;
+export const SUNDERMARK_SPECIES: Readonly<Record<string, Species>>;
+export const SUNDERMARK_BACKGROUNDS: Readonly<Record<string, Background>>;
+export const SUNDERMARK_FEATS: Readonly<Record<string, Feat>>;
+export const SUNDERMARK_ADVENTURES: Readonly<Record<string, AdventurePack>>;
+/** The Singing Tower — starter adventure (~75 min, 4 × L3). */
+export const THE_SINGING_TOWER: AdventurePack;
+/** Halberd's Edge — starter adventure (~75 min, 4 × L3). */
+export const HALBERDS_EDGE: AdventurePack;
