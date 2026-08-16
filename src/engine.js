@@ -1052,6 +1052,13 @@ export function createEngine(opts = {}) {
       freshInnateState: MonstersBase.freshInnateState,
       castInnate: MonstersBase.castInnate,
       refreshInnateSpells: MonstersBase.refreshInnateSpells,
+      // Mythic Actions (since 2.9.0) — the second-phase pool, sealed
+      // until its trigger fires. Landed with Bestiary III, the first
+      // data that carries one.
+      freshMythicState: MonstersBase.freshMythicState,
+      activateMythic: MonstersBase.activateMythic,
+      useMythicAction: MonstersBase.useMythicAction,
+      refreshMythicActions: MonstersBase.refreshMythicActions,
       senses: MonstersBase.senses,
       saveBonus: MonstersBase.saveBonus
     }),

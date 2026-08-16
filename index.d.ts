@@ -268,6 +268,9 @@ export interface Monster {
   lairActions?: { triggersOnInitiative?: number; options: Array<{ id: string; name: string }> };
   /** Innate spell lists (SRD spell ids); consumed by `Monsters.castInnate`. */
   innateSpellcasting?: { atWill?: string[]; '3day'?: string[]; '1day'?: string[] };
+  /** Mythic second-phase pool (since 2.9.0): sealed until the host fires
+   *  its trigger; see `Monsters.activateMythic` / `useMythicAction`. */
+  mythicActions?: { trigger?: string; uses?: number; options: Array<{ id: string; name: string; cost?: number; attackRef?: number | string }> };
 }
 
 // ============================================================
@@ -1691,3 +1694,8 @@ export const BESTIARY_I: Readonly<Record<string, Monster>>;
  *  1.10 systems run against. Mount via
  *  `createEngine({ extraMonsters: BESTIARY_II })`. */
 export const BESTIARY_II: Readonly<Record<string, Monster>>;
+/** 10 capstone monsters, CR 16–20, for tier-4 play: Legendary
+ *  Resistance pools, Mythic Actions (second-phase pools, sealed until
+ *  triggered), Innate Spellcasting at levels 6+. Mount via
+ *  `createEngine({ extraMonsters: BESTIARY_III })`. */
+export const BESTIARY_III: Readonly<Record<string, Monster>>;

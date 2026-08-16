@@ -415,7 +415,7 @@ const _foes = _scene?.encounter
 void _verdict; void _exits; void _cast; void _foes;
 
 // === Bestiary I (2.7.0) ===
-import { BESTIARY_I, BESTIARY_II } from '../../index.js';
+import { BESTIARY_I, BESTIARY_II, BESTIARY_III } from '../../index.js';
 const _b1: Monster = BESTIARY_I['tomb-regent'];
 const _b1Engine = createEngine({ extraMonsters: { ...BESTIARY_I, ...QUIET_STAIR_MONSTERS } });
 void _b1; void _b1Engine;
@@ -423,3 +423,11 @@ const _b2: Monster = BESTIARY_II['the-first-forgotten-king'];
 const _b2Legendary: { uses?: number } | undefined = _b2.legendaryResistance;
 const _b2Innate: string[] | undefined = _b2.innateSpellcasting?.atWill;
 void _b2; void _b2Legendary; void _b2Innate;
+
+// === Bestiary III (2.9.0) — capstones with Mythic Actions ===
+const _b3: Monster = BESTIARY_III['the-silence-crowned'];
+const _b3Mythic: { id: string; name: string; cost?: number }[] | undefined =
+  _b3.mythicActions?.options;
+const _b3Trigger: string | undefined = _b3.mythicActions?.trigger;
+const _b3Engine = createEngine({ extraMonsters: { ...BESTIARY_II, ...BESTIARY_III } });
+void _b3; void _b3Mythic; void _b3Trigger; void _b3Engine;

@@ -1514,11 +1514,22 @@ also re-pins the bundle budget to 480/115 kB — one deliberate pin
 for the whole planned content track; see
 scripts/measure-bundle.js.)*
 
-### Bestiary III (CR 16-20) *(unnumbered)*
+### Bestiary III (CR 16-20) — ✅ shipped as `2.9.0`
 
 10 capstone monsters for tier-4 play. Includes Legendary
 Resistance pools, Mythic Actions, and Innate Spellcasting at
 spell levels 6+. Unlocks meaningful end-of-campaign showdowns.
+
+*(As shipped: `BESTIARY_III` via `extraMonsters`. All 10 carry
+full Legendary Resistance pools (3 uses), legendary actions,
+multiattack routines, 3+ trained saves and capstone senses; 6
+carry Mythic Actions — and the mythic CONSUMER lands with them
+(`Monsters.freshMythicState` / `activateMythic` /
+`useMythicAction` / `refreshMythicActions`), the mechanic the
+1.10 header promised but no data ever drove; 5 cast innately at
+spell level 6+, up to power-word-kill and gate. With Bestiary
+I/II and the Quiet Stair pack the invented bestiary is 105 blocks
+on a continuous CR 0–20 ladder.)*
 
 ### Grimoire I (cantrips through 5th) *(unnumbered)*
 
