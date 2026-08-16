@@ -1582,11 +1582,36 @@ export interface VariantRestNamespace {
   exhaustionOnFailure(actor: Actor, checkResult: { success?: boolean }, levels?: number): { applied: boolean; actor: Actor };
 }
 
+/** Variant encounter + skills (since 2.16.0): side/group initiative
+ *  (strict orders, ties rerolled), honor/piety/renown scalar tracks
+ *  with rank ladders, background-as-proficiency (the verdict feeds
+ *  Checks.abilityCheck's existing `proficient` flag), and the six
+ *  broad skill groups that partition the 18 SRD skills. */
+export interface VariantEncounterNamespace {
+  sideInitiative(sideIds: string[], rng?: () => number):
+    | { ok: true; order: Array<{ side: string; d20: number }> }
+    | { ok: false; reason: string };
+  groupInitiative(groups: Array<{ id: string; dexterity?: number }>, rng?: () => number):
+    | { ok: true; order: Array<{ group: string; initiative: number; d20: number; mod: number }> }
+    | { ok: false; reason: string };
+  TRACK_PRESETS: Readonly<Record<string, { min: number; max: number; start: number }>>;
+  adjustTrack(actor: Actor, trackId: string, delta: number, band?: { min: number; max: number; start?: number }):
+    { actor: Actor; value: number; changed: number };
+  trackValue(actor: Actor, trackId: string, band?: { start?: number }): number;
+  rankFor(value: number, ranks: ReadonlyArray<{ at: number; name: string }>): { at: number; name: string } | null;
+  RENOWN_RANKS: ReadonlyArray<{ at: number; name: string }>;
+  backgroundApplies(background: Background | undefined, skillId: string): boolean;
+  SKILL_GROUPS: Readonly<Record<string, readonly string[]>>;
+  groupFor(skillId: string): string | null;
+}
+
 export interface Engine {
   /** Variant combat rules (since 2.14.0). */
   VariantCombat: VariantCombatNamespace;
   /** Variant rest + downtime (since 2.15.0). */
   VariantRest: VariantRestNamespace;
+  /** Variant encounter + skills (since 2.16.0). */
+  VariantEncounter: VariantEncounterNamespace;
   species: Record<string, Species>;
   classes: Record<string, ClassDef>;
   backgrounds: Record<string, Background>;
@@ -1660,6 +1685,7 @@ export const Session: SessionNamespace;
 export const Replay: ReplayNamespace;
 export const VariantCombat: VariantCombatNamespace;
 export const VariantRest: VariantRestNamespace;
+export const VariantEncounter: VariantEncounterNamespace;
 
 export const species: Record<string, Species>;
 export const classes: Record<string, ClassDef>;

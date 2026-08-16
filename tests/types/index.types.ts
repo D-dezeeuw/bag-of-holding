@@ -493,3 +493,14 @@ const _vrKnobs: 'standard' | 'gritty' = createEngine().rules.restDurationScale;
 const _vrHours: { shortRestHours: number; longRestHours: number } =
   createEngine({ rules: { restDurationScale: 'gritty' } }).Rest.restDurations();
 void _vrOk; void _vrStake; void _vrKnobs; void _vrHours;
+
+// === Variant encounter + skills (2.16.0) ===
+import { VariantEncounter } from '../../index.js';
+const _veSide = VariantEncounter.sideInitiative(['party', 'monsters']);
+const _veOrder = _veSide.ok ? _veSide.order[0].side : _veSide.reason;
+const _veGroup = VariantEncounter.groupInitiative([{ id: 'wolves', dexterity: 14 }]);
+const _veTrack = VariantEncounter.adjustTrack({ id: 'pc' } as never, 'renown', 5);
+const _veRank: { at: number; name: string } | null =
+  VariantEncounter.rankFor(_veTrack.value, VariantEncounter.RENOWN_RANKS);
+const _veGroupName: string | null = VariantEncounter.groupFor('stealth');
+void _veOrder; void _veGroup; void _veRank; void _veGroupName;
