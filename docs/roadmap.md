@@ -1771,13 +1771,25 @@ sequence in Bramblefell is an ordinary beat flagged `dream: true`
 that Beats.validateBeat accepts unchanged. Bramblefell validates
 deep and runs a full sitting in CI.)*
 
-### `3.3.0`: Setting plugin contract
+### `3.3.0`: Setting plugin contract — ✅ shipped as `3.3.0`
 
 Formalises the pack shape that 3.0-3.2 each shipped ad-hoc.
 `Setting.register({ regions, npcs, hooks, species, backgrounds,
 items, monsters, spells, adventures })` with validation. Settings
 become composable; a campaign can declare two settings active
 simultaneously for crossover play.
+
+*(As shipped: the `Settings` namespace — `validate` returns a
+report (never throws, so a catalog UI can render it),
+`register` gates with the full report in the throw, and
+`compose(...packs)` merges N validated packs into ONE
+createEngine options object. All three shipped settings validate
+clean — the contract DESCRIBES them rather than prescribing at
+them — and CI runs a Sundermark + Hollow Vale crossover engine
+where both packs' adventures validate against the same merged
+registries, plus the all-three grand mount. Cross-pack id
+collisions throw with both owners named instead of silently
+last-write-winning; composing the same pack twice is idempotent.)*
 
 ### `4.0.0`: AI prompt scaffolding (sister package)
 

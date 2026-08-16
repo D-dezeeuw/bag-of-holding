@@ -548,3 +548,10 @@ const _hvLight = burnLight({ id: 'pc', lightHours: 2 } as never, 3);
 const _hvDark: boolean = _hvLight.inTheDark;
 const _hvPack: AdventurePack = BRAMBLEFELL;
 void _hvTragedy; void _hvRank; void _hvDark; void _hvPack;
+
+// === The setting plugin contract (3.3.0) ===
+import { Settings, SettingPack } from '../../index.js';
+const _scVerdict: { valid: boolean; errors: string[] } = Settings.validate(SUNDERMARK);
+const _scPack: SettingPack = Settings.register(HOLLOW_VALE);
+const _scEngine = createEngine(Settings.compose(SUNDERMARK, HOLLOW_VALE));
+void _scVerdict; void _scPack; void _scEngine;

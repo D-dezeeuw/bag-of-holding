@@ -140,6 +140,21 @@ export {
   BRAMBLEFELL, HOLLOW_VALE_ADVENTURES,
 } from './src/settings/hollow-vale/index.js';
 
+// The setting plugin contract (3.3.0) — formalises the pack shape the
+// three shipped settings established ad-hoc. `Settings.validate` reports,
+// `Settings.register` gates (throws the full report), and
+// `Settings.compose(...packs)` merges N packs into ONE createEngine
+// options object for crossover play, refusing cross-pack id collisions:
+//   createEngine(Settings.compose(SUNDERMARK, HOLLOW_VALE))
+import {
+  validateSettingPack, registerSetting, composeSettings,
+} from './src/settings/contract.js';
+export const Settings = Object.freeze({
+  validate: validateSettingPack,
+  register: registerSetting,
+  compose: composeSettings,
+});
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';
