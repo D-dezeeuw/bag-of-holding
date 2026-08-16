@@ -2135,6 +2135,34 @@ export const Cards: Readonly<{
    *  the numbers on the page are the numbers in play. */
   combatCheatSheet(engine: Engine): Card;
 }>;
+
+// ============================================================
+// The plugin manifest format (3.6.0)
+// ============================================================
+
+/** `bag-of-holding.json` — what a third-party pack publishes so
+ *  loaders and catalogs can reason about it without executing it. */
+export interface PluginManifest {
+  manifestVersion: number;
+  name: string;
+  version: string;
+  /** Kernel range: `^X.Y.Z`, `>=X.Y.Z`, `>=X.Y.Z <A.B.C`, or exact. */
+  kernel: string;
+  /** Table → contributed record count. Keys from `Manifest.TABLES`. */
+  contributes: Record<string, number>;
+  entry?: string;
+  description?: string;
+}
+
+export const Manifest: Readonly<{
+  VERSION: number;
+  /** Declarable tables mapped to the engine option each mounts through. */
+  TABLES: Readonly<Record<string, string>>;
+  validate(manifest: PluginManifest | unknown): { valid: boolean; errors: string[] };
+  satisfies(kernelVersion: string, range: string): boolean;
+  /** The loader's red/green: valid AND mountable on this kernel. */
+  matches(manifest: PluginManifest | unknown, kernelVersion: string): { ok: boolean; reasons: string[] };
+}>;
 /** Light as a resource: burn lantern-hours; running dry returns
  *  `inTheDark: true` plus the dread gain the table applies. */
 export function burnLight(actor: Actor, hours?: number): {

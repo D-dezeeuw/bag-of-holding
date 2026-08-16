@@ -174,6 +174,24 @@ export const Strings = makeStrings({});
 import * as CardsModule from './src/cards.js';
 export const Cards = Object.freeze({ ...CardsModule });
 
+// The plugin manifest format (3.6.0) — `bag-of-holding.json`, the file
+// a third-party content pack publishes beside its code so loaders and
+// catalogs can reason about it WITHOUT executing it: identity, the
+// kernel range it was built against, and which plugin tables it
+// contributes. `Manifest.matches(manifest, kernelVersion)` is the
+// loader's red/green.
+import {
+  MANIFEST_VERSION, MANIFEST_TABLES,
+  validateManifest, kernelSatisfies, manifestMatches,
+} from './src/manifest.js';
+export const Manifest = Object.freeze({
+  VERSION: MANIFEST_VERSION,
+  TABLES: MANIFEST_TABLES,
+  validate: validateManifest,
+  satisfies: kernelSatisfies,
+  matches: manifestMatches,
+});
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';
