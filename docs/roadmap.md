@@ -1791,7 +1791,16 @@ registries, plus the all-three grand mount. Cross-pack id
 collisions throw with both owners named instead of silently
 last-write-winning; composing the same pack twice is idempotent.)*
 
-### `4.0.0`: AI prompt scaffolding (sister package)
+### `4.0.0`: AI prompt scaffolding (sister package) — ✅ delivered in the client, `0.26.0`
+
+*(The row's point was that the kernel never imports this — and the
+client repo IS the host-side toolkit, so it landed there with the
+boundary intact: templates per resolution kind whose user half
+carries ONLY the engine's numbers, FNV cache keys over a stable
+stringify, the parseable NARRATION_SCHEMA + parseNarration, and
+adapters emitting request bodies for the three major API shapes.
+Extraction into a standalone `@zeeuw/bag-of-holding-ai` npm
+package is an operator act — publish scope — if ever wanted.)*
 
 Structured templates that take the engine's deterministic output
 and feed it to an LLM for narration. Provider-agnostic
@@ -1807,7 +1816,15 @@ the kernel**, preserving the boundary contract.
 - Structured-output schemas so the AI's response is parseable
   before it reaches the player.
 
-### `4.1.0`: Initiative-tracker reference UI
+### `4.1.0`: Initiative-tracker reference UI — ✅ delivered in the client, `0.27.0`
+
+*(Same boundary logic: `<boh-initiative-tracker>` in the client —
+a PURE view model (stable tie-breaks, clamped hp bars, downed-but-
+listed combatants, wrap-bumped rounds) fully covered by node
+tests, plus a thin custom element registered only where custom
+elements exist, emitting advance-turn/select-combatant events
+upward. Extraction into `@zeeuw/bag-of-holding-ui` stays an
+operator act if ever wanted.)*
 
 A tiny web component that consumes encounter state and renders a
 turn UI. Reference example, not part of the engine. Ships as
