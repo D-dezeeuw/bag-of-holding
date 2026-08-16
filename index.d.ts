@@ -1145,6 +1145,15 @@ export interface EngineRules {
    *  Long Rest (default); `'all'` for heroic packs; `'none'` for
    *  gritty packs (DMG Slow Natural Healing). */
   longRestHitDiceRecovery?: 'half' | 'all' | 'none';
+  /** HP recovered on a Long Rest (since 2.15.0). `'none'` = Slow
+   *  Natural Healing: no free hp, heal by spending Hit Dice. */
+  longRestHpRecovery?: 'full' | 'none';
+  /** Healer's Kit Dependency (since 2.15.0): Hit Dice require
+   *  `actor.healersKitTended` first. Default `false`. */
+  hitDiceRequireHealersKit?: boolean;
+  /** Rest pacing (since 2.15.0). `'gritty'` = 8-hour short rest,
+   *  week-long long rest. Consumed by `Rest.restDurations`. */
+  restDurationScale?: 'standard' | 'gritty';
 }
 
 /** Resolved (frozen, defaults-merged) rules surface exposed on an
@@ -1160,6 +1169,15 @@ export interface ResolvedRules {
   deathSaveDC: number;
   deathSaveSuccessesRequired: number;
   longRestHitDiceRecovery: 'half' | 'all' | 'none';
+  /** Long-rest HP recovery (since 2.15.0): 'none' = Slow Natural
+   *  Healing — no free hp, heal by spending Hit Dice. */
+  longRestHpRecovery: 'full' | 'none';
+  /** Healer's Kit Dependency variant (since 2.15.0): Hit Dice need
+   *  `actor.healersKitTended` first. */
+  hitDiceRequireHealersKit: boolean;
+  /** Rest pacing (since 2.15.0): 'gritty' = 8-hour short / week-long
+   *  long. Consumed by `Rest.restDurations`. */
+  restDurationScale: 'standard' | 'gritty';
 }
 
 /**
@@ -1300,7 +1318,13 @@ export interface RestNamespace {
     healed: number;
     hpAfter: number;
     actor: Actor;
+    /** Present on a healer's-kit refusal (since 2.15.0). */
+    reason?: string;
   };
+  /** Rest durations in hours under this engine's rules (since
+   *  2.15.0): standard 1/8, gritty 8/168. The engine keeps no
+   *  clock — this is the query the host schedules by. */
+  restDurations(): { shortRestHours: number; longRestHours: number };
   /** Apply one Long Rest: HP to max, half Hit Dice back (per the
    *  `longRestHitDiceRecovery` rule), death-save tracker cleared,
    *  Exhaustion -1, spell slots refilled, class resources reset. */
@@ -1541,9 +1565,28 @@ export interface VariantCombatNamespace {
   rollFumbleEffect(rng?: () => number): { d6: number; fumble: { id: string; effect: string } };
 }
 
+/** Variant rest + downtime (since 2.15.0): the opt-in sanity track
+ *  (an actor with `sanity: 3..18` faces d20 + mod checks and loss;
+ *  0 breaks the mind — a state, not a death) and the exhaustion-on-
+ *  failure stake. Actors without a sanity field are untouched. */
+export interface VariantRestNamespace {
+  sanityCheck(actor: Actor, args?: { dc?: number; advantage?: boolean; disadvantage?: boolean }, rng?: () => number):
+    | { ok: true; d20: number; mod: number; total: number; dc: number; success: boolean; stance: string }
+    | { ok: false; reason: string };
+  applySanityLoss(actor: Actor, amount: number):
+    | { ok: true; actor: Actor; lost: number }
+    | { ok: false; reason: string };
+  restoreSanity(actor: Actor, amount: number):
+    | { ok: true; actor: Actor; restored: number }
+    | { ok: false; reason: string };
+  exhaustionOnFailure(actor: Actor, checkResult: { success?: boolean }, levels?: number): { applied: boolean; actor: Actor };
+}
+
 export interface Engine {
   /** Variant combat rules (since 2.14.0). */
   VariantCombat: VariantCombatNamespace;
+  /** Variant rest + downtime (since 2.15.0). */
+  VariantRest: VariantRestNamespace;
   species: Record<string, Species>;
   classes: Record<string, ClassDef>;
   backgrounds: Record<string, Background>;
@@ -1616,6 +1659,7 @@ export const Solo: SoloNamespace;
 export const Session: SessionNamespace;
 export const Replay: ReplayNamespace;
 export const VariantCombat: VariantCombatNamespace;
+export const VariantRest: VariantRestNamespace;
 
 export const species: Record<string, Species>;
 export const classes: Record<string, ClassDef>;
