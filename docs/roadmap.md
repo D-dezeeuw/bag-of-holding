@@ -1717,7 +1717,7 @@ which is part of why this is a major. Note: bundle at 462/480 kB
 — the next setting pack needs either a budget decision or the
 code-splitting entry point from the post-SRD list.)*
 
-### `3.1.0`: Setting: *Brassgear* (magitech-noir)
+### `3.1.0`: Setting: *Brassgear* (magitech-noir) — ✅ shipped as `3.1.0`
 
 Eberron-grade scope with the twist: **the magic is dying**. The
 Last War (or its local equivalent) bled the world's arcane
@@ -1731,6 +1731,19 @@ than peak Eberron.
 - 1 species (the Cogborn), 2 backgrounds, an Artificer-equivalent
   shipped via the Mechanics plugin surface (no new top-level class).
 - 1 starter adventure (*The Greenmist Heist*).
+
+*(As shipped: 5 city-state regions with one seat each (asserted),
+5 corporate factions, 10 noir hooks, 6 inherited talents — one
+per bankrupt house, the dragonmark equivalent as pure data — and
+the Tinker: infuse/overclock mechanics + an infusion-charges pool
+grafted onto the wizard chassis through Phase A.2, proven in CI
+to add ZERO new classes and to refresh through the standard
+long-rest machinery. The Greenmist Heist validates deep and runs
+a full sitting. This release also splits the bundle budget:
+settings now measure under their own 200/60 kB track (kernel back
+to 431/480) because sideEffects:false lets bundlers tree-shake
+unmounted packs; setting packs are also importable as subpaths —
+`@zeeuw/bag-of-holding/settings/brassgear`.)*
 
 ### `3.2.0`: Setting: *The Hollow Vale* (gothic horror)
 
