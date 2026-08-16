@@ -1667,3 +1667,13 @@ export const QUIET_STAIR_MONSTERS: Readonly<Record<string, Monster>>;
 export const QUIET_STAIR_ITEMS: Readonly<Record<string, Item>>;
 /** The starter adventure's named cast (3 NPCs with voice + wants). */
 export const QUIET_STAIR_NPCS: Readonly<Record<string, AdventureNpc>>;
+
+// ============================================================
+// Bestiary I (since 2.7.0)
+// ============================================================
+
+/** 50 invented creatures, CR 0–5, across the common ecology niches
+ *  (warbands, beasts, undead, fey, elementals, oozes, constructs,
+ *  plants, fiends, low dragons). Mount via
+ *  `createEngine({ extraMonsters: BESTIARY_I })`. */
+export const BESTIARY_I: Readonly<Record<string, Monster>>;

@@ -19,6 +19,7 @@ import { QUIET_STAIR_MONSTERS } from '../src/adventures/quiet-stair/monsters.js'
 import { QUIET_STAIR_ITEMS } from '../src/adventures/quiet-stair/items.js';
 import { QUIET_STAIR } from '../src/adventures/quiet-stair/adventure.js';
 import { QUIET_STAIR_NPCS } from '../src/adventures/quiet-stair/npcs.js';
+import { BESTIARY_I } from '../src/bestiary/bestiary-i.js';
 
 const FORBIDDEN = [
   // Product Identity creatures
@@ -74,6 +75,7 @@ test('the Quiet Stair packs are invented all the way down', () => {
     // string in it is scanned, not just the ids.
     ...offendersIn(QUIET_STAIR, 'quiet-stair/adventure'),
     ...offendersIn(QUIET_STAIR_NPCS, 'quiet-stair/npcs'),
+    ...offendersIn(BESTIARY_I, 'bestiary-i'),
   ];
   assert.deepEqual(bad, [], `forbidden names in Quiet Stair packs:\n${bad.slice(0, 10).join('\n')}`);
   // And no pack id shadows an SRD id — the packs ADD, they never replace
@@ -84,5 +86,8 @@ test('the Quiet Stair packs are invented all the way down', () => {
   }
   for (const id of Object.keys(QUIET_STAIR_ITEMS)) {
     assert.ok(!(id in items), `${id} shadows an SRD item`);
+  }
+  for (const id of Object.keys(BESTIARY_I)) {
+    assert.ok(!(id in monsters), `${id} shadows an SRD monster`);
   }
 });

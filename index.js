@@ -58,6 +58,12 @@ import * as AdventuresModule from './src/adventures/index.js';
 export const Adventures = Object.freeze({ ...AdventuresModule });
 export { QUIET_STAIR, QUIET_STAIR_MONSTERS, QUIET_STAIR_ITEMS, QUIET_STAIR_NPCS } from './src/adventures/index.js';
 
+// Bestiary I (2.7.0) — 50 invented creatures, CR 0–5, across the common
+// ecology niches. Mount via `createEngine({ extraMonsters: BESTIARY_I })`
+// (composable with the adventure packs: spread them into one map). The SRD
+// registry stays SRD-only.
+export { BESTIARY_I } from './src/bestiary/bestiary-i.js';
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';
