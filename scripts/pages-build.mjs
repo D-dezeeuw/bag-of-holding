@@ -48,6 +48,8 @@ async function main() {
   // The content index (since 3.8.0) — fully static, no path rewrites
   // needed: it ships at /plugins.html beside the sandbox.
   await fs.copyFile(path.join(ROOT, 'examples/plugins.html'), path.join(PUBLIC_DIR, 'plugins.html'));
+  // The documentation site (since 3.9.0) — also fully static.
+  await fs.copyFile(path.join(ROOT, 'examples/docs.html'), path.join(PUBLIC_DIR, 'docs.html'));
 
   // Quick byte-count sanity check so a regression in the file copy
   // is loud in CI logs.
