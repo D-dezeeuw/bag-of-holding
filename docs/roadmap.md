@@ -1875,11 +1875,25 @@ theme. Search + categorise + screenshots. Built from the plugin
 manifests. Covers the community-content-channel idea from the
 old parking lot.
 
-### `5.2.0`: Conversion tools
+### `5.2.0`: Conversion tools — ✅ shipped as `3.7.0`
 
 5.1 → 5.2 character migrations, third-party SRD-OGL-compatible
 content importers, save-format conversions across major kernel
 versions.
+
+*(As shipped — the `Convert` namespace. Importers map the common
+third-party SRD-JSON family (snake_case fields, textual CRs like
+'1/4', prose dice like '2d4 + 2', long ability names) onto kernel
+records, and every guess is REPORTED in the result rather than
+logged — CI proves an imported stat block mounts via
+extraMonsters and fights through the real combat math, and an
+imported spell casts through castSpell. `migrateCharacter` is the
+migration seam with an EMPTY ledger by design: no breaking record
+change has shipped as of 3.x (the 2.x→3.x majors were additive),
+so it validates identity and passes through; a future breaking
+change lands its migration here instead of in release notes.
+`sessionFromJson` re-validates save snapshots and reports unknown
+fields — preserved, never dropped.)*
 
 ### `5.3.0`: Documentation site
 

@@ -192,6 +192,14 @@ export const Manifest = Object.freeze({
   matches: manifestMatches,
 });
 
+// Conversion tools (3.7.0) — third-party SRD-JSON importers (snake_case
+// fields, textual CRs, prose dice) that emit kernel records WITH a
+// guess report; the character-migration seam (ledger empty by design —
+// no breaking record change has shipped); and save-snapshot
+// re-validation that reports unknown fields instead of dropping them.
+import * as ConvertModule from './src/convert.js';
+export const Convert = Object.freeze({ ...ConvertModule });
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';

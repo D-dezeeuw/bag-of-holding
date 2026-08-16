@@ -2163,6 +2163,27 @@ export const Manifest: Readonly<{
   /** The loader's red/green: valid AND mountable on this kernel. */
   matches(manifest: PluginManifest | unknown, kernelVersion: string): { ok: boolean; reasons: string[] };
 }>;
+
+// ============================================================
+// Conversion tools (3.7.0)
+// ============================================================
+
+/** Importers over third-party SRD-style JSON (snake_case fields,
+ *  textual CRs, prose dice). Guesses are REPORTED in the result —
+ *  an import is a claim about someone else's data. */
+export const Convert: Readonly<{
+  /** '1/4' → 0.25; numbers pass through; garbage → null. */
+  normalizeCr(cr: string | number | unknown): number | null;
+  monsterFromJson(json: unknown): { record: Monster | null; warnings: string[] };
+  spellFromJson(json: unknown): { record: Spell | null; warnings: string[] };
+  /** The migration seam across kernel majors. Ledger empty by design
+   *  as of 3.x (no breaking record change has shipped); a future
+   *  breaking change lands its migration here. */
+  migrateCharacter(record: unknown): { record: CharacterRecord | null; changes: string[]; errors: string[] };
+  /** Re-validate a serialized Session snapshot; unknown fields are
+   *  reported and preserved, never dropped. */
+  sessionFromJson(json: unknown): { snapshot: Record<string, unknown> | null; warnings: string[] };
+}>;
 /** Light as a resource: burn lantern-hours; running dry returns
  *  `inTheDark: true` plus the dread gain the table applies. */
 export function burnLight(actor: Actor, hours?: number): {
