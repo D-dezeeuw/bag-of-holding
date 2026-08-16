@@ -45,6 +45,9 @@ async function main() {
   await buildSoloPage();
   await fs.copyFile(path.join(ROOT, 'index.js'), path.join(PUBLIC_DIR, 'index.js'));
   await fs.cp(path.join(ROOT, 'src'), path.join(PUBLIC_DIR, 'src'), { recursive: true });
+  // The content index (since 3.8.0) — fully static, no path rewrites
+  // needed: it ships at /plugins.html beside the sandbox.
+  await fs.copyFile(path.join(ROOT, 'examples/plugins.html'), path.join(PUBLIC_DIR, 'plugins.html'));
 
   // Quick byte-count sanity check so a regression in the file copy
   // is loud in CI logs.
