@@ -111,6 +111,22 @@ export {
   THE_SINGING_TOWER, HALBERDS_EDGE, SUNDERMARK_ADVENTURES,
 } from './src/settings/sundermark/index.js';
 
+// Brassgear (3.1.0) — the second setting pack: magitech-noir, THE MAGIC
+// IS DYING. 5 city-state regions, 5 factions, 10 noir hooks, the
+// inherited-talent system, the Cogborn, and the Tinker — an artificer-
+// equivalent shipped as a Phase A.2 class graft, not a new class.
+// Setting packs are also importable as subpaths
+// (`@zeeuw/bag-of-holding/settings/brassgear`) so bundlers that don't
+// tree-shake still get the kernel lean; measure-bundle now tracks the
+// settings track under its own budget.
+export {
+  BRASSGEAR,
+  BRASSGEAR_REGIONS, BRASSGEAR_CITIES, BRASSGEAR_FACTIONS, BRASSGEAR_HOOKS,
+  BRASSGEAR_NPCS, BRASSGEAR_TALENTS, BRASSGEAR_TINKER,
+  BRASSGEAR_SPECIES, BRASSGEAR_BACKGROUNDS, BRASSGEAR_FEATS,
+  THE_GREENMIST_HEIST, BRASSGEAR_ADVENTURES,
+} from './src/settings/brassgear/index.js';
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';

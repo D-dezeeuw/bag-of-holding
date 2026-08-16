@@ -1239,6 +1239,11 @@ export interface EngineOptions {
   extraMonsters?: Record<string, Monster>;
   extraConditions?: string[];
   extraMastery?: Record<string, MasteryHandler>;
+  /** Phase A.2 class grafts (typed since 3.1.0; shipped since 1.3.0):
+   *  per-class mechanic handlers merged onto existing class defs. */
+  extraMechanics?: Record<string, Record<string, (actor: Actor, args?: Record<string, unknown>) => unknown>>;
+  /** Phase A.2 class resource pools; each spec declares `refreshes`. */
+  extraResources?: Record<string, Record<string, { max: number | ((level: number, actor?: Actor) => number); refreshes: string }>>;
   /** Custom RNG. Default `Math.random`. Pass `Dice.seededRng(seed)`
    *  for replay-deterministic play. */
   rng?: RNG;
@@ -1953,3 +1958,51 @@ export const SUNDERMARK_ADVENTURES: Readonly<Record<string, AdventurePack>>;
 export const THE_SINGING_TOWER: AdventurePack;
 /** Halberd's Edge — starter adventure (~75 min, 4 × L3). */
 export const HALBERDS_EDGE: AdventurePack;
+
+// ============================================================
+// Brassgear (3.1.0) — the second setting pack
+// ============================================================
+
+/** An inherited talent — Brassgear's dragonmark equivalent. The host
+ *  stamps `talentId` on an actor and reads the grants. */
+export interface BrassgearTalent {
+  id: string; name: string; house: string; industry: string;
+  grants: Readonly<Record<string, unknown>>;
+}
+
+/** The Tinker: an artificer-equivalent shipped as a Phase A.2 class
+ *  graft (extraMechanics + extraResources onto the wizard chassis),
+ *  deliberately NOT a new top-level class. */
+export interface BrassgearTinker {
+  classId: string;
+  mechanics: Readonly<Record<string, Readonly<Record<string, (actor: Actor, args?: Record<string, unknown>) => unknown>>>>;
+  resources: Readonly<Record<string, Readonly<Record<string, { max: number; refreshes: string }>>>>;
+}
+
+export const BRASSGEAR: Readonly<{
+  id: string; name: string; pitch: string;
+  regions: Readonly<Record<string, Region>>;
+  cities: Readonly<Record<string, SundermarkCity>>;
+  factions: Readonly<Record<string, SundermarkFaction>>;
+  hooks: Readonly<Record<string, StoryHook>>;
+  npcs: Readonly<Record<string, SettingNpc>>;
+  talents: Readonly<Record<string, BrassgearTalent>>;
+  tinker: BrassgearTinker;
+  species: Readonly<Record<string, Species>>;
+  backgrounds: Readonly<Record<string, Background>>;
+  feats: Readonly<Record<string, Feat>>;
+  adventures: Readonly<Record<string, AdventurePack>>;
+}>;
+export const BRASSGEAR_REGIONS: Readonly<Record<string, Region>>;
+export const BRASSGEAR_CITIES: Readonly<Record<string, SundermarkCity>>;
+export const BRASSGEAR_FACTIONS: Readonly<Record<string, SundermarkFaction>>;
+export const BRASSGEAR_HOOKS: Readonly<Record<string, StoryHook>>;
+export const BRASSGEAR_NPCS: Readonly<Record<string, SettingNpc>>;
+export const BRASSGEAR_TALENTS: Readonly<Record<string, BrassgearTalent>>;
+export const BRASSGEAR_TINKER: BrassgearTinker;
+export const BRASSGEAR_SPECIES: Readonly<Record<string, Species>>;
+export const BRASSGEAR_BACKGROUNDS: Readonly<Record<string, Background>>;
+export const BRASSGEAR_FEATS: Readonly<Record<string, Feat>>;
+export const BRASSGEAR_ADVENTURES: Readonly<Record<string, AdventurePack>>;
+/** The Greenmist Heist — starter adventure (~75 min, 4 × L3). */
+export const THE_GREENMIST_HEIST: AdventurePack;

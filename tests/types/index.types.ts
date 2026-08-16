@@ -525,3 +525,15 @@ const _smVerdict = Adventures.validateAdventure(THE_SINGING_TOWER, {
   monsters: _smEngine.monsters, items: _smEngine.items,
 });
 void _smRegion; void _smNpcFaction; void _smHook; void _smPack; void _smVerdict;
+
+// === Brassgear (3.1.0) — the second setting pack ===
+import { BRASSGEAR, THE_GREENMIST_HEIST, BrassgearTalent } from '../../index.js';
+const _bgEngine = createEngine({
+  extraRegions: BRASSGEAR.regions,
+  extraMechanics: BRASSGEAR.tinker.mechanics,
+  extraResources: BRASSGEAR.tinker.resources,
+});
+const _bgTalent: BrassgearTalent = BRASSGEAR.talents['the-ledgerhand'];
+const _bgHouse: string = _bgTalent.house;
+const _bgHeist: AdventurePack = THE_GREENMIST_HEIST;
+void _bgEngine; void _bgHouse; void _bgHeist;

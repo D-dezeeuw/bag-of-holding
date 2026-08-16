@@ -64,9 +64,20 @@ const ROOT = path.resolve(__dirname, '..');
 // at `npm publish` time. The growth is SRD *content* — spell lists and
 // tier-derived stat blocks — which is what this gate is meant to make
 // deliberate, not to forbid.
+// 3.1.0: setting packs split out of the kernel budget. `sideEffects:
+// false` means a real bundler tree-shakes unmounted setting packs out of
+// any app that doesn't import them, so charging Sundermark + Brassgear +
+// the Hollow Vale against the kernel budget would eventually force a
+// re-pin for bytes almost no consumer ships. The kernel budget therefore
+// covers index.js + src minus src/settings/**; settings get their own
+// track with its own ceiling, and BOTH are hard gates.
 const BUDGETS = {
-  minBytes: 480 * 1024,    // 480 kB approx-minified
+  minBytes: 480 * 1024,    // 480 kB approx-minified (kernel, sans settings)
   gzipBytes: 115 * 1024    // 115 kB gzipped
+};
+const SETTINGS_BUDGETS = {
+  minBytes: 200 * 1024,    // 200 kB approx-minified across all setting packs
+  gzipBytes: 60 * 1024     // 60 kB gzipped
 };
 
 async function walk(dir) {
@@ -96,12 +107,7 @@ function approxMinify(source) {
     .trim();
 }
 
-async function main() {
-  const files = [
-    path.join(ROOT, 'index.js'),
-    ...await walk(path.join(ROOT, 'src'))
-  ];
-
+async function measure(files) {
   let totalRaw = 0;
   let minified = '';
   for (const file of files) {
@@ -109,24 +115,47 @@ async function main() {
     totalRaw += source.length;
     minified += approxMinify(source) + '\n';
   }
-  const minBytes = Buffer.byteLength(minified, 'utf8');
-  const gzipBytes = gzipSync(minified).length;
+  return {
+    count: files.length,
+    totalRaw,
+    minBytes: Buffer.byteLength(minified, 'utf8'),
+    gzipBytes: gzipSync(minified).length,
+  };
+}
+
+async function main() {
+  const settingsDir = path.join(ROOT, 'src', 'settings');
+  const allSrc = [path.join(ROOT, 'index.js'), ...await walk(path.join(ROOT, 'src'))];
+  const isSetting = (f) => f.startsWith(settingsDir + path.sep);
+  const kernel = await measure(allSrc.filter((f) => !isSetting(f)));
+  const settings = await measure(allSrc.filter(isSetting));
 
   const pad = (n) => String(n).padStart(7);
   const kb = (n) => `${(n / 1024).toFixed(2)} kB`;
 
-  console.log(`Files measured     : ${files.length}`);
-  console.log(`Raw bytes          : ${pad(totalRaw)}  (${kb(totalRaw)})`);
-  console.log(`~Minified bytes    : ${pad(minBytes)}  (${kb(minBytes)})    budget ${kb(BUDGETS.minBytes)}`);
-  console.log(`Gzipped (post-min) : ${pad(gzipBytes)}  (${kb(gzipBytes)})    budget ${kb(BUDGETS.gzipBytes)}`);
+  console.log(`Kernel files       : ${kernel.count}`);
+  console.log(`Raw bytes          : ${pad(kernel.totalRaw)}  (${kb(kernel.totalRaw)})`);
+  console.log(`~Minified bytes    : ${pad(kernel.minBytes)}  (${kb(kernel.minBytes)})    budget ${kb(BUDGETS.minBytes)}`);
+  console.log(`Gzipped (post-min) : ${pad(kernel.gzipBytes)}  (${kb(kernel.gzipBytes)})    budget ${kb(BUDGETS.gzipBytes)}`);
+  console.log(`Setting-pack files : ${settings.count}`);
+  console.log(`~Minified bytes    : ${pad(settings.minBytes)}  (${kb(settings.minBytes)})    budget ${kb(SETTINGS_BUDGETS.minBytes)}`);
+  console.log(`Gzipped (post-min) : ${pad(settings.gzipBytes)}  (${kb(settings.gzipBytes)})    budget ${kb(SETTINGS_BUDGETS.gzipBytes)}`);
 
   let failed = false;
-  if (minBytes > BUDGETS.minBytes) {
-    console.error(`FAIL: minified ${kb(minBytes)} exceeds budget ${kb(BUDGETS.minBytes)}`);
+  if (kernel.minBytes > BUDGETS.minBytes) {
+    console.error(`FAIL: kernel minified ${kb(kernel.minBytes)} exceeds budget ${kb(BUDGETS.minBytes)}`);
     failed = true;
   }
-  if (gzipBytes > BUDGETS.gzipBytes) {
-    console.error(`FAIL: gzipped ${kb(gzipBytes)} exceeds budget ${kb(BUDGETS.gzipBytes)}`);
+  if (kernel.gzipBytes > BUDGETS.gzipBytes) {
+    console.error(`FAIL: kernel gzipped ${kb(kernel.gzipBytes)} exceeds budget ${kb(BUDGETS.gzipBytes)}`);
+    failed = true;
+  }
+  if (settings.minBytes > SETTINGS_BUDGETS.minBytes) {
+    console.error(`FAIL: settings minified ${kb(settings.minBytes)} exceeds budget ${kb(SETTINGS_BUDGETS.minBytes)}`);
+    failed = true;
+  }
+  if (settings.gzipBytes > SETTINGS_BUDGETS.gzipBytes) {
+    console.error(`FAIL: settings gzipped ${kb(settings.gzipBytes)} exceeds budget ${kb(SETTINGS_BUDGETS.gzipBytes)}`);
     failed = true;
   }
   if (failed) process.exit(1);
