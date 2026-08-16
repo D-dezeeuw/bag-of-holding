@@ -483,3 +483,13 @@ const _vcCleave: { killed: boolean; carryover: number } =
   VariantCombat.cleaveCarryover({ damage: 12, targetHp: 5 });
 const _vcEngineNs: typeof VariantCombat = createEngine().VariantCombat;
 void _vcFlank; void _vcPenalty; void _vcInjury; void _vcShock; void _vcCleave; void _vcEngineNs;
+
+// === Variant rest + downtime (2.15.0) ===
+import { VariantRest } from '../../index.js';
+const _vrCheck = VariantRest.sanityCheck({ id: 'pc', sanity: 12 } as never, { dc: 12 });
+const _vrOk: boolean = _vrCheck.ok;
+const _vrStake = VariantRest.exhaustionOnFailure({ id: 'pc' } as never, { success: false });
+const _vrKnobs: 'standard' | 'gritty' = createEngine().rules.restDurationScale;
+const _vrHours: { shortRestHours: number; longRestHours: number } =
+  createEngine({ rules: { restDurationScale: 'gritty' } }).Rest.restDurations();
+void _vrOk; void _vrStake; void _vrKnobs; void _vrHours;

@@ -1616,12 +1616,24 @@ aligned; cleave-through is exact carryover arithmetic. The
 `fumbleOn` rules knob from Phase B still decides WHICH faces
 fumble; the new table decides what a fumble means.)*
 
-### `2.10.0`: Variant rules: rest + downtime
+### `2.10.0`: Variant rules: rest + downtime — ✅ shipped as `2.15.0`
 
 Gritty resting (8-hour short / week-long), slow natural healing,
 Healer's Kit dependency, sanity track, exhaustion-on-failure
 checks. Three more `longRestHitDiceRecovery`-style knobs on top
 of the rest-rule extension shipped at `1.2.0`.
+
+*(As shipped: exactly the three promised knobs —
+`longRestHpRecovery: 'none'` withholds the free long-rest hp while
+Hit Dice still recover, `hitDiceRequireHealersKit` makes
+spendHitDie refuse untended actors, and `restDurationScale:
+'gritty'` is consumed by the new `Rest.restDurations()` query
+(1/8 vs 8/168 hours; the engine keeps no clock, so the query IS
+the consumer). The non-knob half lands as `VariantRest`: an
+opt-in sanity track (a seventh score, d20 + modFromScore checks,
+loss clamping to a mindBroken STATE rather than death) and
+`exhaustionOnFailure`, which drives the real exhaustion ladder —
+six failed checks kill through the SRD machinery.)*
 
 ### `2.11.0`: Variant rules: encounter + skills
 

@@ -42,6 +42,7 @@ import * as MechanicsBase from './mechanics.js';
 import * as SceneClock from './scene-clock.js';
 import * as MagicItemsBase from './magic-items.js';
 import * as VariantCombatBase from './variants/combat.js';
+import * as VariantRestBase from './variants/rest.js';
 import * as MonstersBase from './monsters.js';
 import * as MovementBase from './movement.js';
 import * as MulticlassBase from './multiclass.js';
@@ -774,7 +775,7 @@ export function createEngine(opts = {}) {
   // surface). `longRest` is deterministic — no log entry needed.
   const RestBound = {
     spendHitDie: (actor, context) => {
-      const result = RestBase.spendHitDie(actor, rng);
+      const result = RestBase.spendHitDie(actor, rng, rules);
       // Log the raw die face so `verifyLog` can replay-validate. The
       // `healed` field on the returned result is a derivation (die +
       // CON mod, capped at hpMax) — re-deriving from a logged die
@@ -799,7 +800,10 @@ export function createEngine(opts = {}) {
       const next = RestBase.shortRest(actor);
       hooks.fire('onShortRest', { actor: next, previous: actor });
       return next;
-    }
+    },
+    // Rest pacing under this engine's rules (since 2.15.0) — the
+    // host's scheduling query for the Gritty Realism knob.
+    restDurations: () => RestBase.restDurations(rules)
   };
 
   // === Class mechanics (since 1.3.0) ===
@@ -1092,6 +1096,16 @@ export function createEngine(opts = {}) {
       cleaveCarryover: VariantCombatBase.cleaveCarryover,
       FUMBLE_EFFECTS: VariantCombatBase.FUMBLE_EFFECTS,
       rollFumbleEffect: counted((r) => VariantCombatBase.rollFumbleEffect(r), 'VariantCombat.rollFumbleEffect'),
+    }),
+    // Variant rest + downtime (since 2.15.0) — the non-knob half of the
+    // milestone: the opt-in sanity track and the exhaustion-on-failure
+    // stake. The knob half (longRestHpRecovery, hitDiceRequireHealersKit,
+    // restDurationScale) lives in rules.js and is consumed by Rest.
+    VariantRest: Object.freeze({
+      sanityCheck: counted((r, actor, args) => VariantRestBase.sanityCheck(actor, args, r), 'VariantRest.sanityCheck'),
+      applySanityLoss: VariantRestBase.applySanityLoss,
+      restoreSanity: VariantRestBase.restoreSanity,
+      exhaustionOnFailure: VariantRestBase.exhaustionOnFailure,
     }),
     // Class mechanics (since 1.3.0). Foundation for resource-bearing
     // class features (Second Wind, Action Surge, Sneak Attack, etc.)
