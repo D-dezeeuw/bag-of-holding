@@ -2110,6 +2110,31 @@ export function makeStrings(locales?: Record<string, Record<string, string>>): S
 /** Module-level English-only shim for engine-less callers. Engines
  *  bind their own via `createEngine({ extraLocales })`. */
 export const Strings: StringsNamespace;
+
+// ============================================================
+// Reference cards (3.5.0)
+// ============================================================
+
+/** Printable reference material as pure data — one shape across all
+ *  card kinds, so a host writes one layout pass. */
+export interface Card {
+  kind: 'spell' | 'item' | 'monster' | 'class' | 'cheat-sheet' | string;
+  id: string;
+  title: string;
+  sections: ReadonlyArray<{ heading?: string; lines: readonly string[] }>;
+}
+
+/** Card generators over registry records. Every generator is total
+ *  over its registry (asserted in CI); refusals throw with pointers. */
+export const Cards: Readonly<{
+  spellCard(spell: Spell): Card;
+  itemCard(item: Item): Card;
+  monsterCard(monster: Monster): Card;
+  classCard(classDef: ClassDef): Card;
+  /** The one-page combat cheat-sheet, generated from the engine so
+   *  the numbers on the page are the numbers in play. */
+  combatCheatSheet(engine: Engine): Card;
+}>;
 /** Light as a resource: burn lantern-hours; running dry returns
  *  `inTheDark: true` plus the dread gain the table applies. */
 export function burnLight(actor: Actor, hours?: number): {

@@ -166,6 +166,14 @@ import { makeStrings } from './src/strings.js';
 export { makeStrings, DEFAULT_STRINGS } from './src/strings.js';
 export const Strings = makeStrings({});
 
+// Reference cards (3.5.0) — printable reference material as PURE DATA
+// (the 4.3.0 roadmap row): one Card shape across spell/item/monster/
+// class cards and the combat cheat-sheet, so a host writes ONE layout
+// pass. The cheat-sheet reads the LIVE rules — a gritty engine prints
+// a gritty sheet.
+import * as CardsModule from './src/cards.js';
+export const Cards = Object.freeze({ ...CardsModule });
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';
