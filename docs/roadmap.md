@@ -1850,11 +1850,23 @@ and that the cheat-sheet reads the LIVE rules: a gritty engine
 prints a gritty sheet. "PDF" stays the host's layout pass, per
 the row's own no-bake-in boundary.)*
 
-### `5.0.0`: Plugin manifest format
+### `5.0.0`: Plugin manifest format — ✅ shipped as `3.6.0`
 
 `bag-of-holding.json` shape third-parties publish content packs
 against. Validation script gates against the plugin contract;
 versioned schema so pack authors can pin to a kernel API range.
+
+*(As shipped — additive API, so a 3.x minor. The `Manifest`
+namespace: `validate` reports per-defect pointers (never throws —
+catalog UIs render the report), `satisfies` implements the range
+grammar (`^X.Y.Z` caret-major, `>=X.Y.Z` open floor,
+`>=X.Y.Z <A.B.C` half-open window, exact) with garbage-in-false-
+out in the loader path, and `matches` is the loader's red/green
+with reasons. `Manifest.TABLES` maps every declarable table to
+the engine option it mounts through — the 3.3.0 setting slots
+plus the Phase A/B/C surfaces — and `manifestVersion` versions
+the schema itself so the format can grow without stranding
+published packs.)*
 
 ### `5.1.0`: Content index
 

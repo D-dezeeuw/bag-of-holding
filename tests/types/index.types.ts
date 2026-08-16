@@ -573,3 +573,17 @@ const _cardSpell: Card = Cards.spellCard(_cardEngine.spells['fireball']);
 const _cardSheet: Card = Cards.combatCheatSheet(_cardEngine);
 const _cardLines: readonly string[] = _cardSheet.sections[0].lines;
 void _cardSpell; void _cardLines;
+
+// === The plugin manifest format (3.6.0) ===
+import { Manifest, PluginManifest } from '../../index.js';
+const _mf: PluginManifest = {
+  manifestVersion: Manifest.VERSION,
+  name: '@example/frost-marches',
+  version: '1.0.0',
+  kernel: '^3.0.0',
+  contributes: { monsters: 20 },
+};
+const _mfVerdict: { valid: boolean; errors: string[] } = Manifest.validate(_mf);
+const _mfMatch: { ok: boolean; reasons: string[] } = Manifest.matches(_mf, '3.6.0');
+const _mfRange: boolean = Manifest.satisfies('3.6.0', '>=3.0.0 <4.0.0');
+void _mfVerdict; void _mfMatch; void _mfRange;
