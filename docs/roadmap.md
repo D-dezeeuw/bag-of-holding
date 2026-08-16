@@ -1652,7 +1652,7 @@ flag — no new check math. The six SKILL_GROUPS partition the 18
 SRD skills exactly, asserted against SKILL_ABILITY so a future
 skill can't slip through ungrouped.)*
 
-### `2.12.0`: Hazards & environment (back-fill of 1.15)
+### `2.12.0`: Hazards & environment (back-fill of 1.15) — ✅ shipped as `2.17.0`
 
 Closes the row deferred from the SRD-coverage track. Disease
 registry, poison vectors (contact / ingested / inhaled / injury),
@@ -1660,11 +1660,29 @@ suffocation, starvation / thirst, extreme heat / cold,
 underwater combat. Each gets a starter content registry alongside
 the mechanic surface.
 
-### `2.13.0`: Travel & exploration (back-fill of 1.18)
+*(As shipped: the mechanics all landed at 1.18.0 — the remaining
+debt was the "starter content registry" clause, and 2.17.0 pays
+it. The disease registry is now COMPLETE SRD coverage (sight-rot
+joins sewer-plague and cackle-fever; deliberately no recoveryDc —
+mundane rest never clears it, the `cure` field says what does).
+The poison registry triples to 12: every vector has multiple
+entries and the DC spread runs the full SRD band 10–19, so an
+encounter builder can pick by delivery method AND tier. Every new
+entry resolves through `exposure` on the replay contract.)*
+
+### `2.13.0`: Travel & exploration (back-fill of 1.18) — ✅ already delivered at `1.20.0`
 
 Closes the other deferred row. Travel pace (slow / normal / fast),
 forced-march exhaustion saves, foraging / navigation DC tables,
 resting in dangerous terrain. Surfaces a `Travel` namespace.
+
+*(Verified 2026-08-16: every clause of this row shipped with the
+1.18 milestone at v1.20.0 — `TRAVEL_PACES`, `forcedMarchCheck`
+(DC 10 + hours-past-8 CON save into the exhaustion ladder),
+`forageCheck` / `navigateCheck` with per-terrain DC tables, and
+`checkRestInterruption` for dangerous-terrain rests, all on the
+`Travel` namespace. Nothing left to build; the row was a
+bookkeeping artifact of the two-track roadmap split.)*
 
 ### `3.0.0`: Setting: *Sundermark* (high fantasy)
 
