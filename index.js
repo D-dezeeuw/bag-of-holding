@@ -89,6 +89,14 @@ export { GRIMOIRE_II } from './src/grimoire/grimoire-ii.js';
 // `createEngine({ extraItems: TREASURY })`.
 export { TREASURY } from './src/treasury/treasury.js';
 
+// The Origin pack (2.13.0) — 5 invented species, 8 backgrounds, 12 feats,
+// back-filling the 1.13 deferral. Every species exercises a trait
+// mechanic the sheet deriver consumes (darkvision / resistance / movement
+// mode / racial cantrip). Mount via `createEngine({ extraSpecies:
+// ORIGIN_SPECIES, extraBackgrounds: ORIGIN_BACKGROUNDS, extraFeats:
+// ORIGIN_FEATS })`.
+export { ORIGIN_SPECIES, ORIGIN_BACKGROUNDS, ORIGIN_FEATS } from './src/origins/origins.js';
+
 // Character — exposed as a namespace so module-level callers can
 // derive sheets without going through the default singleton:
 //   import { Character, createEngine } from '@zeeuw/bag-of-holding';
