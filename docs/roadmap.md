@@ -1548,11 +1548,19 @@ for eight minors with nothing to consume. Records carry a
 `classes` array as host data; the SRD class-list gate stays
 SRD-scoped by design.)*
 
-### Grimoire II (6th-9th) *(unnumbered)*
+### Grimoire II (6th-9th) — ✅ shipped as `2.11.0`
 
 30 high-tier spells. City-sized AoEs, plane-shifting
 alternatives, complex multi-target control. Less common usage;
 included so tier-3/4 spellcasters have a real spell list.
+
+*(As shipped: `GRIMOIRE_II` via `extraSpells`. 9/8/7/6 across
+levels 6–9, all eight schools; 3+ city-sized AoEs (up to
+cylinder-300 at a mile's range), 3 plane-shift alternatives all
+gated behind costed material components, 3+ mass-control
+concentration effects, 3 high-tier reactions. Composable with
+Grimoire I — the invented list runs cantrip to 9th with no SRD
+dependency, asserted per-level.)*
 
 ### `2.7.0`: Treasury
 
