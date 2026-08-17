@@ -5,6 +5,15 @@ What `bag-of-holding` covers, intentionally narrow. Targets the
 ships paraphrased mechanics, no copyrighted text. The full SRD is
 freely available at [dndbeyond.com/srd](https://www.dndbeyond.com/srd).
 
+> **Status note (2026-08-17):** this spec was written in the 0.x/1.x
+> era and reads as a scope statement from then. Where it says a thing
+> is "on roadmap", "deferred", or counts a smaller surface than
+> exists (namespaces, feats, backgrounds, subclasses, tiers 3–4,
+> encumbrance, Travel, branching beats — all shipped since), the
+> [roadmap](roadmap.md), the generated docs site (`public/docs.html`)
+> and `index.d.ts` are current. Kept for the scope *reasoning* — the
+> in/out boundary arguments still hold.
+
 ## In scope
 
 - **Six ability scores** (STR, DEX, CON, INT, WIS, CHA). `Checks.modFromScore`

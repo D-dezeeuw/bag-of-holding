@@ -5,7 +5,23 @@ describe *order and grouping*, not commitments to a calendar. Each
 milestone names what lands and **why now**; deliverables that need a
 real consumer driving them are deferred until that consumer exists.
 
-> Status as of 2026-08-15: **`2.6.0`**. *The Quiet Stair* shipped:
+> Status as of 2026-08-17: **`3.10.0`**. Every numbered roadmap row
+> through `5.3.0` is shipped and the grind that closed them ran
+> 2.6.0 → 3.9.0: *The Quiet Stair* starter adventure (2.6.0),
+> Bestiary I/II/III (2.7.0–2.9.0, 90 invented blocks + legendary,
+> lair and mythic machinery), Grimoire I/II (2.10.0–2.11.0, 80
+> spells), the Treasury (2.12.0), the Origin pack (2.13.0), the
+> three variant-rule namespaces (2.14.0–2.16.0), hazards back-fill
+> (2.17.0), the Sundermark / Brassgear / Hollow Vale setting packs
+> plus the plugin contract (3.0.0–3.3.0), localization (3.4.0),
+> reference cards (3.5.0), the plugin manifest (3.6.0), conversion
+> tools (3.7.0), the content index (3.8.0) and the generated
+> documentation site (3.9.0). 3.9.1–3.9.3 were docs/sandbox patches;
+> 3.10.0 added the second SRD gap-block sweep (registry at 79
+> blocks). **1,735 tests**, `node --test`, strict typecheck, bundle
+> budgets in CI. Earlier:
+>
+> Status as of 2026-08-15: `2.6.0`. *The Quiet Stair* shipped:
 > the starter adventure lives inside the package (adventure format +
 > validateAdventure, 6 beats with a real branch, 7 scenes, 4
 > budget-validated encounters), with its 15-creature invented
@@ -32,17 +48,21 @@ real consumer driving them are deferred until that consumer exists.
 > `2.5.1` re-pins the bundle budget and moves that gate into CI.
 >
 > npm registry lags the repo: latest published is `2.1.0` (2026-06-01)
-> — publish is a pending owner action. Two things blocked it and are
-> fixed here: a publish attempt from a stale checkout re-packed the
-> already-published `2.1.0` byte for byte, and `prepublishOnly`'s
-> bundle gate had been failing since `2.4.0` overran the 1.27.0
-> budget. Publish from a tree that matches `origin/main`.
+> — publishing every version since is a pending owner action. Two
+> things blocked it originally and are long fixed: a publish attempt
+> from a stale checkout re-packed the already-published `2.1.0` byte
+> for byte, and `prepublishOnly`'s bundle gate had been failing since
+> `2.4.0` overran the 1.27.0 budget. Publish from a tree that matches
+> `origin/main`.
 >
-> **SRD coverage is not yet complete**: death saves, rest-based HP
-> recovery, hit-dice spending, and class-feature *mechanics* (vs the
-> current metadata) are tracked under [SRD 5.2 completeness](#srd-52-completeness)
-> below. A handful of math bugs against the published rule text are
-> queued for `1.0.1`.
+> **SRD 5.2 coverage is complete** for the kernel's scope: death
+> saves, rest mechanics, hit-dice spending and class-feature
+> mechanics all shipped across 1.0.1–1.27.0; the remaining
+> unchecked rows in [srd-coverage](srd-coverage.md) are deliberate
+> "when a consumer asks" deferrals (per-application condition
+> metadata, save-at-end-of-turn timers, spell-duration binding,
+> attunement short-rest gate, casting-time scheduling, host-side
+> starting equipment), not gaps.
 
 ## Vision
 
@@ -654,7 +674,10 @@ yet.
   (always) and `onHpChanged` (only when HP actually moved); same
   for `Combat.heal`.
 
-**Deferred to 1.6.1:**
+**Deferred to 1.6.1** *(historical note: no 1.6.1 milestone was ever
+written — parts of it were folded into the burned 2.1.0 merge, and
+the four rows below remain open "when a consumer asks" deferrals,
+tracked in srd-coverage.md)*:
 - **Per-application condition metadata.** `{ name, source?, dc?,
   saveAbility?, endsOn? }` shape on `actor.conditions[]`. Needed
   for save-end-of-turn but is a non-trivial schema change; rides
@@ -671,7 +694,8 @@ yet.
 Closes [§ 9 Time and duration
 tracking](srd-coverage.md#9-time-and-duration-tracking) for the
 round-clock + scene-clock halves. The condition-metadata + save-
-end-of-turn rows there migrate to a planned 1.6.1.
+end-of-turn rows stay open in srd-coverage.md (the "planned 1.6.1"
+never materialized; see the note above).
 
 ### `1.7.0`: Combat actions menu ✅ shipped
 
@@ -1714,8 +1738,8 @@ at exactly 1600 XP like the Quiet Stair's; Halberd's Edge claims
 adventure, faction→seat, npc→faction — is asserted edge by edge.
 The 2.6.0 "no kernel NPC registry" decision is REVISED here,
 which is part of why this is a major. Note: bundle at 462/480 kB
-— the next setting pack needs either a budget decision or the
-code-splitting entry point from the post-SRD list.)*
+— resolved at 3.1.0, which split settings onto their own measured
+track (200/60 kB) and brought the kernel back to 431 kB.)*
 
 ### `3.1.0`: Setting: *Brassgear* (magitech-noir) — ✅ shipped as `3.1.0`
 

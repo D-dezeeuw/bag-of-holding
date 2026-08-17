@@ -1,15 +1,22 @@
 # SRD 5.2 coverage checklist
 
 A line-by-line worklist of what the engine implements against the
-[SRD 5.2](https://www.dndbeyond.com/srd) and adjacent rule text. Use
-this file as the **single source of truth for what's left**. When
-something ships, check it here and reference the release in the
-parenthetical.
+[SRD 5.2](https://www.dndbeyond.com/srd) and adjacent rule text.
 
-Every section also names the release that's *planned* to close it,
-linking back into [docs/roadmap.md](roadmap.md). The roadmap is the
-chronological plan; this file is the topical reference. The two stay
-in sync.
+> **Authority note (2026-08-17 truth pass):** the
+> [roadmap](roadmap.md) is authoritative where the two disagree.
+> Several checkmarks below cite planning-era version labels
+> (`v1.28.0`–`v1.31.0`) that never shipped under those numbers — the
+> features are real and verified in `src/`, but they landed inside
+> 2.x/3.x releases; treat those parentheticals as "shipped", not as
+> release ids. Section-level "Planned/Deferred" prose older than a
+> row's own checkmark is stale; the checkmark wins. What is
+> genuinely still open: per-application condition metadata,
+> save-at-end-of-turn timers, spell-duration auto-binding, the
+> attunement short-rest gate, casting-time scheduling variants,
+> host-side starting-equipment selection, and the four recipes named
+> in § Documentation — all deliberate "when a consumer asks"
+> deferrals.
 
 ## Legend
 
@@ -328,7 +335,7 @@ boxes are always the live worklist.
 - [x] **Cursed items**: `item.cursed: true`; `unattune` refuses without `removeCurseApplied: true` *(v1.9.0)*
 - [x] **Identify**: `actor.identifiedItems[]` + `identifyItem` / `isIdentified` *(v1.9.0)*
 - [x] **Magic item resilience**: `MagicItems.itemSavingThrow(item, dc)` vs `item.savingThrow.bonus` *(v1.9.0)*
-- [ ] **Sentient magic items**: SRD-shape is INT/WIS/CHA scores, alignment, senses, communication, special purpose, and opposed-CHA conflict resolution between item and wielder. **Deferred** — the niche (1 in ~50 magic items) means the cost of designing a sentient-item module without a real consumer outweighs the value. When a host needs them, the shape lands as a magic-item plugin (a `sentient: { abilities, alignment, purpose, communication }` block on the item record and an opposed-CHA helper using existing `engine.Checks.savingThrow`).
+- [x] **Sentient magic items**: shipped — the 1.9.0 sentient-item support plus the Treasury's sentience-as-data blocks (2.12.0, see roadmap). The original deferral note held until a consumer arrived; the Treasury was that consumer.
 - [x] **Magic item registry** *(v1.27.0; 102 entries total across mundane gear, wondrous items, magic weapons/armor, scrolls, wands, staves, rods. Further depth ships as content packs.)*
 
 ## 19. Monsters
@@ -342,7 +349,7 @@ boxes are always the live worklist.
 - [x] **Multiattack**: `Monsters.multiattackSequence(monster)` returns the ordered attack list *(v1.10.0)*
 - [x] **Legendary Actions**: `useLegendaryAction(actor, monster, optionId, cost?)` + `refreshLegendaryActions(actor)` at turn start *(v1.10.0)*
 - [x] **Lair Actions**: `lairActionAvailable(monster, { initiativeCount, inLair })` + `fireLairAction(monster, optionId)` *(v1.10.0)*
-- [ ] **Mythic Actions**: **NOT in SRD 5.2.** Originated in *Mythic Odysseys of Theros* (2020) and *Mythic Encounters*. Acts as a second-phase Legendary suite that activates when the monster hits a HP threshold. **Out of scope** for the SRD 5.2 line; if a future content pack ships a mythic-tier monster, the existing Legendary Action schema extends with a `mythicTrigger: { hpBelow, onCondition }` field.
+- [x] **Mythic Actions**: shipped at 2.9.0 with Bestiary III — `Monsters.freshMythicState` / `activateMythic` / `useMythicAction` / `refreshMythicActions` plus six authored mythic blocks. (Still not SRD 5.2 text — it shipped as invented-content machinery, exactly the "future content pack" the original note predicted.)
 - [x] **Innate Spellcasting**: `castInnate(actor, monster, spellId)` + `freshInnateState` + `refreshInnateSpells` for per-day counters *(v1.10.0)*
 - [x] **Senses**: `Monsters.senses(monster)` accessor; schema documented on the record *(v1.10.0)*
 - [x] **Damage resistance / vulnerability / immunity** arrays per monster, consumed by 1.4.0 damage pipeline; monster records expose the fields *(v1.10.0 schema)*
@@ -362,7 +369,7 @@ boxes are always the live worklist.
 - [x] **Encounter budget per party level**: `EncounterDesign.budgetFor(partyLevels, difficulty)` + `ENCOUNTER_BUDGETS` table covering L1..L20 / low/moderate/high *(v1.16.0)*
 - [x] **Encounter classification**: `EncounterDesign.classifyEncounter({ monsterCRs, partyLevels })` returns the matched band including `trivial` and `deadly` extremes *(v1.16.0)*
 - [x] **Treasure tables** by hoard CR band: `Equipment.TREASURE_HOARDS` and `Equipment.INDIVIDUAL_TREASURE` (CR 0-4 / 5-10 / 11-16 / 17+) *(v1.31.0)*
-- [ ] **Random encounter generator scaffolding**: **NOT in SRD 5.2** (DMG-tier content). **Deferred** — a generator would mean weighted per-terrain d100 tables scaled to party tier, drawing from `monsters` by CR. The shape is straightforward but the *content* (canonical Forest / Coast / Mountain / Underdark tables) is the work; ships with a setting-pack content milestone (2.x line).
+- [x] **Random encounter generator scaffolding**: shipped at 1.16.0 (weighted pick over a tier-bucket list; see the roadmap's 1.16.0 row).
 
 ## 21. Saves & edge mechanics
 
@@ -437,7 +444,7 @@ boxes are always the live worklist.
 - [x] **`spec.md` plugin contract update**: Phase A.2 + Phase D + opts.logHooks *(v1.26.0)*
 - [~] **`recipes.md` additions**: combat actions, damage pipeline, magic items, ritual casting, AoE all in place since the v1.16.0 refresh; Death Saves / Rest / Mechanics dispatch / plugin-contribute-a-class recipes still pending a focused pass
 - [~] **Kernel-boundary checklist**: `docs/boundary.md` already documents the three-nevers contract (no network, no DOM, no AI). A separate "claims vs host-owned, at a glance" checklist would only restate the same content in a different format. **Not adding** until a real consumer asks for the alternative shape.
-- [~] **TypeDoc-style reference site**: the hand-maintained `index.d.ts` is the canonical reference, and the `tsc --noEmit` drift gate keeps it accurate. A generated site needs hosting (GitHub Pages or similar) outside the zero-dep boundary; that's tooling work, not an SRD-rule deferral. **Deferred** as a tooling stretch goal, not a missing rule.
+- [x] **Reference site**: shipped at 3.9.0 — the zero-dep generated documentation site (`scripts/build-docs.mjs` → `public/docs.html`, 219 declarations), published via `pages:build`. No TypeDoc needed; `index.d.ts` + the drift gate remain the canonical typed reference.
 
 ---
 

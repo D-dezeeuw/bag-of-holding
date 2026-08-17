@@ -139,12 +139,16 @@ Two practical implications:
 Most of what "the differentiated kernel at 1.0" originally promised
 has shipped. The current surface:
 
-- **20 namespaces.** Dice, Checks, Combat, Conditions, XP,
+- **~30 namespaces.** Dice, Checks, Combat, Conditions, XP,
   Spellcasting, Rest, Mechanics, SceneClock, MagicItems, Monsters,
   Movement, Multiclass, Inspiration, EncounterDesign, Movesets,
-  Beats, Character, plus the SRD content alias.
+  Beats, Character — plus Hazards, Equipment, Travel, MountedCombat,
+  the three variant-rule namespaces, Solo/Session/Replay,
+  Adventures, Settings, Strings, Cards, Manifest, Convert, and the
+  SRD content alias.
 - **All 12 SRD classes** with class mechanics dispatch, resource
-  tracking, and the SRD 5.2 features through tier 2 (L1 to L10).
+  tracking, and the SRD 5.2 features across all four tiers
+  (L1 to L20, shipped at v1.22.0).
 - **Plugin system across four phases.** Content (A), rule knobs (B),
   behavioural hooks (C), turn-lifecycle and scene events (D).
 - **Replay-deterministic from day one.** Seeded RNG, append-only
