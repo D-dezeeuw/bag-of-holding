@@ -1928,8 +1928,7 @@ CONTENT RULES:
         // caster's spellcasting ability mod.
         const abilityMod = sheet.abilityScores.mod[sheet.spellcasting.ability];
         const dice = spell.healing.replace(/\+mod$/, '');
-        const upcastDice = spell.level > 0 ? Math.max(1, slotLevel - spell.level) : 0;
-        const fullSpec = dice + (upcastDice > 0 ? `+${0}` : '');   // placeholder
+        const upcastDice = spell.level > 0 ? Math.max(0, slotLevel - spell.level) : 0;
         const baseRoll = state.engine.Dice.roll(dice);
         const upcastRoll = upcastDice > 0 ? state.engine.Dice.roll(`${upcastDice}d${baseRoll.spec.split('d')[1].split('+')[0]}`) : { total: 0 };
         const healed = baseRoll.total + upcastRoll.total + abilityMod;
