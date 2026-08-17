@@ -1791,22 +1791,26 @@ registries, plus the all-three grand mount. Cross-pack id
 collisions throw with both owners named instead of silently
 last-write-winning; composing the same pack twice is idempotent.)*
 
-### `4.0.0`: AI prompt scaffolding (sister package) — ✅ delivered in the client, `0.26.0`
+### `4.0.0`: AI prompt scaffolding — ✅ delivered in the client (`0.26.0`, `0.29.0`) + mcp (`0.12.0`)
 
 *(The row's point was that the kernel never imports this — and the
-client repo IS the host-side toolkit, so it landed there with the
+client repo IS the host-side toolkit, so it lives there with the
 boundary intact: templates per resolution kind whose user half
 carries ONLY the engine's numbers, FNV cache keys over a stable
 stringify, the parseable NARRATION_SCHEMA + parseNarration, and
-adapters emitting request bodies for the three major API shapes.
-Extraction into a standalone `@zeeuw/bag-of-holding-ai` npm
-package is an operator act — publish scope — if ever wanted.)*
+adapters emitting request bodies for the three major API shapes
+(`0.26.0`), plus the end-to-end `narrate()` loop with LRU cache
+and one-shot repair pass (`0.29.0`). The MCP server carries the
+sidecar slice: a narration-style guide and the `narration_prompt`
+tool (`0.12.0`). This in-repo layout is SETTLED — the owner
+decided against fragmenting code across more repositories, so no
+standalone `@zeeuw/bag-of-holding-ai` package will be split out.)*
 
 Structured templates that take the engine's deterministic output
 and feed it to an LLM for narration. Provider-agnostic
-(Anthropic / OpenAI / local). Ships as
-`@zeeuw/bag-of-holding-ai`, a **sister package, never imported by
-the kernel**, preserving the boundary contract.
+(Anthropic / OpenAI / local). Lives in the client toolkit,
+**never imported by the kernel**, preserving the boundary
+contract.
 
 - Prompt templates per resolution kind (attack hit, miss, crit,
   death-save fail, condition applied, scene transition).
@@ -1816,20 +1820,25 @@ the kernel**, preserving the boundary contract.
 - Structured-output schemas so the AI's response is parseable
   before it reaches the player.
 
-### `4.1.0`: Initiative-tracker reference UI — ✅ delivered in the client, `0.27.0`
+### `4.1.0`: Initiative-tracker reference UI — ✅ delivered in the client (`0.27.0`, `0.30.0`)
 
 *(Same boundary logic: `<boh-initiative-tracker>` in the client —
 a PURE view model (stable tie-breaks, clamped hp bars, downed-but-
 listed combatants, wrap-bumped rounds) fully covered by node
-tests, plus a thin custom element registered only where custom
-elements exist, emitting advance-turn/select-combatant events
-upward. Extraction into `@zeeuw/bag-of-holding-ui` stays an
-operator act if ever wanted.)*
+tests, plus a custom element registered only where custom elements
+exist, emitting advance-turn/select-combatant events upward
+(`0.27.0`). The completeness pass (`0.30.0`) added baked
+shadow-DOM styles with `::part()` hooks, a built-in next-turn
+control, the `rollEncounterInitiative` kernel-shape adapter with
+an injected engine-bound roll, and the `examples/initiative.html`
+reference demo. This in-repo layout is SETTLED — per the owner's
+no-fragmentation decision, no standalone `@zeeuw/bag-of-holding-ui`
+package will be split out.)*
 
 A tiny web component that consumes encounter state and renders a
-turn UI. Reference example, not part of the engine. Ships as
-`@zeeuw/bag-of-holding-ui`: host-side, optional, lives outside
-the kernel per the boundary contract.
+turn UI. Reference example, not part of the engine: host-side,
+optional, lives in the client toolkit outside the kernel per the
+boundary contract.
 
 ### `4.2.0`: Localization layer — ✅ shipped as `3.4.0`
 
@@ -1959,9 +1968,9 @@ into a numbered milestone when a real consumer drives priority.
 
 ## What we will deliberately *not* build
 
-These no-build constraints apply to the **engine kernel**. Sister
-packages (`@zeeuw/bag-of-holding-ai`, `@zeeuw/bag-of-holding-ui`,
-planned for `4.0.0` / `4.1.0`) carry their own scope; the kernel
+These no-build constraints apply to the **engine kernel**. The
+host-side surfaces the `4.0.0` / `4.1.0` rows delivered live in
+the client and MCP repos and carry their own scope; the kernel
 stays clean per the [boundary contract](boundary.md).
 
 - **Narration, prose, or AI calls.** That's the host's job. See
