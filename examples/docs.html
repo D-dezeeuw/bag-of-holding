@@ -20,7 +20,7 @@
 </style>
 </head>
 <body>
-<h1>bag-of-holding <small>v3.10.0</small></h1>
+<h1>bag-of-holding <small>v3.10.1</small></h1>
 <p>API reference generated from <code>index.d.ts</code> doc comments, plus the cookbook.
 Static — no scripts run on this page.</p>
 <nav><a href="#core-scalars-and-record-shapes">Core scalars and record shapes</a> · <a href="#dice">Dice</a> · <a href="#checks">Checks</a> · <a href="#combat-engine-bound-">Combat (engine-bound)</a> · <a href="#conditions-engine-bound-">Conditions (engine-bound)</a> · <a href="#xp">XP</a> · <a href="#movesets">Movesets</a> · <a href="#beats">Beats</a> · <a href="#character-sheet-derivation-">Character sheet (derivation)</a> · <a href="#engine-factory">Engine factory</a> · <a href="#solo-mode-since-2-0-0-">Solo mode (since 2.0.0)</a> · <a href="#default-singleton-spread-named-exports">Default singleton + spread named exports</a> · <a href="#adventures-pack-format-the-quiet-stair-since-2-6-0-">Adventures — pack format + The Quiet Stair (since 2.6.0)</a> · <a href="#bestiary-i-since-2-7-0-">Bestiary I (since 2.7.0)</a> · <a href="#sundermark-3-0-0-the-first-complete-setting-pack">Sundermark (3.0.0) — the first complete setting pack</a> · <a href="#brassgear-3-1-0-the-second-setting-pack">Brassgear (3.1.0) — the second setting pack</a> · <a href="#the-hollow-vale-3-2-0-the-third-setting-pack">The Hollow Vale (3.2.0) — the third setting pack</a> · <a href="#the-setting-plugin-contract-3-3-0-">The setting plugin contract (3.3.0)</a> · <a href="#localization-3-4-0-">Localization (3.4.0)</a> · <a href="#reference-cards-3-5-0-">Reference cards (3.5.0)</a> · <a href="#the-plugin-manifest-format-3-6-0-">The plugin manifest format (3.6.0)</a> · <a href="#conversion-tools-3-7-0-">Conversion tools (3.7.0)</a> · <a href="#recipes">Recipes</a></nav>
@@ -1471,9 +1471,11 @@ engine.Conditions.exhaustion.isDead(actor);                    // false (death a
 <p>// One Long Rest removes one level.
 actor = engine.Conditions.exhaustion.reduce(actor);            // level 2
 ```</p>
-<p>Combat math doesn't auto-apply the −2/level penalty yet;
-that's <code>0.7.0</code> (Condition effects). For now, the loop reads the
-modifier and adds it to relevant rolls.</p>
+<p>Combat math deliberately does not auto-apply the −2/level
+penalty (0.7.0's condition effects covered the 14 boolean
+conditions; exhaustion stayed an accessor): the loop reads
+<code>Conditions.exhaustion.modifierToD20Tests(actor)</code> and adds it to relevant
+rolls — numeric-penalty stacking is the host's call.</p>
 <h3>12. Homebrew species</h3>
 <p><strong>Use case:</strong> Add a custom playable species (Half-Elf,
 Aarakocra, anything not in SRD 5.2).</p>
@@ -1540,11 +1542,11 @@ list.</p>
 actor = engine.Conditions.apply(actor, 'cursed');
 engine.Conditions.has(actor, 'cursed');   // true
 ```</p>
-<p>The condition is just a string in the vocabulary; the *effects*
-are the host's responsibility. To bake mechanical effects in
-(e.g., disadvantage on saving throws while cursed), compose
-that yourself today; <code>0.7.0</code> adds engine-enforced condition
-effects.</p>
+<p>The condition is just a string in the vocabulary; for the 14 SRD
+conditions the engine enforces effects itself (since <code>0.7.0</code>,
+<code>CONDITION_EFFECTS</code> folds into attack stance). For a custom
+condition like this one, the *effects* stay the host's to compose —
+the effect map is SRD vocabulary, not an open registry.</p>
 <h3>15. Themed pack as a plugin bundle</h3>
 <p><strong>Use case:</strong> Ship a coherent thematic pack (species, classes,
 items, monsters) as a single object a host can opt into.</p>

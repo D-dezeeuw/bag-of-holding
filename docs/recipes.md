@@ -384,9 +384,11 @@ engine.Conditions.exhaustion.isDead(actor);                    // false (death a
 actor = engine.Conditions.exhaustion.reduce(actor);            // level 2
 ```
 
-Combat math doesn't auto-apply the −2/level penalty yet;
-that's `0.7.0` (Condition effects). For now, the loop reads the
-modifier and adds it to relevant rolls.
+Combat math deliberately does not auto-apply the −2/level
+penalty (0.7.0's condition effects covered the 14 boolean
+conditions; exhaustion stayed an accessor): the loop reads
+`Conditions.exhaustion.modifierToD20Tests(actor)` and adds it to relevant
+rolls — numeric-penalty stacking is the host's call.
 
 ## 12. Homebrew species
 
@@ -475,11 +477,11 @@ actor = engine.Conditions.apply(actor, 'cursed');
 engine.Conditions.has(actor, 'cursed');   // true
 ```
 
-The condition is just a string in the vocabulary; the *effects*
-are the host's responsibility. To bake mechanical effects in
-(e.g., disadvantage on saving throws while cursed), compose
-that yourself today; `0.7.0` adds engine-enforced condition
-effects.
+The condition is just a string in the vocabulary; for the 14 SRD
+conditions the engine enforces effects itself (since `0.7.0`,
+`CONDITION_EFFECTS` folds into attack stance). For a custom
+condition like this one, the *effects* stay the host's to compose —
+the effect map is SRD vocabulary, not an open registry.
 
 ## 15. Themed pack as a plugin bundle
 

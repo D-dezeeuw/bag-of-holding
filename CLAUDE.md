@@ -27,22 +27,24 @@ Keep the repo to a single mainline plus short-lived feature branches.
 ## Versioning
 
 - Kernel API changes → minor/major bump per the
-  [roadmap](docs/roadmap.md). **No 2.x slots remain reserved.**
-  `2.2.0`–`2.5.0` were spent on engine work (tier templates, two
-  correctness passes, spell lists), and `2.1.0` is spent too — it
-  was never an intentional release: the merge resolution in
-  `c4654c7` wrote `2.1.0` into `package.json` while reconciling a
-  1.16.0 branch with 2.0.9, and that build was published to npm on
-  2026-06-01. Named milestones — *The Quiet Stair*, Bestiary
-  I/II/III — are unnumbered and take the next free minor when they
-  ship.
+  [roadmap](docs/roadmap.md). The numbered roadmap is fully shipped
+  (every row through `5.3.0`; current line is `3.10.x`), so new
+  work simply takes the next free minor; content-only registry
+  additions are minors too (precedent: 2.6.0 and 3.10.0 gap
+  blocks). Historical note kept because it explains the npm state:
+  `2.1.0` was never an intentional release — the merge resolution
+  in `c4654c7` wrote `2.1.0` into `package.json` while reconciling
+  a 1.16.0 branch with 2.0.9, and that build was published to npm
+  on 2026-06-01. A published version is immutable.
 - **A published version is immutable.** Before `npm publish`, run
   `git fetch origin main` and confirm the working tree matches it;
   `npm view @zeeuw/bag-of-holding versions` shows what is already
   taken. Publishing from a stale checkout is what burned `2.1.0`.
-- Examples-only / docs-only / sandbox-only work → **patch bump**
-  (`2.0.x`). Bump `package.json` + regenerate `package-lock.json`
-  in the same commit as the feature.
+- Examples-only / docs-only / sandbox-only work → **patch bump**.
+  Bump `package.json` + regenerate `package-lock.json` in the same
+  commit as the feature, then regenerate the stamped pages
+  (`node scripts/build-docs.mjs && node scripts/build-content-index.mjs`)
+  AFTER the bump — their tests compare against `package.json`.
 
 ## Gates before merging
 

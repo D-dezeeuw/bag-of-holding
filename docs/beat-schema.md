@@ -6,8 +6,11 @@ ordered list of beats; the *app* (or its AI) realises each beat into a
 concrete scene at the moment the player reaches it, using whoever's still
 alive that matches the beat's archetype slots.
 
-This shape supports a **linear v1** and a **branching v2** from the same
-schema: only `successors[]` and a new `pickNext` function flip on later.
+This shape supported a **linear v1** and a **branching v2** from the same
+schema — and the v2 flip happened at 0.8.0: `successors[]`, conditional
+routing and nested threads are live (see `Beats.advance`). Sections
+below that describe branching as future ("linear today") predate that
+and are kept for the design rationale.
 
 ## Shape
 

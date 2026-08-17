@@ -36,11 +36,28 @@ a framework, or a virtual tabletop.
   turns a host-owned record into a frozen sheet (AC, HP, saves,
   skills, attacks, spellcasting). Host owns the record; engine
   derives.
-- **A complete starter adventure inside the package.** *The Quiet
-  Stair* (~90 min): 6 beats, 7 scenes, budget-validated encounters, an
-  invented 15-creature bestiary and 8-item batch mounted via the
-  plugin doors — `Adventures.validateAdventure` proves every reference
-  resolves. Playable in the sandbox (`examples/solo.html`).
+- **Five complete adventures inside the package.** *The Quiet Stair*
+  (~90 min starter), *The Singing Tower*, *Halberd's Edge*, *The
+  Greenmist Heist* and *Bramblefell* — beats, scenes,
+  budget-validated encounters, all mounted via the plugin doors;
+  `Adventures.validateAdventure` proves every reference resolves.
+  Playable in the sandbox (`examples/solo.html`).
+- **A content library on top of the math.** Bestiary I–III (90
+  invented blocks with legendary, lair and mythic machinery, on top
+  of the 79-block SRD registry), Grimoire I–II (80 spells), the
+  Treasury (40 items, sentience as data), the Origin pack (species /
+  backgrounds / feats) and three variant-rule namespaces
+  (`VariantCombat`, `VariantRest`, `VariantEncounter`).
+- **Three setting packs on a separate bundle track.** Sundermark,
+  Brassgear and The Hollow Vale ship as subpath exports
+  (`@zeeuw/bag-of-holding/settings/<pack>`) under the 3.3.0 plugin
+  contract, measured against their own budget so the kernel stays
+  lean.
+- **Tooling for an ecosystem.** Localization (`Strings`), reference
+  cards (`Cards`), the plugin manifest format (`Manifest`),
+  conversion tools (`Convert`), a content index, and a zero-dep
+  generated documentation site (`npm run pages:build` →
+  `public/docs.html`, 219 declarations).
 - **TypeScript types included.** Hand-maintained `index.d.ts` with a
   `tsc --noEmit` drift gate. No `@types/` install needed.
 - **SRD 5.2 (2025).** Weapon Mastery, numeric Exhaustion,
@@ -102,12 +119,17 @@ XP.levelForXP(2700);          // → 4
 XP.nextLevelThreshold(2700);  // → 6500
 ```
 
-The engine ships ~20 namespaces: `Dice`, `Checks`, `Combat`,
+The engine ships ~30 namespaces: `Dice`, `Checks`, `Combat`,
 `Conditions`, `XP`, `Spellcasting`, `Rest`, `Mechanics`, `SceneClock`,
 `MagicItems`, `Monsters`, `Movement`, `Multiclass`, `Inspiration`,
-`EncounterDesign`, `Movesets`, `Beats`, `Character`, plus the `SRD`
-content alias. See [docs/recipes.md](docs/recipes.md) for worked
-examples of how they combine.
+`EncounterDesign`, `Movesets`, `Beats`, `Character`, `Hazards`,
+`Equipment`, `Travel`, `MountedCombat`, `VariantCombat`,
+`VariantRest`, `VariantEncounter`, `Solo`, `Session`, `Replay`,
+`Adventures`, `Settings`, `Strings`, `Cards`, `Manifest`, `Convert`,
+plus the `SRD` content alias. See [docs/recipes.md](docs/recipes.md)
+for worked examples, and the generated reference
+(`npm run pages:build` → `public/docs.html`, 219 declarations) for
+the full surface.
 
 ## Custom rules (plugins)
 
@@ -183,6 +205,7 @@ npm test                  # node --test
 npm run test:coverage     # 100 / 100 / 100 line / branch / function
 npm run typecheck         # tsc --noEmit against the hand-maintained .d.ts
 npm run bundle-size       # measure min + gzip against the budget
+npm run pages:build       # regenerate the docs site (merge gate when examples/ change)
 ```
 
 The coverage and typecheck scripts are the quality gates; the library

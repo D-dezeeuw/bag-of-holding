@@ -164,7 +164,7 @@ interface DerivedSheet {
 
   // AC + breakdown so a UI can render "13 (chain shirt +1 DEX cap +2
   // shield)" without re-deriving. `misc` is for feat / spell bonuses
-  // not yet wired in v0.
+  // reserved for host-side feat/spell AC bonuses.
   ac: {
     value: number;
     breakdown: { armor: number; shield: number; dex: number; misc: number };
