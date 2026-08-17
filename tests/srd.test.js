@@ -75,3 +75,27 @@ test('the overlay-gap monsters resolve by the exact ids downstream pools use', (
   // SRD 5.2 renamed the sword; the id stays put for downstream pools.
   assert.equal(SRD.monsters['flying-sword'].name, 'Animated Flying Sword');
 });
+
+// === 3.10.0 registry additions — the second overlay-gap sweep ===
+
+test('the second gap sweep resolves the last five overlay ids', () => {
+  // Found by the mcp repo's cross-repo overlay-resolution check: these
+  // five SRD-listed ids were still referenced by client dungeon pools
+  // with no block in ANY registry (base, Bestiary I-III, Quiet Stair).
+  const added = ['swarm-of-rats', 'magma-mephit', 'ice-mephit',
+    'vampire-spawn', 'violet-fungus'];
+  for (const id of added) {
+    const m = SRD.monsters[id];
+    assert.ok(m, `${id} is in the registry`);
+    assert.equal(m.id, id);
+    assert.ok(m.cr >= 0 && m.hp > 0 && m.ac > 0, `${id} has sane numbers`);
+    assert.ok(m.senses, `${id} carries senses`);
+  }
+  // The swarm resists mundane weapons; the spawn saves with trained Dex.
+  assert.ok(SRD.monsters['swarm-of-rats'].damageResistances.includes('bludgeoning'));
+  assert.equal(SRD.monsters['vampire-spawn'].saves.dex, 6);
+  // The vault boss of 'vampire castle' pools: multiattack is authored.
+  assert.equal(SRD.monsters['vampire-spawn'].multiattack.attacks.length, 2);
+  // The ice mephit's innate list references a real registry spell.
+  assert.ok(SRD.spells['fog-cloud'], 'fog-cloud backs the innate list');
+});
